@@ -48,6 +48,6 @@ logs/
 # Temp
 tmp/
 temp/
-data/
+/data/
 *.zip
 *.jar
