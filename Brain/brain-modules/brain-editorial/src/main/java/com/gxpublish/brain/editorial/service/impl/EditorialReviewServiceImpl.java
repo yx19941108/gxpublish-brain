@@ -9,6 +9,7 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.gxpublish.brain.common.core.domain.dto.RoleDTO;
 import com.gxpublish.brain.common.core.domain.dto.StartProcessDTO;
+import com.gxpublish.brain.common.core.domain.model.LoginUser;
 import com.gxpublish.brain.common.core.domain.event.ProcessDeleteEvent;
 import com.gxpublish.brain.common.core.domain.event.ProcessEvent;
 import com.gxpublish.brain.common.core.domain.event.ProcessTaskEvent;
@@ -58,6 +59,8 @@ import java.util.stream.Collectors;
 @Slf4j
 public class EditorialReviewServiceImpl implements IEditorialReviewService {
 
+    public static final String HAS_CERTIFICATE_APPLICANT_ROLE_KEY = "editorial_review_applicant_has_certificate";
+    public static final String EDITORIAL_REVIEW_FLOW_CODE = "editorial_review_flow";
     private final EditorialReviewMapper baseMapper;
     private final EditorialAttachmentMapper attachmentMapper;
     private final EditorialLinkMapper linkMapper;
@@ -150,15 +153,47 @@ public class EditorialReviewServiceImpl implements IEditorialReviewService {
 
         EditorialReview review = baseMapper.selectById(bo.getId());
 
+        // 判断发起人是否有证
+        boolean isCertified = false;
+        LoginUser loginUser = LoginHelper.getLoginUser();
+        if (loginUser != null && CollUtil.isNotEmpty(loginUser.getRoles())) {
+            isCertified = loginUser.getRoles().stream()
+                    .anyMatch(role -> HAS_CERTIFICATE_APPLICANT_ROLE_KEY.equals(role.getRoleKey()));
+        }
+
         // 发起流程
         StartProcessDTO startProcess = new StartProcessDTO();
         startProcess.setBusinessId(review.getId().toString());
-        startProcess.setFlowCode(StringUtils.isEmpty(bo.getFlowCode()) ? "editorial_review" : bo.getFlowCode());
-        startProcess.setVariables(Map.of("ignore", true)); // 忽略权限校验
+        if (StringUtils.isBlank(bo.getFlowCode())) {
+            throw new ServiceException("流程定义编码不能为空");
+        }
+        startProcess.setFlowCode(bo.getFlowCode());
+        Map<String, Object> variables = new HashMap<>();
+        variables.put("ignore", true);
+        variables.put("isCertified", isCertified);
+        startProcess.setVariables(variables); // 忽略权限校验, 传入有证标记
 
         boolean flag = workflowService.startCompleteTask(startProcess);
         if (!flag) {
             throw new ServiceException("流程发起异常");
+        }
+
+        // 如果该发起人属于“有证”用户，系统自动跳过一级审批时，留下一条通过记录
+        if (isCertified) {
+            EditorialHistory history = new EditorialHistory();
+            history.setReviewId(review.getId());
+            if (loginUser != null) {
+                history.setOperatorId(loginUser.getUserId());
+                history.setOperatorName(loginUser.getUsername());
+            }
+            history.setOperateTime(new Date());
+            history.setOperateType("自动跳过");
+
+            Map<String, Object> diff = new HashMap<>();
+            diff.put("action", "发起人持证自动通过一级审批");
+            history.setFieldDiff(diff);
+
+            historyMapper.insert(history);
         }
 
         return queryById(review.getId());

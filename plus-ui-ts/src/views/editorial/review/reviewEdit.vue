@@ -10,19 +10,13 @@
         :id="form.id"
         :status="form.status"
         :pageType="routeParams.type"
-        :mode="false"
+        :mode="true"
       />
     </el-card>
 
     <el-card shadow="never" style="height: 78vh; overflow-y: auto" class="mt-2">
       <el-form ref="reviewFormRef" v-loading="loading" :disabled="isView" :model="form" :rules="rules" label-width="100px">
-        <!-- 流程定义选择 (仅新增时显示) -->
-        <el-form-item label="流程定义" v-if="routeParams.type === 'add'">
-          <!-- 这里暂时硬编码默认流程，实际可从后端获取或配置 -->
-          <el-select v-model="flowCode" placeholder="选择流程定义" style="width: 100%">
-            <el-option label="默认审校流程" value="editorial_review_flow" />
-          </el-select>
-        </el-form-item>
+
 
         <el-form-item label="流程类型" prop="processType">
           <el-radio-group v-model="form.processType" :disabled="!!form.id || isView">
@@ -220,16 +214,16 @@ const initData = async () => {
 // mode: true=后端直接发起流程(非草稿), false=保存/修改
 const submitForm = async (status: string, mode: boolean) => {
   if (!reviewFormRef.value) return;
-  await reviewFormRef.value.validate(async (valid) => {
-    if (valid) {
-      buttonLoading.value = true;
-      try {
-        // 如果是后端发起模式且不是草稿，直接走 submitAndFlowStart
-        // 但这里我们统一先保存业务数据，再发起流程 (参考 leaveEdit.vue 的 else 分支)
-        // 将附件的fileUrl和fileSize合入form提交到后端
-        (form as any).attachmentFileUrl = attachmentFileUrl.value || '';
-        (form as any).attachmentFileSize = attachmentFileSize.value || null;
 
+  const doSubmit = async () => {
+    buttonLoading.value = true;
+    try {
+      // 将附件的fileUrl和fileSize合入form提交到后端
+      (form as any).attachmentFileUrl = attachmentFileUrl.value || '';
+      (form as any).attachmentFileSize = attachmentFileSize.value || null;
+      (form as any).flowCode = flowCode.value;
+
+      if (status === 'draft') {
         let res;
         if (form.id) {
           res = await updateReview(form);
@@ -237,22 +231,41 @@ const submitForm = async (status: string, mode: boolean) => {
           res = await addReview(form);
         }
         form.id = res.data.id; // 回填ID
-
-        if (status === 'draft') {
-          // 仅保存草稿
-          ElMessage.success('暂存成功');
-          close();
-        } else {
-          // 发起流程
-          await handleStartWorkFlow(res.data);
+        
+        ElMessage.success('暂存成功');
+        close();
+      } else {
+        // 提交校验必填项
+        if (!form.attachmentOssId && (!form.linkList || form.linkList.length === 0)) {
+          ElMessage.warning('提交审批时，附件和关联链接至少需要填写一项');
+          buttonLoading.value = false;
+          return;
         }
-      } catch (e) {
-        console.error(e);
-      } finally {
-        buttonLoading.value = false;
+
+        // 发起流程 (利用后端直接发起的集成接口)
+        const res = await submitReview(form);
+        form.id = res.data.id;
+        ElMessage.success('提交并启动流程成功');
+        close();
       }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      buttonLoading.value = false;
     }
-  });
+  };
+
+  if (status === 'draft') {
+    // 保存草稿无需触发表单必填校验
+    await doSubmit();
+  } else {
+    // 提交流程需严格校验表单必填
+    await reviewFormRef.value.validate(async (valid) => {
+      if (valid) {
+        await doSubmit();
+      }
+    });
+  }
 };
 
 const handleStartWorkFlow = async (data: any) => {

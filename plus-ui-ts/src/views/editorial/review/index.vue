@@ -33,7 +33,7 @@
 
     <el-table v-loading="loading" :data="reviewList" @selection-change="handleSelectionChange">
       <el-table-column type="selection" width="55" align="center" />
-      <el-table-column label="ID" align="center" prop="id" hidden="hidden" />
+
       <el-table-column label="标题" align="center" prop="title" :show-overflow-tooltip="true" />
       <el-table-column label="流程类型" align="center" prop="processType">
         <template #default="scope">
