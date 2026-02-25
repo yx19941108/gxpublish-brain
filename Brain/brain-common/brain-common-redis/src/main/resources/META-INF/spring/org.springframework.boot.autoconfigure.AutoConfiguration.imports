@@ -1,0 +1,2 @@
+com.gxpublish.brain.common.redis.config.RedisConfig
+com.gxpublish.brain.common.redis.config.CacheConfig

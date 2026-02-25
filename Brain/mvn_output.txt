@@ -1,0 +1,918 @@
+﻿[INFO] Error stacktraces are turned on.
+[INFO] Scanning for projects...
+[INFO] ------------------------------------------------------------------------
+[INFO] Reactor Build Order:
+[INFO] 
+[INFO] brain                                                              [pom]
+[INFO] brain-common                                                       [pom]
+[INFO] brain-common-core                                                  [jar]
+[INFO] brain-common-doc                                                   [jar]
+[INFO] brain-common-json                                                  [jar]
+[INFO] brain-common-redis                                                 [jar]
+[INFO] brain-common-social                                                [jar]
+[INFO] brain-common-ratelimiter                                           [jar]
+[INFO] brain-common-mail                                                  [jar]
+[INFO] brain-common-satoken                                               [jar]
+[INFO] brain-common-mybatis                                               [jar]
+[INFO] brain-common-translation                                           [jar]
+[INFO] brain-common-oss                                                   [jar]
+[INFO] brain-common-log                                                   [jar]
+[INFO] brain-common-excel                                                 [jar]
+[INFO] brain-common-sms                                                   [jar]
+[INFO] brain-common-tenant                                                [jar]
+[INFO] brain-common-security                                              [jar]
+[INFO] brain-common-web                                                   [jar]
+[INFO] brain-common-idempotent                                            [jar]
+[INFO] brain-common-sensitive                                             [jar]
+[INFO] brain-common-encrypt                                               [jar]
+[INFO] brain-common-websocket                                             [jar]
+[INFO] brain-common-sse                                                   [jar]
+[INFO] brain-modules                                                      [pom]
+[INFO] brain-system                                                       [jar]
+[INFO] brain-common-job                                                   [jar]
+[INFO] brain-job                                                          [jar]
+[INFO] brain-generator                                                    [jar]
+[INFO] brain-demo                                                         [jar]
+[INFO] brain-workflow                                                     [jar]
+[INFO] brain-admin                                                        [jar]
+[INFO] brain-common-bom                                                   [pom]
+[INFO] brain-extend                                                       [pom]
+[INFO] brain-monitor-admin                                                [jar]
+[INFO] brain-snailjob-server                                              [jar]
+[INFO] 
+[INFO] ------------------------< com.gxpublish:brain >-------------------------
+[INFO] Building brain 5.5.3                                              [1/36]
+[INFO]   from pom.xml
+[INFO] --------------------------------[ pom ]---------------------------------
+[INFO] 
+[INFO] --- flatten:1.3.0:flatten (flatten) @ brain ---
+[INFO] Generating flattened POM of project com.gxpublish:brain:pom:5.5.3...
+[INFO] 
+[INFO] --- install:3.1.2:install (default-install) @ brain ---
+[INFO] Installing C:\kuguaHome\project\20260211095612\Brain\.flattened-pom.xml to C:\kuguaHome\tools\devTools\apache-maven-3.9.12\repository\com\gxpublish\brain\5.5.3\brain-5.5.3.pom
+[INFO] 
+[INFO] ---------------------< com.gxpublish:brain-common >---------------------
+[INFO] Building brain-common 5.5.3                                       [2/36]
+[INFO]   from brain-common\pom.xml
+[INFO] --------------------------------[ pom ]---------------------------------
+[INFO] 
+[INFO] --- flatten:1.3.0:flatten (flatten) @ brain-common ---
+[INFO] Generating flattened POM of project com.gxpublish:brain-common:pom:5.5.3...
+[INFO] 
+[INFO] --- install:3.1.2:install (default-install) @ brain-common ---
+[INFO] Installing C:\kuguaHome\project\20260211095612\Brain\brain-common\.flattened-pom.xml to C:\kuguaHome\tools\devTools\apache-maven-3.9.12\repository\com\gxpublish\brain-common\5.5.3\brain-common-5.5.3.pom
+[INFO] 
+[INFO] ------------------< com.gxpublish:brain-common-core >-------------------
+[INFO] Building brain-common-core 5.5.3                                  [3/36]
+[INFO]   from brain-common\brain-common-core\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ brain-common-core ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] Copying 0 resource from src\main\resources to target\classes
+[INFO] 
+[INFO] --- flatten:1.3.0:flatten (flatten) @ brain-common-core ---
+[INFO] Generating flattened POM of project com.gxpublish:brain-common-core:jar:5.5.3...
+[INFO] 
+[INFO] --- compiler:3.14.0:compile (default-compile) @ brain-common-core ---
+[WARNING]  Parameter 'compilerVersion' (user property 'maven.compiler.compilerVersion') is deprecated: This parameter is no longer evaluated by the underlying compilers, instead the actual version of the javac binary is automatically retrieved.
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ brain-common-core ---
+[INFO] skip non existing resourceDirectory C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-core\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.14.0:testCompile (default-testCompile) @ brain-common-core ---
+[WARNING]  Parameter 'compilerVersion' (user property 'maven.compiler.compilerVersion') is deprecated: This parameter is no longer evaluated by the underlying compilers, instead the actual version of the javac binary is automatically retrieved.
+[INFO] No sources to compile
+[INFO] 
+[INFO] --- surefire:3.5.3:test (default-test) @ brain-common-core ---
+[INFO] Tests are skipped.
+[INFO] 
+[INFO] --- jar:3.4.1:jar (default-jar) @ brain-common-core ---
+[INFO] 
+[INFO] --- install:3.1.2:install (default-install) @ brain-common-core ---
+[INFO] Installing C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-core\.flattened-pom.xml to C:\kuguaHome\tools\devTools\apache-maven-3.9.12\repository\com\gxpublish\brain-common-core\5.5.3\brain-common-core-5.5.3.pom
+[INFO] Installing C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-core\target\brain-common-core-5.5.3.jar to C:\kuguaHome\tools\devTools\apache-maven-3.9.12\repository\com\gxpublish\brain-common-core\5.5.3\brain-common-core-5.5.3.jar
+[INFO] 
+[INFO] -------------------< com.gxpublish:brain-common-doc >-------------------
+[INFO] Building brain-common-doc 5.5.3                                   [4/36]
+[INFO]   from brain-common\brain-common-doc\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ brain-common-doc ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] Copying 0 resource from src\main\resources to target\classes
+[INFO] 
+[INFO] --- flatten:1.3.0:flatten (flatten) @ brain-common-doc ---
+[INFO] Generating flattened POM of project com.gxpublish:brain-common-doc:jar:5.5.3...
+[INFO] 
+[INFO] --- compiler:3.14.0:compile (default-compile) @ brain-common-doc ---
+[WARNING]  Parameter 'compilerVersion' (user property 'maven.compiler.compilerVersion') is deprecated: This parameter is no longer evaluated by the underlying compilers, instead the actual version of the javac binary is automatically retrieved.
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ brain-common-doc ---
+[INFO] skip non existing resourceDirectory C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-doc\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.14.0:testCompile (default-testCompile) @ brain-common-doc ---
+[WARNING]  Parameter 'compilerVersion' (user property 'maven.compiler.compilerVersion') is deprecated: This parameter is no longer evaluated by the underlying compilers, instead the actual version of the javac binary is automatically retrieved.
+[INFO] No sources to compile
+[INFO] 
+[INFO] --- surefire:3.5.3:test (default-test) @ brain-common-doc ---
+[INFO] Tests are skipped.
+[INFO] 
+[INFO] --- jar:3.4.1:jar (default-jar) @ brain-common-doc ---
+[INFO] 
+[INFO] --- install:3.1.2:install (default-install) @ brain-common-doc ---
+[INFO] Installing C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-doc\.flattened-pom.xml to C:\kuguaHome\tools\devTools\apache-maven-3.9.12\repository\com\gxpublish\brain-common-doc\5.5.3\brain-common-doc-5.5.3.pom
+[INFO] Installing C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-doc\target\brain-common-doc-5.5.3.jar to C:\kuguaHome\tools\devTools\apache-maven-3.9.12\repository\com\gxpublish\brain-common-doc\5.5.3\brain-common-doc-5.5.3.jar
+[INFO] 
+[INFO] ------------------< com.gxpublish:brain-common-json >-------------------
+[INFO] Building brain-common-json 5.5.3                                  [5/36]
+[INFO]   from brain-common\brain-common-json\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ brain-common-json ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] Copying 0 resource from src\main\resources to target\classes
+[INFO] 
+[INFO] --- flatten:1.3.0:flatten (flatten) @ brain-common-json ---
+[INFO] Generating flattened POM of project com.gxpublish:brain-common-json:jar:5.5.3...
+[INFO] 
+[INFO] --- compiler:3.14.0:compile (default-compile) @ brain-common-json ---
+[WARNING]  Parameter 'compilerVersion' (user property 'maven.compiler.compilerVersion') is deprecated: This parameter is no longer evaluated by the underlying compilers, instead the actual version of the javac binary is automatically retrieved.
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ brain-common-json ---
+[INFO] skip non existing resourceDirectory C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-json\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.14.0:testCompile (default-testCompile) @ brain-common-json ---
+[WARNING]  Parameter 'compilerVersion' (user property 'maven.compiler.compilerVersion') is deprecated: This parameter is no longer evaluated by the underlying compilers, instead the actual version of the javac binary is automatically retrieved.
+[INFO] No sources to compile
+[INFO] 
+[INFO] --- surefire:3.5.3:test (default-test) @ brain-common-json ---
+[INFO] Tests are skipped.
+[INFO] 
+[INFO] --- jar:3.4.1:jar (default-jar) @ brain-common-json ---
+[INFO] 
+[INFO] --- install:3.1.2:install (default-install) @ brain-common-json ---
+[INFO] Installing C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-json\.flattened-pom.xml to C:\kuguaHome\tools\devTools\apache-maven-3.9.12\repository\com\gxpublish\brain-common-json\5.5.3\brain-common-json-5.5.3.pom
+[INFO] Installing C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-json\target\brain-common-json-5.5.3.jar to C:\kuguaHome\tools\devTools\apache-maven-3.9.12\repository\com\gxpublish\brain-common-json\5.5.3\brain-common-json-5.5.3.jar
+[INFO] 
+[INFO] ------------------< com.gxpublish:brain-common-redis >------------------
+[INFO] Building brain-common-redis 5.5.3                                 [6/36]
+[INFO]   from brain-common\brain-common-redis\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ brain-common-redis ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] Copying 0 resource from src\main\resources to target\classes
+[INFO] 
+[INFO] --- flatten:1.3.0:flatten (flatten) @ brain-common-redis ---
+[INFO] Generating flattened POM of project com.gxpublish:brain-common-redis:jar:5.5.3...
+[INFO] 
+[INFO] --- compiler:3.14.0:compile (default-compile) @ brain-common-redis ---
+[WARNING]  Parameter 'compilerVersion' (user property 'maven.compiler.compilerVersion') is deprecated: This parameter is no longer evaluated by the underlying compilers, instead the actual version of the javac binary is automatically retrieved.
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ brain-common-redis ---
+[INFO] skip non existing resourceDirectory C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-redis\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.14.0:testCompile (default-testCompile) @ brain-common-redis ---
+[WARNING]  Parameter 'compilerVersion' (user property 'maven.compiler.compilerVersion') is deprecated: This parameter is no longer evaluated by the underlying compilers, instead the actual version of the javac binary is automatically retrieved.
+[INFO] No sources to compile
+[INFO] 
+[INFO] --- surefire:3.5.3:test (default-test) @ brain-common-redis ---
+[INFO] Tests are skipped.
+[INFO] 
+[INFO] --- jar:3.4.1:jar (default-jar) @ brain-common-redis ---
+[INFO] 
+[INFO] --- install:3.1.2:install (default-install) @ brain-common-redis ---
+[INFO] Installing C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-redis\.flattened-pom.xml to C:\kuguaHome\tools\devTools\apache-maven-3.9.12\repository\com\gxpublish\brain-common-redis\5.5.3\brain-common-redis-5.5.3.pom
+[INFO] Installing C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-redis\target\brain-common-redis-5.5.3.jar to C:\kuguaHome\tools\devTools\apache-maven-3.9.12\repository\com\gxpublish\brain-common-redis\5.5.3\brain-common-redis-5.5.3.jar
+[INFO] 
+[INFO] -----------------< com.gxpublish:brain-common-social >------------------
+[INFO] Building brain-common-social 5.5.3                                [7/36]
+[INFO]   from brain-common\brain-common-social\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ brain-common-social ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] Copying 0 resource from src\main\resources to target\classes
+[INFO] 
+[INFO] --- flatten:1.3.0:flatten (flatten) @ brain-common-social ---
+[INFO] Generating flattened POM of project com.gxpublish:brain-common-social:jar:5.5.3...
+[INFO] 
+[INFO] --- compiler:3.14.0:compile (default-compile) @ brain-common-social ---
+[WARNING]  Parameter 'compilerVersion' (user property 'maven.compiler.compilerVersion') is deprecated: This parameter is no longer evaluated by the underlying compilers, instead the actual version of the javac binary is automatically retrieved.
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ brain-common-social ---
+[INFO] skip non existing resourceDirectory C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-social\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.14.0:testCompile (default-testCompile) @ brain-common-social ---
+[WARNING]  Parameter 'compilerVersion' (user property 'maven.compiler.compilerVersion') is deprecated: This parameter is no longer evaluated by the underlying compilers, instead the actual version of the javac binary is automatically retrieved.
+[INFO] No sources to compile
+[INFO] 
+[INFO] --- surefire:3.5.3:test (default-test) @ brain-common-social ---
+[INFO] Tests are skipped.
+[INFO] 
+[INFO] --- jar:3.4.1:jar (default-jar) @ brain-common-social ---
+[INFO] 
+[INFO] --- install:3.1.2:install (default-install) @ brain-common-social ---
+[INFO] Installing C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-social\.flattened-pom.xml to C:\kuguaHome\tools\devTools\apache-maven-3.9.12\repository\com\gxpublish\brain-common-social\5.5.3\brain-common-social-5.5.3.pom
+[INFO] Installing C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-social\target\brain-common-social-5.5.3.jar to C:\kuguaHome\tools\devTools\apache-maven-3.9.12\repository\com\gxpublish\brain-common-social\5.5.3\brain-common-social-5.5.3.jar
+[INFO] 
+[INFO] ---------------< com.gxpublish:brain-common-ratelimiter >---------------
+[INFO] Building brain-common-ratelimiter 5.5.3                           [8/36]
+[INFO]   from brain-common\brain-common-ratelimiter\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ brain-common-ratelimiter ---
+[INFO] Copying 2 resources from src\main\resources to target\classes
+[INFO] Copying 0 resource from src\main\resources to target\classes
+[INFO] 
+[INFO] --- flatten:1.3.0:flatten (flatten) @ brain-common-ratelimiter ---
+[INFO] Generating flattened POM of project com.gxpublish:brain-common-ratelimiter:jar:5.5.3...
+[INFO] 
+[INFO] --- compiler:3.14.0:compile (default-compile) @ brain-common-ratelimiter ---
+[WARNING]  Parameter 'compilerVersion' (user property 'maven.compiler.compilerVersion') is deprecated: This parameter is no longer evaluated by the underlying compilers, instead the actual version of the javac binary is automatically retrieved.
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ brain-common-ratelimiter ---
+[INFO] skip non existing resourceDirectory C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-ratelimiter\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.14.0:testCompile (default-testCompile) @ brain-common-ratelimiter ---
+[WARNING]  Parameter 'compilerVersion' (user property 'maven.compiler.compilerVersion') is deprecated: This parameter is no longer evaluated by the underlying compilers, instead the actual version of the javac binary is automatically retrieved.
+[INFO] No sources to compile
+[INFO] 
+[INFO] --- surefire:3.5.3:test (default-test) @ brain-common-ratelimiter ---
+[INFO] Tests are skipped.
+[INFO] 
+[INFO] --- jar:3.4.1:jar (default-jar) @ brain-common-ratelimiter ---
+[INFO] 
+[INFO] --- install:3.1.2:install (default-install) @ brain-common-ratelimiter ---
+[INFO] Installing C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-ratelimiter\.flattened-pom.xml to C:\kuguaHome\tools\devTools\apache-maven-3.9.12\repository\com\gxpublish\brain-common-ratelimiter\5.5.3\brain-common-ratelimiter-5.5.3.pom
+[INFO] Installing C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-ratelimiter\target\brain-common-ratelimiter-5.5.3.jar to C:\kuguaHome\tools\devTools\apache-maven-3.9.12\repository\com\gxpublish\brain-common-ratelimiter\5.5.3\brain-common-ratelimiter-5.5.3.jar
+[INFO] 
+[INFO] ------------------< com.gxpublish:brain-common-mail >-------------------
+[INFO] Building brain-common-mail 5.5.3                                  [9/36]
+[INFO]   from brain-common\brain-common-mail\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ brain-common-mail ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] Copying 0 resource from src\main\resources to target\classes
+[INFO] 
+[INFO] --- flatten:1.3.0:flatten (flatten) @ brain-common-mail ---
+[INFO] Generating flattened POM of project com.gxpublish:brain-common-mail:jar:5.5.3...
+[INFO] 
+[INFO] --- compiler:3.14.0:compile (default-compile) @ brain-common-mail ---
+[WARNING]  Parameter 'compilerVersion' (user property 'maven.compiler.compilerVersion') is deprecated: This parameter is no longer evaluated by the underlying compilers, instead the actual version of the javac binary is automatically retrieved.
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ brain-common-mail ---
+[INFO] skip non existing resourceDirectory C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-mail\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.14.0:testCompile (default-testCompile) @ brain-common-mail ---
+[WARNING]  Parameter 'compilerVersion' (user property 'maven.compiler.compilerVersion') is deprecated: This parameter is no longer evaluated by the underlying compilers, instead the actual version of the javac binary is automatically retrieved.
+[INFO] No sources to compile
+[INFO] 
+[INFO] --- surefire:3.5.3:test (default-test) @ brain-common-mail ---
+[INFO] Tests are skipped.
+[INFO] 
+[INFO] --- jar:3.4.1:jar (default-jar) @ brain-common-mail ---
+[INFO] 
+[INFO] --- install:3.1.2:install (default-install) @ brain-common-mail ---
+[INFO] Installing C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-mail\.flattened-pom.xml to C:\kuguaHome\tools\devTools\apache-maven-3.9.12\repository\com\gxpublish\brain-common-mail\5.5.3\brain-common-mail-5.5.3.pom
+[INFO] Installing C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-mail\target\brain-common-mail-5.5.3.jar to C:\kuguaHome\tools\devTools\apache-maven-3.9.12\repository\com\gxpublish\brain-common-mail\5.5.3\brain-common-mail-5.5.3.jar
+[INFO] 
+[INFO] -----------------< com.gxpublish:brain-common-satoken >-----------------
+[INFO] Building brain-common-satoken 5.5.3                              [10/36]
+[INFO]   from brain-common\brain-common-satoken\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ brain-common-satoken ---
+[INFO] Copying 2 resources from src\main\resources to target\classes
+[INFO] Copying 0 resource from src\main\resources to target\classes
+[INFO] 
+[INFO] --- flatten:1.3.0:flatten (flatten) @ brain-common-satoken ---
+[INFO] Generating flattened POM of project com.gxpublish:brain-common-satoken:jar:5.5.3...
+[INFO] 
+[INFO] --- compiler:3.14.0:compile (default-compile) @ brain-common-satoken ---
+[WARNING]  Parameter 'compilerVersion' (user property 'maven.compiler.compilerVersion') is deprecated: This parameter is no longer evaluated by the underlying compilers, instead the actual version of the javac binary is automatically retrieved.
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ brain-common-satoken ---
+[INFO] skip non existing resourceDirectory C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-satoken\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.14.0:testCompile (default-testCompile) @ brain-common-satoken ---
+[WARNING]  Parameter 'compilerVersion' (user property 'maven.compiler.compilerVersion') is deprecated: This parameter is no longer evaluated by the underlying compilers, instead the actual version of the javac binary is automatically retrieved.
+[INFO] No sources to compile
+[INFO] 
+[INFO] --- surefire:3.5.3:test (default-test) @ brain-common-satoken ---
+[INFO] Tests are skipped.
+[INFO] 
+[INFO] --- jar:3.4.1:jar (default-jar) @ brain-common-satoken ---
+[INFO] 
+[INFO] --- install:3.1.2:install (default-install) @ brain-common-satoken ---
+[INFO] Installing C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-satoken\.flattened-pom.xml to C:\kuguaHome\tools\devTools\apache-maven-3.9.12\repository\com\gxpublish\brain-common-satoken\5.5.3\brain-common-satoken-5.5.3.pom
+[INFO] Installing C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-satoken\target\brain-common-satoken-5.5.3.jar to C:\kuguaHome\tools\devTools\apache-maven-3.9.12\repository\com\gxpublish\brain-common-satoken\5.5.3\brain-common-satoken-5.5.3.jar
+[INFO] 
+[INFO] -----------------< com.gxpublish:brain-common-mybatis >-----------------
+[INFO] Building brain-common-mybatis 5.5.3                              [11/36]
+[INFO]   from brain-common\brain-common-mybatis\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ brain-common-mybatis ---
+[INFO] Copying 3 resources from src\main\resources to target\classes
+[INFO] Copying 0 resource from src\main\resources to target\classes
+[INFO] 
+[INFO] --- flatten:1.3.0:flatten (flatten) @ brain-common-mybatis ---
+[INFO] Generating flattened POM of project com.gxpublish:brain-common-mybatis:jar:5.5.3...
+[INFO] 
+[INFO] --- compiler:3.14.0:compile (default-compile) @ brain-common-mybatis ---
+[WARNING]  Parameter 'compilerVersion' (user property 'maven.compiler.compilerVersion') is deprecated: This parameter is no longer evaluated by the underlying compilers, instead the actual version of the javac binary is automatically retrieved.
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ brain-common-mybatis ---
+[INFO] skip non existing resourceDirectory C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-mybatis\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.14.0:testCompile (default-testCompile) @ brain-common-mybatis ---
+[WARNING]  Parameter 'compilerVersion' (user property 'maven.compiler.compilerVersion') is deprecated: This parameter is no longer evaluated by the underlying compilers, instead the actual version of the javac binary is automatically retrieved.
+[INFO] No sources to compile
+[INFO] 
+[INFO] --- surefire:3.5.3:test (default-test) @ brain-common-mybatis ---
+[INFO] Tests are skipped.
+[INFO] 
+[INFO] --- jar:3.4.1:jar (default-jar) @ brain-common-mybatis ---
+[INFO] 
+[INFO] --- install:3.1.2:install (default-install) @ brain-common-mybatis ---
+[INFO] Installing C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-mybatis\.flattened-pom.xml to C:\kuguaHome\tools\devTools\apache-maven-3.9.12\repository\com\gxpublish\brain-common-mybatis\5.5.3\brain-common-mybatis-5.5.3.pom
+[INFO] Installing C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-mybatis\target\brain-common-mybatis-5.5.3.jar to C:\kuguaHome\tools\devTools\apache-maven-3.9.12\repository\com\gxpublish\brain-common-mybatis\5.5.3\brain-common-mybatis-5.5.3.jar
+[INFO] 
+[INFO] ---------------< com.gxpublish:brain-common-translation >---------------
+[INFO] Building brain-common-translation 5.5.3                          [12/36]
+[INFO]   from brain-common\brain-common-translation\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ brain-common-translation ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] Copying 0 resource from src\main\resources to target\classes
+[INFO] 
+[INFO] --- flatten:1.3.0:flatten (flatten) @ brain-common-translation ---
+[INFO] Generating flattened POM of project com.gxpublish:brain-common-translation:jar:5.5.3...
+[INFO] 
+[INFO] --- compiler:3.14.0:compile (default-compile) @ brain-common-translation ---
+[WARNING]  Parameter 'compilerVersion' (user property 'maven.compiler.compilerVersion') is deprecated: This parameter is no longer evaluated by the underlying compilers, instead the actual version of the javac binary is automatically retrieved.
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ brain-common-translation ---
+[INFO] skip non existing resourceDirectory C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-translation\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.14.0:testCompile (default-testCompile) @ brain-common-translation ---
+[WARNING]  Parameter 'compilerVersion' (user property 'maven.compiler.compilerVersion') is deprecated: This parameter is no longer evaluated by the underlying compilers, instead the actual version of the javac binary is automatically retrieved.
+[INFO] No sources to compile
+[INFO] 
+[INFO] --- surefire:3.5.3:test (default-test) @ brain-common-translation ---
+[INFO] Tests are skipped.
+[INFO] 
+[INFO] --- jar:3.4.1:jar (default-jar) @ brain-common-translation ---
+[INFO] 
+[INFO] --- install:3.1.2:install (default-install) @ brain-common-translation ---
+[INFO] Installing C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-translation\.flattened-pom.xml to C:\kuguaHome\tools\devTools\apache-maven-3.9.12\repository\com\gxpublish\brain-common-translation\5.5.3\brain-common-translation-5.5.3.pom
+[INFO] Installing C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-translation\target\brain-common-translation-5.5.3.jar to C:\kuguaHome\tools\devTools\apache-maven-3.9.12\repository\com\gxpublish\brain-common-translation\5.5.3\brain-common-translation-5.5.3.jar
+[INFO] 
+[INFO] -------------------< com.gxpublish:brain-common-oss >-------------------
+[INFO] Building brain-common-oss 5.5.3                                  [13/36]
+[INFO]   from brain-common\brain-common-oss\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ brain-common-oss ---
+[INFO] skip non existing resourceDirectory C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-oss\src\main\resources
+[INFO] skip non existing resourceDirectory C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-oss\src\main\resources
+[INFO] 
+[INFO] --- flatten:1.3.0:flatten (flatten) @ brain-common-oss ---
+[INFO] Generating flattened POM of project com.gxpublish:brain-common-oss:jar:5.5.3...
+[INFO] 
+[INFO] --- compiler:3.14.0:compile (default-compile) @ brain-common-oss ---
+[WARNING]  Parameter 'compilerVersion' (user property 'maven.compiler.compilerVersion') is deprecated: This parameter is no longer evaluated by the underlying compilers, instead the actual version of the javac binary is automatically retrieved.
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ brain-common-oss ---
+[INFO] skip non existing resourceDirectory C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-oss\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.14.0:testCompile (default-testCompile) @ brain-common-oss ---
+[WARNING]  Parameter 'compilerVersion' (user property 'maven.compiler.compilerVersion') is deprecated: This parameter is no longer evaluated by the underlying compilers, instead the actual version of the javac binary is automatically retrieved.
+[INFO] No sources to compile
+[INFO] 
+[INFO] --- surefire:3.5.3:test (default-test) @ brain-common-oss ---
+[INFO] Tests are skipped.
+[INFO] 
+[INFO] --- jar:3.4.1:jar (default-jar) @ brain-common-oss ---
+[INFO] 
+[INFO] --- install:3.1.2:install (default-install) @ brain-common-oss ---
+[INFO] Installing C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-oss\.flattened-pom.xml to C:\kuguaHome\tools\devTools\apache-maven-3.9.12\repository\com\gxpublish\brain-common-oss\5.5.3\brain-common-oss-5.5.3.pom
+[INFO] Installing C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-oss\target\brain-common-oss-5.5.3.jar to C:\kuguaHome\tools\devTools\apache-maven-3.9.12\repository\com\gxpublish\brain-common-oss\5.5.3\brain-common-oss-5.5.3.jar
+[INFO] 
+[INFO] -------------------< com.gxpublish:brain-common-log >-------------------
+[INFO] Building brain-common-log 5.5.3                                  [14/36]
+[INFO]   from brain-common\brain-common-log\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ brain-common-log ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] Copying 0 resource from src\main\resources to target\classes
+[INFO] 
+[INFO] --- flatten:1.3.0:flatten (flatten) @ brain-common-log ---
+[INFO] Generating flattened POM of project com.gxpublish:brain-common-log:jar:5.5.3...
+[INFO] 
+[INFO] --- compiler:3.14.0:compile (default-compile) @ brain-common-log ---
+[WARNING]  Parameter 'compilerVersion' (user property 'maven.compiler.compilerVersion') is deprecated: This parameter is no longer evaluated by the underlying compilers, instead the actual version of the javac binary is automatically retrieved.
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ brain-common-log ---
+[INFO] skip non existing resourceDirectory C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-log\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.14.0:testCompile (default-testCompile) @ brain-common-log ---
+[WARNING]  Parameter 'compilerVersion' (user property 'maven.compiler.compilerVersion') is deprecated: This parameter is no longer evaluated by the underlying compilers, instead the actual version of the javac binary is automatically retrieved.
+[INFO] No sources to compile
+[INFO] 
+[INFO] --- surefire:3.5.3:test (default-test) @ brain-common-log ---
+[INFO] Tests are skipped.
+[INFO] 
+[INFO] --- jar:3.4.1:jar (default-jar) @ brain-common-log ---
+[INFO] 
+[INFO] --- install:3.1.2:install (default-install) @ brain-common-log ---
+[INFO] Installing C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-log\.flattened-pom.xml to C:\kuguaHome\tools\devTools\apache-maven-3.9.12\repository\com\gxpublish\brain-common-log\5.5.3\brain-common-log-5.5.3.pom
+[INFO] Installing C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-log\target\brain-common-log-5.5.3.jar to C:\kuguaHome\tools\devTools\apache-maven-3.9.12\repository\com\gxpublish\brain-common-log\5.5.3\brain-common-log-5.5.3.jar
+[INFO] 
+[INFO] ------------------< com.gxpublish:brain-common-excel >------------------
+[INFO] Building brain-common-excel 5.5.3                                [15/36]
+[INFO]   from brain-common\brain-common-excel\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ brain-common-excel ---
+[INFO] skip non existing resourceDirectory C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-excel\src\main\resources
+[INFO] skip non existing resourceDirectory C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-excel\src\main\resources
+[INFO] 
+[INFO] --- flatten:1.3.0:flatten (flatten) @ brain-common-excel ---
+[INFO] Generating flattened POM of project com.gxpublish:brain-common-excel:jar:5.5.3...
+[INFO] 
+[INFO] --- compiler:3.14.0:compile (default-compile) @ brain-common-excel ---
+[WARNING]  Parameter 'compilerVersion' (user property 'maven.compiler.compilerVersion') is deprecated: This parameter is no longer evaluated by the underlying compilers, instead the actual version of the javac binary is automatically retrieved.
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ brain-common-excel ---
+[INFO] skip non existing resourceDirectory C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-excel\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.14.0:testCompile (default-testCompile) @ brain-common-excel ---
+[WARNING]  Parameter 'compilerVersion' (user property 'maven.compiler.compilerVersion') is deprecated: This parameter is no longer evaluated by the underlying compilers, instead the actual version of the javac binary is automatically retrieved.
+[INFO] No sources to compile
+[INFO] 
+[INFO] --- surefire:3.5.3:test (default-test) @ brain-common-excel ---
+[INFO] Tests are skipped.
+[INFO] 
+[INFO] --- jar:3.4.1:jar (default-jar) @ brain-common-excel ---
+[INFO] 
+[INFO] --- install:3.1.2:install (default-install) @ brain-common-excel ---
+[INFO] Installing C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-excel\.flattened-pom.xml to C:\kuguaHome\tools\devTools\apache-maven-3.9.12\repository\com\gxpublish\brain-common-excel\5.5.3\brain-common-excel-5.5.3.pom
+[INFO] Installing C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-excel\target\brain-common-excel-5.5.3.jar to C:\kuguaHome\tools\devTools\apache-maven-3.9.12\repository\com\gxpublish\brain-common-excel\5.5.3\brain-common-excel-5.5.3.jar
+[INFO] 
+[INFO] -------------------< com.gxpublish:brain-common-sms >-------------------
+[INFO] Building brain-common-sms 5.5.3                                  [16/36]
+[INFO]   from brain-common\brain-common-sms\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ brain-common-sms ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] Copying 0 resource from src\main\resources to target\classes
+[INFO] 
+[INFO] --- flatten:1.3.0:flatten (flatten) @ brain-common-sms ---
+[INFO] Generating flattened POM of project com.gxpublish:brain-common-sms:jar:5.5.3...
+[INFO] 
+[INFO] --- compiler:3.14.0:compile (default-compile) @ brain-common-sms ---
+[WARNING]  Parameter 'compilerVersion' (user property 'maven.compiler.compilerVersion') is deprecated: This parameter is no longer evaluated by the underlying compilers, instead the actual version of the javac binary is automatically retrieved.
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ brain-common-sms ---
+[INFO] skip non existing resourceDirectory C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-sms\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.14.0:testCompile (default-testCompile) @ brain-common-sms ---
+[WARNING]  Parameter 'compilerVersion' (user property 'maven.compiler.compilerVersion') is deprecated: This parameter is no longer evaluated by the underlying compilers, instead the actual version of the javac binary is automatically retrieved.
+[INFO] No sources to compile
+[INFO] 
+[INFO] --- surefire:3.5.3:test (default-test) @ brain-common-sms ---
+[INFO] Tests are skipped.
+[INFO] 
+[INFO] --- jar:3.4.1:jar (default-jar) @ brain-common-sms ---
+[INFO] 
+[INFO] --- install:3.1.2:install (default-install) @ brain-common-sms ---
+[INFO] Installing C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-sms\.flattened-pom.xml to C:\kuguaHome\tools\devTools\apache-maven-3.9.12\repository\com\gxpublish\brain-common-sms\5.5.3\brain-common-sms-5.5.3.pom
+[INFO] Installing C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-sms\target\brain-common-sms-5.5.3.jar to C:\kuguaHome\tools\devTools\apache-maven-3.9.12\repository\com\gxpublish\brain-common-sms\5.5.3\brain-common-sms-5.5.3.jar
+[INFO] 
+[INFO] -----------------< com.gxpublish:brain-common-tenant >------------------
+[INFO] Building brain-common-tenant 5.5.3                               [17/36]
+[INFO]   from brain-common\brain-common-tenant\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ brain-common-tenant ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] Copying 0 resource from src\main\resources to target\classes
+[INFO] 
+[INFO] --- flatten:1.3.0:flatten (flatten) @ brain-common-tenant ---
+[INFO] Generating flattened POM of project com.gxpublish:brain-common-tenant:jar:5.5.3...
+[INFO] 
+[INFO] --- compiler:3.14.0:compile (default-compile) @ brain-common-tenant ---
+[WARNING]  Parameter 'compilerVersion' (user property 'maven.compiler.compilerVersion') is deprecated: This parameter is no longer evaluated by the underlying compilers, instead the actual version of the javac binary is automatically retrieved.
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ brain-common-tenant ---
+[INFO] skip non existing resourceDirectory C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-tenant\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.14.0:testCompile (default-testCompile) @ brain-common-tenant ---
+[WARNING]  Parameter 'compilerVersion' (user property 'maven.compiler.compilerVersion') is deprecated: This parameter is no longer evaluated by the underlying compilers, instead the actual version of the javac binary is automatically retrieved.
+[INFO] No sources to compile
+[INFO] 
+[INFO] --- surefire:3.5.3:test (default-test) @ brain-common-tenant ---
+[INFO] Tests are skipped.
+[INFO] 
+[INFO] --- jar:3.4.1:jar (default-jar) @ brain-common-tenant ---
+[INFO] 
+[INFO] --- install:3.1.2:install (default-install) @ brain-common-tenant ---
+[INFO] Installing C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-tenant\.flattened-pom.xml to C:\kuguaHome\tools\devTools\apache-maven-3.9.12\repository\com\gxpublish\brain-common-tenant\5.5.3\brain-common-tenant-5.5.3.pom
+[INFO] Installing C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-tenant\target\brain-common-tenant-5.5.3.jar to C:\kuguaHome\tools\devTools\apache-maven-3.9.12\repository\com\gxpublish\brain-common-tenant\5.5.3\brain-common-tenant-5.5.3.jar
+[INFO] 
+[INFO] ----------------< com.gxpublish:brain-common-security >-----------------
+[INFO] Building brain-common-security 5.5.3                             [18/36]
+[INFO]   from brain-common\brain-common-security\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ brain-common-security ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] Copying 0 resource from src\main\resources to target\classes
+[INFO] 
+[INFO] --- flatten:1.3.0:flatten (flatten) @ brain-common-security ---
+[INFO] Generating flattened POM of project com.gxpublish:brain-common-security:jar:5.5.3...
+[INFO] 
+[INFO] --- compiler:3.14.0:compile (default-compile) @ brain-common-security ---
+[WARNING]  Parameter 'compilerVersion' (user property 'maven.compiler.compilerVersion') is deprecated: This parameter is no longer evaluated by the underlying compilers, instead the actual version of the javac binary is automatically retrieved.
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ brain-common-security ---
+[INFO] skip non existing resourceDirectory C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-security\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.14.0:testCompile (default-testCompile) @ brain-common-security ---
+[WARNING]  Parameter 'compilerVersion' (user property 'maven.compiler.compilerVersion') is deprecated: This parameter is no longer evaluated by the underlying compilers, instead the actual version of the javac binary is automatically retrieved.
+[INFO] No sources to compile
+[INFO] 
+[INFO] --- surefire:3.5.3:test (default-test) @ brain-common-security ---
+[INFO] Tests are skipped.
+[INFO] 
+[INFO] --- jar:3.4.1:jar (default-jar) @ brain-common-security ---
+[INFO] 
+[INFO] --- install:3.1.2:install (default-install) @ brain-common-security ---
+[INFO] Installing C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-security\.flattened-pom.xml to C:\kuguaHome\tools\devTools\apache-maven-3.9.12\repository\com\gxpublish\brain-common-security\5.5.3\brain-common-security-5.5.3.pom
+[INFO] Installing C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-security\target\brain-common-security-5.5.3.jar to C:\kuguaHome\tools\devTools\apache-maven-3.9.12\repository\com\gxpublish\brain-common-security\5.5.3\brain-common-security-5.5.3.jar
+[INFO] 
+[INFO] -------------------< com.gxpublish:brain-common-web >-------------------
+[INFO] Building brain-common-web 5.5.3                                  [19/36]
+[INFO]   from brain-common\brain-common-web\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ brain-common-web ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] Copying 0 resource from src\main\resources to target\classes
+[INFO] 
+[INFO] --- flatten:1.3.0:flatten (flatten) @ brain-common-web ---
+[INFO] Generating flattened POM of project com.gxpublish:brain-common-web:jar:5.5.3...
+[INFO] 
+[INFO] --- compiler:3.14.0:compile (default-compile) @ brain-common-web ---
+[WARNING]  Parameter 'compilerVersion' (user property 'maven.compiler.compilerVersion') is deprecated: This parameter is no longer evaluated by the underlying compilers, instead the actual version of the javac binary is automatically retrieved.
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ brain-common-web ---
+[INFO] skip non existing resourceDirectory C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-web\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.14.0:testCompile (default-testCompile) @ brain-common-web ---
+[WARNING]  Parameter 'compilerVersion' (user property 'maven.compiler.compilerVersion') is deprecated: This parameter is no longer evaluated by the underlying compilers, instead the actual version of the javac binary is automatically retrieved.
+[INFO] No sources to compile
+[INFO] 
+[INFO] --- surefire:3.5.3:test (default-test) @ brain-common-web ---
+[INFO] Tests are skipped.
+[INFO] 
+[INFO] --- jar:3.4.1:jar (default-jar) @ brain-common-web ---
+[INFO] 
+[INFO] --- install:3.1.2:install (default-install) @ brain-common-web ---
+[INFO] Installing C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-web\.flattened-pom.xml to C:\kuguaHome\tools\devTools\apache-maven-3.9.12\repository\com\gxpublish\brain-common-web\5.5.3\brain-common-web-5.5.3.pom
+[INFO] Installing C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-web\target\brain-common-web-5.5.3.jar to C:\kuguaHome\tools\devTools\apache-maven-3.9.12\repository\com\gxpublish\brain-common-web\5.5.3\brain-common-web-5.5.3.jar
+[INFO] 
+[INFO] ---------------< com.gxpublish:brain-common-idempotent >----------------
+[INFO] Building brain-common-idempotent 5.5.3                           [20/36]
+[INFO]   from brain-common\brain-common-idempotent\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ brain-common-idempotent ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] Copying 0 resource from src\main\resources to target\classes
+[INFO] 
+[INFO] --- flatten:1.3.0:flatten (flatten) @ brain-common-idempotent ---
+[INFO] Generating flattened POM of project com.gxpublish:brain-common-idempotent:jar:5.5.3...
+[INFO] 
+[INFO] --- compiler:3.14.0:compile (default-compile) @ brain-common-idempotent ---
+[WARNING]  Parameter 'compilerVersion' (user property 'maven.compiler.compilerVersion') is deprecated: This parameter is no longer evaluated by the underlying compilers, instead the actual version of the javac binary is automatically retrieved.
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ brain-common-idempotent ---
+[INFO] skip non existing resourceDirectory C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-idempotent\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.14.0:testCompile (default-testCompile) @ brain-common-idempotent ---
+[WARNING]  Parameter 'compilerVersion' (user property 'maven.compiler.compilerVersion') is deprecated: This parameter is no longer evaluated by the underlying compilers, instead the actual version of the javac binary is automatically retrieved.
+[INFO] No sources to compile
+[INFO] 
+[INFO] --- surefire:3.5.3:test (default-test) @ brain-common-idempotent ---
+[INFO] Tests are skipped.
+[INFO] 
+[INFO] --- jar:3.4.1:jar (default-jar) @ brain-common-idempotent ---
+[INFO] 
+[INFO] --- install:3.1.2:install (default-install) @ brain-common-idempotent ---
+[INFO] Installing C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-idempotent\.flattened-pom.xml to C:\kuguaHome\tools\devTools\apache-maven-3.9.12\repository\com\gxpublish\brain-common-idempotent\5.5.3\brain-common-idempotent-5.5.3.pom
+[INFO] Installing C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-idempotent\target\brain-common-idempotent-5.5.3.jar to C:\kuguaHome\tools\devTools\apache-maven-3.9.12\repository\com\gxpublish\brain-common-idempotent\5.5.3\brain-common-idempotent-5.5.3.jar
+[INFO] 
+[INFO] ----------------< com.gxpublish:brain-common-sensitive >----------------
+[INFO] Building brain-common-sensitive 5.5.3                            [21/36]
+[INFO]   from brain-common\brain-common-sensitive\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ brain-common-sensitive ---
+[INFO] skip non existing resourceDirectory C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-sensitive\src\main\resources
+[INFO] skip non existing resourceDirectory C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-sensitive\src\main\resources
+[INFO] 
+[INFO] --- flatten:1.3.0:flatten (flatten) @ brain-common-sensitive ---
+[INFO] Generating flattened POM of project com.gxpublish:brain-common-sensitive:jar:5.5.3...
+[INFO] 
+[INFO] --- compiler:3.14.0:compile (default-compile) @ brain-common-sensitive ---
+[WARNING]  Parameter 'compilerVersion' (user property 'maven.compiler.compilerVersion') is deprecated: This parameter is no longer evaluated by the underlying compilers, instead the actual version of the javac binary is automatically retrieved.
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ brain-common-sensitive ---
+[INFO] skip non existing resourceDirectory C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-sensitive\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.14.0:testCompile (default-testCompile) @ brain-common-sensitive ---
+[WARNING]  Parameter 'compilerVersion' (user property 'maven.compiler.compilerVersion') is deprecated: This parameter is no longer evaluated by the underlying compilers, instead the actual version of the javac binary is automatically retrieved.
+[INFO] No sources to compile
+[INFO] 
+[INFO] --- surefire:3.5.3:test (default-test) @ brain-common-sensitive ---
+[INFO] Tests are skipped.
+[INFO] 
+[INFO] --- jar:3.4.1:jar (default-jar) @ brain-common-sensitive ---
+[INFO] 
+[INFO] --- install:3.1.2:install (default-install) @ brain-common-sensitive ---
+[INFO] Installing C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-sensitive\.flattened-pom.xml to C:\kuguaHome\tools\devTools\apache-maven-3.9.12\repository\com\gxpublish\brain-common-sensitive\5.5.3\brain-common-sensitive-5.5.3.pom
+[INFO] Installing C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-sensitive\target\brain-common-sensitive-5.5.3.jar to C:\kuguaHome\tools\devTools\apache-maven-3.9.12\repository\com\gxpublish\brain-common-sensitive\5.5.3\brain-common-sensitive-5.5.3.jar
+[INFO] 
+[INFO] -----------------< com.gxpublish:brain-common-encrypt >-----------------
+[INFO] Building brain-common-encrypt 5.5.3                              [22/36]
+[INFO]   from brain-common\brain-common-encrypt\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ brain-common-encrypt ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] Copying 0 resource from src\main\resources to target\classes
+[INFO] 
+[INFO] --- flatten:1.3.0:flatten (flatten) @ brain-common-encrypt ---
+[INFO] Generating flattened POM of project com.gxpublish:brain-common-encrypt:jar:5.5.3...
+[INFO] 
+[INFO] --- compiler:3.14.0:compile (default-compile) @ brain-common-encrypt ---
+[WARNING]  Parameter 'compilerVersion' (user property 'maven.compiler.compilerVersion') is deprecated: This parameter is no longer evaluated by the underlying compilers, instead the actual version of the javac binary is automatically retrieved.
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ brain-common-encrypt ---
+[INFO] skip non existing resourceDirectory C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-encrypt\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.14.0:testCompile (default-testCompile) @ brain-common-encrypt ---
+[WARNING]  Parameter 'compilerVersion' (user property 'maven.compiler.compilerVersion') is deprecated: This parameter is no longer evaluated by the underlying compilers, instead the actual version of the javac binary is automatically retrieved.
+[INFO] No sources to compile
+[INFO] 
+[INFO] --- surefire:3.5.3:test (default-test) @ brain-common-encrypt ---
+[INFO] Tests are skipped.
+[INFO] 
+[INFO] --- jar:3.4.1:jar (default-jar) @ brain-common-encrypt ---
+[INFO] 
+[INFO] --- install:3.1.2:install (default-install) @ brain-common-encrypt ---
+[INFO] Installing C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-encrypt\.flattened-pom.xml to C:\kuguaHome\tools\devTools\apache-maven-3.9.12\repository\com\gxpublish\brain-common-encrypt\5.5.3\brain-common-encrypt-5.5.3.pom
+[INFO] Installing C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-encrypt\target\brain-common-encrypt-5.5.3.jar to C:\kuguaHome\tools\devTools\apache-maven-3.9.12\repository\com\gxpublish\brain-common-encrypt\5.5.3\brain-common-encrypt-5.5.3.jar
+[INFO] 
+[INFO] ----------------< com.gxpublish:brain-common-websocket >----------------
+[INFO] Building brain-common-websocket 5.5.3                            [23/36]
+[INFO]   from brain-common\brain-common-websocket\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ brain-common-websocket ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] Copying 0 resource from src\main\resources to target\classes
+[INFO] 
+[INFO] --- flatten:1.3.0:flatten (flatten) @ brain-common-websocket ---
+[INFO] Generating flattened POM of project com.gxpublish:brain-common-websocket:jar:5.5.3...
+[INFO] 
+[INFO] --- compiler:3.14.0:compile (default-compile) @ brain-common-websocket ---
+[WARNING]  Parameter 'compilerVersion' (user property 'maven.compiler.compilerVersion') is deprecated: This parameter is no longer evaluated by the underlying compilers, instead the actual version of the javac binary is automatically retrieved.
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ brain-common-websocket ---
+[INFO] skip non existing resourceDirectory C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-websocket\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.14.0:testCompile (default-testCompile) @ brain-common-websocket ---
+[WARNING]  Parameter 'compilerVersion' (user property 'maven.compiler.compilerVersion') is deprecated: This parameter is no longer evaluated by the underlying compilers, instead the actual version of the javac binary is automatically retrieved.
+[INFO] No sources to compile
+[INFO] 
+[INFO] --- surefire:3.5.3:test (default-test) @ brain-common-websocket ---
+[INFO] Tests are skipped.
+[INFO] 
+[INFO] --- jar:3.4.1:jar (default-jar) @ brain-common-websocket ---
+[INFO] 
+[INFO] --- install:3.1.2:install (default-install) @ brain-common-websocket ---
+[INFO] Installing C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-websocket\.flattened-pom.xml to C:\kuguaHome\tools\devTools\apache-maven-3.9.12\repository\com\gxpublish\brain-common-websocket\5.5.3\brain-common-websocket-5.5.3.pom
+[INFO] Installing C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-websocket\target\brain-common-websocket-5.5.3.jar to C:\kuguaHome\tools\devTools\apache-maven-3.9.12\repository\com\gxpublish\brain-common-websocket\5.5.3\brain-common-websocket-5.5.3.jar
+[INFO] 
+[INFO] -------------------< com.gxpublish:brain-common-sse >-------------------
+[INFO] Building brain-common-sse 5.5.3                                  [24/36]
+[INFO]   from brain-common\brain-common-sse\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ brain-common-sse ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] Copying 0 resource from src\main\resources to target\classes
+[INFO] 
+[INFO] --- flatten:1.3.0:flatten (flatten) @ brain-common-sse ---
+[INFO] Generating flattened POM of project com.gxpublish:brain-common-sse:jar:5.5.3...
+[INFO] 
+[INFO] --- compiler:3.14.0:compile (default-compile) @ brain-common-sse ---
+[WARNING]  Parameter 'compilerVersion' (user property 'maven.compiler.compilerVersion') is deprecated: This parameter is no longer evaluated by the underlying compilers, instead the actual version of the javac binary is automatically retrieved.
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ brain-common-sse ---
+[INFO] skip non existing resourceDirectory C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-sse\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.14.0:testCompile (default-testCompile) @ brain-common-sse ---
+[WARNING]  Parameter 'compilerVersion' (user property 'maven.compiler.compilerVersion') is deprecated: This parameter is no longer evaluated by the underlying compilers, instead the actual version of the javac binary is automatically retrieved.
+[INFO] No sources to compile
+[INFO] 
+[INFO] --- surefire:3.5.3:test (default-test) @ brain-common-sse ---
+[INFO] Tests are skipped.
+[INFO] 
+[INFO] --- jar:3.4.1:jar (default-jar) @ brain-common-sse ---
+[INFO] 
+[INFO] --- install:3.1.2:install (default-install) @ brain-common-sse ---
+[INFO] Installing C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-sse\.flattened-pom.xml to C:\kuguaHome\tools\devTools\apache-maven-3.9.12\repository\com\gxpublish\brain-common-sse\5.5.3\brain-common-sse-5.5.3.pom
+[INFO] Installing C:\kuguaHome\project\20260211095612\Brain\brain-common\brain-common-sse\target\brain-common-sse-5.5.3.jar to C:\kuguaHome\tools\devTools\apache-maven-3.9.12\repository\com\gxpublish\brain-common-sse\5.5.3\brain-common-sse-5.5.3.jar
+[INFO] 
+[INFO] --------------------< com.gxpublish:brain-modules >---------------------
+[INFO] Building brain-modules 5.5.3                                     [25/36]
+[INFO]   from brain-modules\pom.xml
+[INFO] --------------------------------[ pom ]---------------------------------
+[INFO] 
+[INFO] --- flatten:1.3.0:flatten (flatten) @ brain-modules ---
+[INFO] Generating flattened POM of project com.gxpublish:brain-modules:pom:5.5.3...
+[INFO] 
+[INFO] --- install:3.1.2:install (default-install) @ brain-modules ---
+[INFO] Installing C:\kuguaHome\project\20260211095612\Brain\brain-modules\.flattened-pom.xml to C:\kuguaHome\tools\devTools\apache-maven-3.9.12\repository\com\gxpublish\brain-modules\5.5.3\brain-modules-5.5.3.pom
+[INFO] 
+[INFO] ---------------------< com.gxpublish:brain-system >---------------------
+[INFO] Building brain-system 5.5.3                                      [26/36]
+[INFO]   from brain-modules\brain-system\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ brain-system ---
+[INFO] Copying 22 resources from src\main\resources to target\classes
+[INFO] Copying 0 resource from src\main\resources to target\classes
+[INFO] 
+[INFO] --- flatten:1.3.0:flatten (flatten) @ brain-system ---
+[INFO] Generating flattened POM of project com.gxpublish:brain-system:jar:5.5.3...
+[INFO] 
+[INFO] --- compiler:3.14.0:compile (default-compile) @ brain-system ---
+[WARNING]  Parameter 'compilerVersion' (user property 'maven.compiler.compilerVersion') is deprecated: This parameter is no longer evaluated by the underlying compilers, instead the actual version of the javac binary is automatically retrieved.
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 151 source files with javac [debug target 17] to target\classes
+[INFO] -------------------------------------------------------------
+[WARNING] COMPILATION WARNING : 
+[INFO] -------------------------------------------------------------
+[WARNING] 未与 -source 17 一起设置系统模块路径
+[INFO] 1 warning
+[INFO] -------------------------------------------------------------
+[INFO] -------------------------------------------------------------
+[ERROR] COMPILATION ERROR : 
+[INFO] -------------------------------------------------------------
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-modules/brain-system/target/generated-sources/annotations/com/gxpublish/brain/system/domain/bo/SysTenantPackageBoToSysTenantPackageMapperImpl.java:[41,69] 程序包utils.com.gxpublish.common.core不存在
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-modules/brain-system/target/generated-sources/annotations/com/gxpublish/brain/system/domain/bo/SysTenantPackageBoToSysTenantPackageMapperImpl.java:[80,59] 程序包utils.com.gxpublish.common.core不存在
+[INFO] 2 errors 
+[INFO] -------------------------------------------------------------
+[INFO] ------------------------------------------------------------------------
+[INFO] Reactor Summary for brain 5.5.3:
+[INFO] 
+[INFO] brain .............................................. SUCCESS [  0.637 s]
+[INFO] brain-common ....................................... SUCCESS [  0.094 s]
+[INFO] brain-common-core .................................. SUCCESS [  0.984 s]
+[INFO] brain-common-doc ................................... SUCCESS [  0.185 s]
+[INFO] brain-common-json .................................. SUCCESS [  0.109 s]
+[INFO] brain-common-redis ................................. SUCCESS [  0.217 s]
+[INFO] brain-common-social ................................ SUCCESS [  0.138 s]
+[INFO] brain-common-ratelimiter ........................... SUCCESS [  0.132 s]
+[INFO] brain-common-mail .................................. SUCCESS [  0.115 s]
+[INFO] brain-common-satoken ............................... SUCCESS [  0.165 s]
+[INFO] brain-common-mybatis ............................... SUCCESS [  0.259 s]
+[INFO] brain-common-translation ........................... SUCCESS [  0.109 s]
+[INFO] brain-common-oss ................................... SUCCESS [  0.179 s]
+[INFO] brain-common-log ................................... SUCCESS [  0.119 s]
+[INFO] brain-common-excel ................................. SUCCESS [  0.132 s]
+[INFO] brain-common-sms ................................... SUCCESS [  0.119 s]
+[INFO] brain-common-tenant ................................ SUCCESS [  0.112 s]
+[INFO] brain-common-security .............................. SUCCESS [  0.114 s]
+[INFO] brain-common-web ................................... SUCCESS [  0.126 s]
+[INFO] brain-common-idempotent ............................ SUCCESS [  0.107 s]
+[INFO] brain-common-sensitive ............................. SUCCESS [  0.095 s]
+[INFO] brain-common-encrypt ............................... SUCCESS [  0.111 s]
+[INFO] brain-common-websocket ............................. SUCCESS [  0.107 s]
+[INFO] brain-common-sse ................................... SUCCESS [  0.098 s]
+[INFO] brain-modules ...................................... SUCCESS [  0.039 s]
+[INFO] brain-system ....................................... FAILURE [  9.254 s]
+[INFO] brain-common-job ................................... SKIPPED
+[INFO] brain-job .......................................... SKIPPED
+[INFO] brain-generator .................................... SKIPPED
+[INFO] brain-demo ......................................... SKIPPED
+[INFO] brain-workflow ..................................... SKIPPED
+[INFO] brain-admin ........................................ SKIPPED
+[INFO] brain-common-bom ................................... SKIPPED
+[INFO] brain-extend ....................................... SKIPPED
+[INFO] brain-monitor-admin ................................ SKIPPED
+[INFO] brain-snailjob-server .............................. SKIPPED
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  14.286 s
+[INFO] Finished at: 2026-02-11T11:37:12+08:00
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-compiler-plugin:3.14.0:compile (default-compile) on project brain-system: Compilation failure: Compilation failure: 
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-modules/brain-system/target/generated-sources/annotations/com/gxpublish/brain/system/domain/bo/SysTenantPackageBoToSysTenantPackageMapperImpl.java:[41,69] 程序包utils.com.gxpublish.common.core不存在
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-modules/brain-system/target/generated-sources/annotations/com/gxpublish/brain/system/domain/bo/SysTenantPackageBoToSysTenantPackageMapperImpl.java:[80,59] 程序包utils.com.gxpublish.common.core不存在
+[ERROR] -> [Help 1]
+org.apache.maven.lifecycle.LifecycleExecutionException: Failed to execute goal org.apache.maven.plugins:maven-compiler-plugin:3.14.0:compile (default-compile) on project brain-system: Compilation failure
+    at org.apache.maven.lifecycle.internal.MojoExecutor.doExecute2 (MojoExecutor.java:333)
+    at org.apache.maven.lifecycle.internal.MojoExecutor.doExecute (MojoExecutor.java:316)
+    at org.apache.maven.lifecycle.internal.MojoExecutor.execute (MojoExecutor.java:212)
+    at org.apache.maven.lifecycle.internal.MojoExecutor.execute (MojoExecutor.java:174)
+    at org.apache.maven.lifecycle.internal.MojoExecutor.access$000 (MojoExecutor.java:75)
+    at org.apache.maven.lifecycle.internal.MojoExecutor$1.run (MojoExecutor.java:162)
+    at org.apache.maven.plugin.DefaultMojosExecutionStrategy.execute (DefaultMojosExecutionStrategy.java:39)
+    at org.apache.maven.lifecycle.internal.MojoExecutor.execute (MojoExecutor.java:159)
+    at org.apache.maven.lifecycle.internal.LifecycleModuleBuilder.buildProject (LifecycleModuleBuilder.java:105)
+    at org.apache.maven.lifecycle.internal.LifecycleModuleBuilder.buildProject (LifecycleModuleBuilder.java:73)
+    at org.apache.maven.lifecycle.internal.builder.singlethreaded.SingleThreadedBuilder.build (SingleThreadedBuilder.java:53)
+    at org.apache.maven.lifecycle.internal.LifecycleStarter.execute (LifecycleStarter.java:118)
+    at org.apache.maven.DefaultMaven.doExecute (DefaultMaven.java:261)
+    at org.apache.maven.DefaultMaven.doExecute (DefaultMaven.java:173)
+    at org.apache.maven.DefaultMaven.execute (DefaultMaven.java:101)
+    at org.apache.maven.cli.MavenCli.execute (MavenCli.java:919)
+    at org.apache.maven.cli.MavenCli.doMain (MavenCli.java:285)
+    at org.apache.maven.cli.MavenCli.main (MavenCli.java:207)
+    at jdk.internal.reflect.DirectMethodHandleAccessor.invoke (DirectMethodHandleAccessor.java:103)
+    at java.lang.reflect.Method.invoke (Method.java:580)
+    at org.codehaus.plexus.classworlds.launcher.Launcher.launchEnhanced (Launcher.java:255)
+    at org.codehaus.plexus.classworlds.launcher.Launcher.launch (Launcher.java:201)
+    at org.codehaus.plexus.classworlds.launcher.Launcher.mainWithExitCode (Launcher.java:361)
+    at org.codehaus.plexus.classworlds.launcher.Launcher.main (Launcher.java:314)
+Caused by: org.apache.maven.plugin.compiler.CompilationFailureException: Compilation failure
+    at org.apache.maven.plugin.compiler.AbstractCompilerMojo.execute (AbstractCompilerMojo.java:1309)
+    at org.apache.maven.plugin.compiler.CompilerMojo.execute (CompilerMojo.java:225)
+    at org.apache.maven.plugin.DefaultBuildPluginManager.executeMojo (DefaultBuildPluginManager.java:126)
+    at org.apache.maven.lifecycle.internal.MojoExecutor.doExecute2 (MojoExecutor.java:328)
+    at org.apache.maven.lifecycle.internal.MojoExecutor.doExecute (MojoExecutor.java:316)
+    at org.apache.maven.lifecycle.internal.MojoExecutor.execute (MojoExecutor.java:212)
+    at org.apache.maven.lifecycle.internal.MojoExecutor.execute (MojoExecutor.java:174)
+    at org.apache.maven.lifecycle.internal.MojoExecutor.access$000 (MojoExecutor.java:75)
+    at org.apache.maven.lifecycle.internal.MojoExecutor$1.run (MojoExecutor.java:162)
+    at org.apache.maven.plugin.DefaultMojosExecutionStrategy.execute (DefaultMojosExecutionStrategy.java:39)
+    at org.apache.maven.lifecycle.internal.MojoExecutor.execute (MojoExecutor.java:159)
+    at org.apache.maven.lifecycle.internal.LifecycleModuleBuilder.buildProject (LifecycleModuleBuilder.java:105)
+    at org.apache.maven.lifecycle.internal.LifecycleModuleBuilder.buildProject (LifecycleModuleBuilder.java:73)
+    at org.apache.maven.lifecycle.internal.builder.singlethreaded.SingleThreadedBuilder.build (SingleThreadedBuilder.java:53)
+    at org.apache.maven.lifecycle.internal.LifecycleStarter.execute (LifecycleStarter.java:118)
+    at org.apache.maven.DefaultMaven.doExecute (DefaultMaven.java:261)
+    at org.apache.maven.DefaultMaven.doExecute (DefaultMaven.java:173)
+    at org.apache.maven.DefaultMaven.execute (DefaultMaven.java:101)
+    at org.apache.maven.cli.MavenCli.execute (MavenCli.java:919)
+    at org.apache.maven.cli.MavenCli.doMain (MavenCli.java:285)
+    at org.apache.maven.cli.MavenCli.main (MavenCli.java:207)
+    at jdk.internal.reflect.DirectMethodHandleAccessor.invoke (DirectMethodHandleAccessor.java:103)
+    at java.lang.reflect.Method.invoke (Method.java:580)
+    at org.codehaus.plexus.classworlds.launcher.Launcher.launchEnhanced (Launcher.java:255)
+    at org.codehaus.plexus.classworlds.launcher.Launcher.launch (Launcher.java:201)
+    at org.codehaus.plexus.classworlds.launcher.Launcher.mainWithExitCode (Launcher.java:361)
+    at org.codehaus.plexus.classworlds.launcher.Launcher.main (Launcher.java:314)
+[ERROR] 
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException
+[ERROR] 
+[ERROR] After correcting the problems, you can resume the build with the command
+[ERROR]   mvn <args> -rf :brain-system

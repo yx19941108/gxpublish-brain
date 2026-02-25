@@ -1,0 +1,5 @@
+com.gxpublish.brain.common.web.config.CaptchaConfig
+com.gxpublish.brain.common.web.config.FilterConfig
+com.gxpublish.brain.common.web.config.I18nConfig
+com.gxpublish.brain.common.web.config.ResourcesConfig
+com.gxpublish.brain.common.web.config.UndertowConfig

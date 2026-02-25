@@ -1,0 +1,3 @@
+com.gxpublish.brain.common.encrypt.config.EncryptorAutoConfiguration
+com.gxpublish.brain.common.encrypt.config.ApiDecryptAutoConfiguration
+

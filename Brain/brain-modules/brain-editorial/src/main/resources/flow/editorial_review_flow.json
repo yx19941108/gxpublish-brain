@@ -1,0 +1,87 @@
+{
+    "nodeList": [
+        {
+            "nodeType": "0",
+            "nodeCode": "start-node",
+            "nodeName": "开始",
+            "permissionFlag": null,
+            "nodeRatio": "0.000",
+            "coordinate": "100,200|100,200",
+            "skipList": [
+                {
+                    "skipType": "PASS",
+                    "nowNodeCode": "start-node",
+                    "nextNodeCode": "applicant-node",
+                    "coordinate": "120,200;180,200"
+                }
+            ]
+        },
+        {
+            "nodeType": "1",
+            "nodeCode": "applicant-node",
+            "nodeName": "审校申请",
+            "permissionFlag": "",
+            "nodeRatio": "0.000",
+            "coordinate": "240,200|240,200",
+            "ext": "[{\"code\":\"ButtonPermissionEnum\",\"value\":\"back,termination,file\"}]",
+            "skipList": [
+                {
+                    "skipType": "PASS",
+                    "nowNodeCode": "applicant-node",
+                    "nextNodeCode": "dept-audit-node",
+                    "coordinate": "300,200;360,200"
+                }
+            ]
+        },
+        {
+            "nodeType": "1",
+            "nodeCode": "dept-audit-node",
+            "nodeName": "部门经理审批",
+            "permissionFlag": "role:1",
+            "nodeRatio": "0.000",
+            "coordinate": "420,200|420,200",
+            "ext": "[{\"code\":\"ButtonPermissionEnum\",\"value\":\"back,termination,transfer,file\"}]",
+            "skipList": [
+                {
+                    "skipType": "PASS",
+                    "nowNodeCode": "dept-audit-node",
+                    "nextNodeCode": "final-audit-node",
+                    "coordinate": "480,200;540,200"
+                }
+            ]
+        },
+        {
+            "nodeType": "1",
+            "nodeCode": "final-audit-node",
+            "nodeName": "总编室审批",
+            "permissionFlag": "role:1",
+            "nodeRatio": "0.000",
+            "coordinate": "600,200|600,200",
+            "ext": "[{\"code\":\"ButtonPermissionEnum\",\"value\":\"back,termination,transfer,file\"}]",
+            "skipList": [
+                {
+                    "skipType": "PASS",
+                    "nowNodeCode": "final-audit-node",
+                    "nextNodeCode": "end-node",
+                    "coordinate": "660,200;720,200"
+                }
+            ]
+        },
+        {
+            "nodeType": "2",
+            "nodeCode": "end-node",
+            "nodeName": "结束",
+            "permissionFlag": null,
+            "nodeRatio": "0.000",
+            "coordinate": "780,200|780,200",
+            "skipList": []
+        }
+    ],
+    "flowCode": "editorial_review_flow",
+    "flowName": "审校申请流程",
+    "modelValue": "CLASSICS",
+    "category": "editorial",
+    "version": "1",
+    "formCustom": "N",
+    "formPath": "/editorial/review/reviewEdit"
+}

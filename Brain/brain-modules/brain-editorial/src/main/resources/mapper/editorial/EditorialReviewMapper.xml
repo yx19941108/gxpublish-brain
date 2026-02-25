@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.gxpublish.brain.editorial.mapper.EditorialReviewMapper">
+
+    <resultMap type="com.gxpublish.brain.editorial.domain.vo.EditorialReviewVo" id="EditorialReviewResult">
+        <result property="id" column="id"/>
+        <result property="title" column="title"/>
+        <result property="content" column="content"/>
+        <result property="deptId" column="dept_id"/>
+        <result property="userId" column="user_id"/>
+        <result property="status" column="status"/>
+        <result property="applyCode" column="apply_code"/>
+        <result property="currentAttachmentId" column="current_attachment_id"/>
+        <result property="createDept" column="create_dept"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="processType" column="process_type"/>
+    </resultMap>
+
+    <sql id="selectEditorialReviewVo">
+        SELECT r.id, r.title, r.content, r.dept_id, r.user_id, r.status, r.apply_code, 
+               r.current_attachment_id, r.create_dept, r.create_by, r.create_time, 
+               r.update_by, r.update_time, r.process_type
+        FROM brain_editorial_review r
+    </sql>
+
+    <!-- 通用的作用域查询条件 -->
+    <sql id="dataScopeCondition">
+        <choose>
+            <!-- 超级管理员或全局放开：无特殊过滤 -->
+            <when test="params.scopeType == 'ALL'"></when>
+            <!-- 发起人：只能看自己的 -->
+            <when test="params.scopeType == 'APPLICANT'">
+                AND r.create_by = #{params.userId}
+            </when>
+            <!-- 审批人：看涉及自己的流程任务 -->
+            <when test="params.scopeType == 'APPROVER'">
+                AND EXISTS (SELECT 1 FROM flow_instance fi
+                LEFT JOIN flow_task ft ON fi.id = ft.instance_id
+                LEFT JOIN flow_user fu ON ft.id = fu.associated
+                LEFT JOIN flow_his_task fht ON fi.id = fht.instance_id
+                WHERE fi.business_id = CAST(r.id AS CHAR)
+                AND (fu.processed_by = #{params.userId}
+                <if test="params.roleKeys != null and params.roleKeys.size() > 0">
+                    OR fu.processed_by IN
+                    <foreach item="role" collection="params.roleKeys" open="(" separator="," close=")">
+                        #{role}
+                    </foreach>
+                </if>
+                OR fht.approver = #{params.userId}))
+            </when>
+            <!-- 混合身份：看自己发起的，以及涉及自己审批的流程任务 -->
+            <when test="params.scopeType == 'MIXED'">
+                AND (r.create_by = #{params.userId} OR EXISTS (SELECT 1 FROM flow_instance fi
+                LEFT JOIN flow_task ft ON fi.id = ft.instance_id
+                LEFT JOIN flow_user fu ON ft.id = fu.associated
+                LEFT JOIN flow_his_task fht ON fi.id = fht.instance_id
+                WHERE fi.business_id = CAST(r.id AS CHAR)
+                AND (fu.processed_by = #{params.userId}
+                <if test="params.roleKeys != null and params.roleKeys.size() > 0">
+                    OR fu.processed_by IN
+                    <foreach item="role" collection="params.roleKeys" open="(" separator="," close=")">
+                        #{role}
+                    </foreach>
+                </if>
+                OR fht.approver = #{params.userId})))
+            </when>
+            <!-- 兜底过滤，防止越权 -->
+            <otherwise>
+                AND 1 = 0
+            </otherwise>
+        </choose>
+    </sql>
+
+    <!-- 自定义分页查询 -->
+    <select id="customSelectPage" resultType="com.gxpublish.brain.editorial.domain.vo.EditorialReviewVo">
+        <include refid="selectEditorialReviewVo"/>
+        <where>
+            r.del_flag = '0'
+            <if test="bo != null and bo.title != null and bo.title != ''">
+                AND r.title LIKE concat('%', #{bo.title}, '%')
+            </if>
+            <if test="bo != null and bo.status != null and bo.status != ''">
+                AND r.status = #{bo.status}
+            </if>
+            <if test="bo != null and bo.userId != null">
+                AND r.user_id = #{bo.userId}
+            </if>
+            <if test="params != null and params.scopeType != null">
+                <include refid="dataScopeCondition"/>
+            </if>
+        </where>
+        ORDER BY r.create_time DESC
+    </select>
+
+    <!-- 自定义列表查询 -->
+    <select id="customSelectList" resultType="com.gxpublish.brain.editorial.domain.vo.EditorialReviewVo">
+        <include refid="selectEditorialReviewVo"/>
+        <where>
+            r.del_flag = '0'
+            <if test="bo != null and bo.title != null and bo.title != ''">
+                AND r.title LIKE concat('%', #{bo.title}, '%')
+            </if>
+            <if test="bo != null and bo.status != null and bo.status != ''">
+                AND r.status = #{bo.status}
+            </if>
+            <if test="bo != null and bo.userId != null">
+                AND r.user_id = #{bo.userId}
+            </if>
+            <if test="params != null and params.scopeType != null">
+                <include refid="dataScopeCondition"/>
+            </if>
+        </where>
+        ORDER BY r.create_time DESC
+    </select>
+
+</mapper>

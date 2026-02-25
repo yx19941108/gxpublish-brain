@@ -1,0 +1,85 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <groupId>com.gxpublish</groupId>
+        <artifactId>brain-modules</artifactId>
+        <version>${revision}</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+    <packaging>jar</packaging>
+    <artifactId>brain-workflow</artifactId>
+
+    <description>
+        工作流模块
+    </description>
+
+    <dependencies>
+
+        <dependency>
+            <groupId>com.gxpublish</groupId>
+            <artifactId>brain-common-sse</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.gxpublish</groupId>
+            <artifactId>brain-common-doc</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.gxpublish</groupId>
+            <artifactId>brain-common-mail</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.gxpublish</groupId>
+            <artifactId>brain-common-sms</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.gxpublish</groupId>
+            <artifactId>brain-common-mybatis</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.gxpublish</groupId>
+            <artifactId>brain-common-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.gxpublish</groupId>
+            <artifactId>brain-common-log</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.gxpublish</groupId>
+            <artifactId>brain-common-idempotent</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.gxpublish</groupId>
+            <artifactId>brain-common-excel</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.gxpublish</groupId>
+            <artifactId>brain-common-translation</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.gxpublish</groupId>
+            <artifactId>brain-common-tenant</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.gxpublish</groupId>
+            <artifactId>brain-common-security</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.dromara.warm</groupId>
+            <artifactId>warm-flow-mybatis-plus-sb3-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.dromara.warm</groupId>
+            <artifactId>warm-flow-plugin-ui-sb-web</artifactId>
+        </dependency>
+    </dependencies>
+
+</project>
+
+

@@ -1,0 +1,113 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <groupId>com.gxpublish</groupId>
+        <artifactId>brain-modules</artifactId>
+        <version>${revision}</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+
+    <artifactId>brain-system</artifactId>
+
+    <description>
+        system系统模块
+    </description>
+
+    <dependencies>
+        <!-- 通用工具-->
+        <dependency>
+            <groupId>com.gxpublish</groupId>
+            <artifactId>brain-common-core</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.gxpublish</groupId>
+            <artifactId>brain-common-doc</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.gxpublish</groupId>
+            <artifactId>brain-common-mybatis</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.gxpublish</groupId>
+            <artifactId>brain-common-translation</artifactId>
+        </dependency>
+
+        <!-- Tus分片上传模块 -->
+        <dependency>
+            <groupId>com.gxpublish</groupId>
+            <artifactId>brain-common-tus</artifactId>
+            <version>${revision}</version>
+        </dependency>
+
+        <!-- OSS功能模块 -->
+        <dependency>
+            <groupId>com.gxpublish</groupId>
+            <artifactId>brain-common-oss</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.gxpublish</groupId>
+            <artifactId>brain-common-log</artifactId>
+        </dependency>
+
+        <!-- excel-->
+        <dependency>
+            <groupId>com.gxpublish</groupId>
+            <artifactId>brain-common-excel</artifactId>
+        </dependency>
+
+        <!-- SMS功能模块 -->
+        <dependency>
+            <groupId>com.gxpublish</groupId>
+            <artifactId>brain-common-sms</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.gxpublish</groupId>
+            <artifactId>brain-common-tenant</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.gxpublish</groupId>
+            <artifactId>brain-common-security</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.gxpublish</groupId>
+            <artifactId>brain-common-web</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.gxpublish</groupId>
+            <artifactId>brain-common-idempotent</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.gxpublish</groupId>
+            <artifactId>brain-common-sensitive</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.gxpublish</groupId>
+            <artifactId>brain-common-encrypt</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.gxpublish</groupId>
+            <artifactId>brain-common-websocket</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.gxpublish</groupId>
+            <artifactId>brain-common-sse</artifactId>
+        </dependency>
+
+    </dependencies>
+
+</project>
+

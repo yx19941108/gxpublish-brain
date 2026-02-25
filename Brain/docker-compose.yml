@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  # MinIO 服务
+  minio:
+    image: quay.io/minio/minio
+    container_name: brain-minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: password123
+    volumes:
+      - ./data/minio:/data
+    command: server /data --console-address ":9001"
+
+
+  # Redis 服务
+  redis:
+    image: redis:7.0-alpine  # alpine版本体积更小
+    container_name: vue-study-redis
+    ports:
+      - "6379:6379"          # 映射 6379 端口供 IDEA 或代码访问
+    volumes:
+      - ./data/redis:/data   # 数据持久化
+    command: redis-server --appendonly yes # --requirepass yourpassword  # 设置持久化和密码

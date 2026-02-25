@@ -1,0 +1,48 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <artifactId>brain</artifactId>
+        <groupId>com.gxpublish</groupId>
+        <version>${revision}</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+
+    <modules>
+        <module>brain-common-bom</module>
+        <module>brain-common-social</module>
+        <module>brain-common-core</module>
+        <module>brain-common-doc</module>
+        <module>brain-common-excel</module>
+        <module>brain-common-idempotent</module>
+        <module>brain-common-job</module>
+        <module>brain-common-log</module>
+        <module>brain-common-mail</module>
+        <module>brain-common-mybatis</module>
+        <module>brain-common-oss</module>
+        <module>brain-common-ratelimiter</module>
+        <module>brain-common-redis</module>
+        <module>brain-common-satoken</module>
+        <module>brain-common-security</module>
+        <module>brain-common-sms</module>
+        <module>brain-common-web</module>
+        <module>brain-common-translation</module>
+        <module>brain-common-sensitive</module>
+        <module>brain-common-json</module>
+        <module>brain-common-encrypt</module>
+        <module>brain-common-tenant</module>
+        <module>brain-common-websocket</module>
+        <module>brain-common-sse</module>
+        <module>brain-common-tus</module>
+    </modules>
+
+    <artifactId>brain-common</artifactId>
+    <packaging>pom</packaging>
+
+    <description>
+        common 通用模块
+    </description>
+
+</project>
+

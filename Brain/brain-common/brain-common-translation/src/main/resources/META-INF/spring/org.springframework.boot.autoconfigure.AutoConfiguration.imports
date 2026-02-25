@@ -1,0 +1,6 @@
+com.gxpublish.brain.common.translation.config.TranslationConfig
+com.gxpublish.brain.common.translation.core.impl.DeptNameTranslationImpl
+com.gxpublish.brain.common.translation.core.impl.DictTypeTranslationImpl
+com.gxpublish.brain.common.translation.core.impl.OssUrlTranslationImpl
+com.gxpublish.brain.common.translation.core.impl.UserNameTranslationImpl
+com.gxpublish.brain.common.translation.core.impl.NicknameTranslationImpl

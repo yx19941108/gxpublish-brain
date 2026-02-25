@@ -1,0 +1,35 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <groupId>com.gxpublish</groupId>
+        <artifactId>brain-common</artifactId>
+        <version>${revision}</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+
+    <artifactId>brain-common-social</artifactId>
+
+    <description>
+        brain-common-social 授权认证
+    </description>
+
+    <dependencies>
+        <dependency>
+            <groupId>me.zhyd.oauth</groupId>
+            <artifactId>JustAuth</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.gxpublish</groupId>
+            <artifactId>brain-common-json</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.gxpublish</groupId>
+            <artifactId>brain-common-redis</artifactId>
+        </dependency>
+    </dependencies>
+</project>
+

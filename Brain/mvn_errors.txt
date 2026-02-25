@@ -1,0 +1,175 @@
+[INFO] Error stacktraces are turned on.
+[ERROR] COMPILATION ERROR : 
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/controller/AuthController.java:[40,33] ???org.dromara.web.domain.vo???
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/controller/AuthController.java:[41,33] ???org.dromara.web.domain.vo???
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/controller/AuthController.java:[42,33] ???org.dromara.web.domain.vo???
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/controller/AuthController.java:[43,31] ???org.dromara.web.service???
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/controller/AuthController.java:[44,31] ???org.dromara.web.service???
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/controller/AuthController.java:[45,31] ???org.dromara.web.service???
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/controller/AuthController.java:[71,19] ?????
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/controller/AuthController.java:[72,19] ?????
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/controller/AuthController.java:[88,14] ?????
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/controller/AuthController.java:[206,14] ?????
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/controller/AuthController.java:[65,1] ?????
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/controller/CaptchaController.java:[28,33] ???org.dromara.web.domain.vo???
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/controller/CaptchaController.java:[114,14] ?????
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/controller/CaptchaController.java:[129,12] ?????
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/EmailAuthStrategy.java:[28,33] ???org.dromara.web.domain.vo???
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/EmailAuthStrategy.java:[29,31] ???org.dromara.web.service???
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/EmailAuthStrategy.java:[30,31] ???org.dromara.web.service???
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/EmailAuthStrategy.java:[41,43] ?????
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/EmailAuthStrategy.java:[43,19] ?????
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/EmailAuthStrategy.java:[47,12] ?????
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/EmailAuthStrategy.java:[40,1] ?????
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/PasswordAuthStrategy.java:[31,33] ???org.dromara.web.domain.vo???
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/PasswordAuthStrategy.java:[32,31] ???org.dromara.web.service???
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/PasswordAuthStrategy.java:[33,31] ???org.dromara.web.service???
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/PasswordAuthStrategy.java:[44,46] ?????
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/PasswordAuthStrategy.java:[47,19] ?????
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/PasswordAuthStrategy.java:[51,12] ?????
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/PasswordAuthStrategy.java:[43,1] ?????
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/SmsAuthStrategy.java:[28,33] ???org.dromara.web.domain.vo???
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/SmsAuthStrategy.java:[29,31] ???org.dromara.web.service???
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/SmsAuthStrategy.java:[30,31] ???org.dromara.web.service???
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/SmsAuthStrategy.java:[41,41] ?????
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/SmsAuthStrategy.java:[43,19] ?????
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/SmsAuthStrategy.java:[47,12] ?????
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/SmsAuthStrategy.java:[40,1] ?????
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/SocialAuthStrategy.java:[28,33] ???org.dromara.web.domain.vo???
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/SocialAuthStrategy.java:[29,31] ???org.dromara.web.service???
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/SocialAuthStrategy.java:[30,31] ???org.dromara.web.service???
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/SocialAuthStrategy.java:[44,44] ?????
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/SocialAuthStrategy.java:[49,19] ?????
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/SocialAuthStrategy.java:[58,12] ?????
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/SocialAuthStrategy.java:[43,1] ?????
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/XcxAuthStrategy.java:[24,33] ???org.dromara.web.domain.vo???
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/XcxAuthStrategy.java:[25,31] ???org.dromara.web.service???
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/XcxAuthStrategy.java:[26,31] ???org.dromara.web.service???
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/XcxAuthStrategy.java:[37,41] ?????
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/XcxAuthStrategy.java:[39,19] ?????
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/XcxAuthStrategy.java:[42,12] ?????
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/XcxAuthStrategy.java:[36,1] ?????
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/EmailAuthStrategy.java:[39,20] ?????
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/PasswordAuthStrategy.java:[42,23] ?????
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/SmsAuthStrategy.java:[39,18] ?????
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/SocialAuthStrategy.java:[42,21] ?????
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/XcxAuthStrategy.java:[35,18] ?????
+[INFO] 54 errors 
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-compiler-plugin:3.14.0:compile (default-compile) on project brain-admin: Compilation failure: Compilation failure: 
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/controller/AuthController.java:[40,33] ???org.dromara.web.domain.vo???
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/controller/AuthController.java:[41,33] ???org.dromara.web.domain.vo???
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/controller/AuthController.java:[42,33] ???org.dromara.web.domain.vo???
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/controller/AuthController.java:[43,31] ???org.dromara.web.service???
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/controller/AuthController.java:[44,31] ???org.dromara.web.service???
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/controller/AuthController.java:[45,31] ???org.dromara.web.service???
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/controller/AuthController.java:[71,19] ?????
+[ERROR]   ??:   ? SysLoginService
+[ERROR]   ??: ? com.gxpublish.brain.web.controller.AuthController
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/controller/AuthController.java:[72,19] ?????
+[ERROR]   ??:   ? SysRegisterService
+[ERROR]   ??: ? com.gxpublish.brain.web.controller.AuthController
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/controller/AuthController.java:[88,14] ?????
+[ERROR]   ??:   ? LoginVo
+[ERROR]   ??: ? com.gxpublish.brain.web.controller.AuthController
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/controller/AuthController.java:[206,14] ?????
+[ERROR]   ??:   ? LoginTenantVo
+[ERROR]   ??: ? com.gxpublish.brain.web.controller.AuthController
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/controller/AuthController.java:[65,1] ?????
+[ERROR]   ??:   ? SysLoginService
+[ERROR]   ??: ? com.gxpublish.brain.web.controller.AuthController
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/controller/CaptchaController.java:[28,33] ???org.dromara.web.domain.vo???
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/controller/CaptchaController.java:[114,14] ?????
+[ERROR]   ??:   ? CaptchaVo
+[ERROR]   ??: ? com.gxpublish.brain.web.controller.CaptchaController
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/controller/CaptchaController.java:[129,12] ?????
+[ERROR]   ??:   ? CaptchaVo
+[ERROR]   ??: ? com.gxpublish.brain.web.controller.CaptchaController
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/EmailAuthStrategy.java:[28,33] ???org.dromara.web.domain.vo???
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/EmailAuthStrategy.java:[29,31] ???org.dromara.web.service???
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/EmailAuthStrategy.java:[30,31] ???org.dromara.web.service???
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/EmailAuthStrategy.java:[41,43] ?????
+[ERROR]   ??: ? IAuthStrategy
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/EmailAuthStrategy.java:[43,19] ?????
+[ERROR]   ??:   ? SysLoginService
+[ERROR]   ??: ? com.gxpublish.brain.web.service.impl.EmailAuthStrategy
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/EmailAuthStrategy.java:[47,12] ?????
+[ERROR]   ??:   ? LoginVo
+[ERROR]   ??: ? com.gxpublish.brain.web.service.impl.EmailAuthStrategy
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/EmailAuthStrategy.java:[40,1] ?????
+[ERROR]   ??:   ? SysLoginService
+[ERROR]   ??: ? com.gxpublish.brain.web.service.impl.EmailAuthStrategy
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/PasswordAuthStrategy.java:[31,33] ???org.dromara.web.domain.vo???
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/PasswordAuthStrategy.java:[32,31] ???org.dromara.web.service???
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/PasswordAuthStrategy.java:[33,31] ???org.dromara.web.service???
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/PasswordAuthStrategy.java:[44,46] ?????
+[ERROR]   ??: ? IAuthStrategy
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/PasswordAuthStrategy.java:[47,19] ?????
+[ERROR]   ??:   ? SysLoginService
+[ERROR]   ??: ? com.gxpublish.brain.web.service.impl.PasswordAuthStrategy
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/PasswordAuthStrategy.java:[51,12] ?????
+[ERROR]   ??:   ? LoginVo
+[ERROR]   ??: ? com.gxpublish.brain.web.service.impl.PasswordAuthStrategy
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/PasswordAuthStrategy.java:[43,1] ?????
+[ERROR]   ??:   ? SysLoginService
+[ERROR]   ??: ? com.gxpublish.brain.web.service.impl.PasswordAuthStrategy
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/SmsAuthStrategy.java:[28,33] ???org.dromara.web.domain.vo???
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/SmsAuthStrategy.java:[29,31] ???org.dromara.web.service???
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/SmsAuthStrategy.java:[30,31] ???org.dromara.web.service???
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/SmsAuthStrategy.java:[41,41] ?????
+[ERROR]   ??: ? IAuthStrategy
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/SmsAuthStrategy.java:[43,19] ?????
+[ERROR]   ??:   ? SysLoginService
+[ERROR]   ??: ? com.gxpublish.brain.web.service.impl.SmsAuthStrategy
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/SmsAuthStrategy.java:[47,12] ?????
+[ERROR]   ??:   ? LoginVo
+[ERROR]   ??: ? com.gxpublish.brain.web.service.impl.SmsAuthStrategy
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/SmsAuthStrategy.java:[40,1] ?????
+[ERROR]   ??:   ? SysLoginService
+[ERROR]   ??: ? com.gxpublish.brain.web.service.impl.SmsAuthStrategy
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/SocialAuthStrategy.java:[28,33] ???org.dromara.web.domain.vo???
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/SocialAuthStrategy.java:[29,31] ???org.dromara.web.service???
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/SocialAuthStrategy.java:[30,31] ???org.dromara.web.service???
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/SocialAuthStrategy.java:[44,44] ?????
+[ERROR]   ??: ? IAuthStrategy
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/SocialAuthStrategy.java:[49,19] ?????
+[ERROR]   ??:   ? SysLoginService
+[ERROR]   ??: ? com.gxpublish.brain.web.service.impl.SocialAuthStrategy
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/SocialAuthStrategy.java:[58,12] ?????
+[ERROR]   ??:   ? LoginVo
+[ERROR]   ??: ? com.gxpublish.brain.web.service.impl.SocialAuthStrategy
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/SocialAuthStrategy.java:[43,1] ?????
+[ERROR]   ??:   ? SysLoginService
+[ERROR]   ??: ? com.gxpublish.brain.web.service.impl.SocialAuthStrategy
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/XcxAuthStrategy.java:[24,33] ???org.dromara.web.domain.vo???
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/XcxAuthStrategy.java:[25,31] ???org.dromara.web.service???
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/XcxAuthStrategy.java:[26,31] ???org.dromara.web.service???
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/XcxAuthStrategy.java:[37,41] ?????
+[ERROR]   ??: ? IAuthStrategy
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/XcxAuthStrategy.java:[39,19] ?????
+[ERROR]   ??:   ? SysLoginService
+[ERROR]   ??: ? com.gxpublish.brain.web.service.impl.XcxAuthStrategy
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/XcxAuthStrategy.java:[42,12] ?????
+[ERROR]   ??:   ? LoginVo
+[ERROR]   ??: ? com.gxpublish.brain.web.service.impl.XcxAuthStrategy
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/XcxAuthStrategy.java:[36,1] ?????
+[ERROR]   ??:   ? SysLoginService
+[ERROR]   ??: ? com.gxpublish.brain.web.service.impl.XcxAuthStrategy
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/EmailAuthStrategy.java:[39,20] ?????
+[ERROR]   ??: ?? IAuthStrategy
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/PasswordAuthStrategy.java:[42,23] ?????
+[ERROR]   ??: ?? IAuthStrategy
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/SmsAuthStrategy.java:[39,18] ?????
+[ERROR]   ??: ?? IAuthStrategy
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/SocialAuthStrategy.java:[42,21] ?????
+[ERROR]   ??: ?? IAuthStrategy
+[ERROR] /C:/kuguaHome/project/20260211095612/Brain/brain-admin/src/main/java/com/gxpublish/brain/web/service/impl/XcxAuthStrategy.java:[35,18] ?????
+[ERROR]   ??: ?? IAuthStrategy
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException
+[ERROR] 
+[ERROR] After correcting the problems, you can resume the build with the command
+[ERROR]   mvn <args> -rf :brain-admin
