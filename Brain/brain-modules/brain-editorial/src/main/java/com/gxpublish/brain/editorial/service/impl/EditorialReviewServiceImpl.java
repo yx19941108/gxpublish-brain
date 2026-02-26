@@ -1,18 +1,13 @@
 package com.gxpublish.brain.editorial.service.impl;
 
-import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.convert.Convert;
-import cn.hutool.core.util.ObjectUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.gxpublish.brain.common.core.domain.dto.RoleDTO;
 import com.gxpublish.brain.common.core.domain.dto.StartProcessDTO;
 import com.gxpublish.brain.common.core.domain.model.LoginUser;
 import com.gxpublish.brain.common.core.domain.event.ProcessDeleteEvent;
 import com.gxpublish.brain.common.core.domain.event.ProcessEvent;
-import com.gxpublish.brain.common.core.domain.event.ProcessTaskEvent;
 import com.gxpublish.brain.common.core.enums.BusinessStatusEnum;
 import com.gxpublish.brain.common.core.exception.ServiceException;
 import com.gxpublish.brain.common.core.service.WorkflowService;
@@ -28,17 +23,16 @@ import com.gxpublish.brain.editorial.domain.EditorialLink;
 import com.gxpublish.brain.editorial.domain.EditorialReview;
 import com.gxpublish.brain.editorial.domain.bo.EditorialLinkBo;
 import com.gxpublish.brain.editorial.domain.bo.EditorialReviewBo;
-import com.gxpublish.brain.editorial.domain.vo.EditorialAttachmentVo;
 import com.gxpublish.brain.editorial.domain.vo.EditorialHistoryVo;
-import com.gxpublish.brain.editorial.domain.vo.EditorialLinkVo;
 import com.gxpublish.brain.editorial.domain.vo.EditorialReviewVo;
 import com.gxpublish.brain.editorial.mapper.EditorialAttachmentMapper;
 import com.gxpublish.brain.editorial.mapper.EditorialHistoryMapper;
 import com.gxpublish.brain.editorial.mapper.EditorialLinkMapper;
 import com.gxpublish.brain.editorial.mapper.EditorialReviewMapper;
 import com.gxpublish.brain.editorial.service.IEditorialReviewService;
+import com.gxpublish.brain.editorial.domain.param.EditorialScopeParam;
+import com.gxpublish.brain.editorial.enums.ReviewStatusEnum;
 import com.gxpublish.brain.editorial.service.strategy.EditorialDataScopeFactory;
-import com.gxpublish.brain.editorial.service.strategy.EditorialDataScopeStrategy;
 import com.gxpublish.brain.workflow.common.constant.FlowConstant;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -85,14 +79,9 @@ public class EditorialReviewServiceImpl implements IEditorialReviewService {
 
     @Override
     public TableDataInfo<EditorialReviewVo> queryPageList(EditorialReviewBo bo, PageQuery pageQuery) {
-        EditorialDataScopeStrategy strategy = dataScopeFactory.getStrategy();
+        EditorialScopeParam scopeParam = dataScopeFactory.buildScopeParams();
         Map<String, Object> params = new HashMap<>();
-
-        List<String> roleKeys = LoginHelper.getLoginUser().getRoles().stream()
-                .map(RoleDTO::getRoleKey)
-                .toList();
-
-        strategy.buildScopeParams(params, roleKeys, LoginHelper.getUserId());
+        params.put("scopeParam", scopeParam);
 
         Page<EditorialReviewVo> result = baseMapper.customSelectPage(pageQuery.build(), bo, params);
         return TableDataInfo.build(result);
@@ -100,14 +89,9 @@ public class EditorialReviewServiceImpl implements IEditorialReviewService {
 
     @Override
     public List<EditorialReviewVo> queryList(EditorialReviewBo bo) {
-        EditorialDataScopeStrategy strategy = dataScopeFactory.getStrategy();
+        EditorialScopeParam scopeParam = dataScopeFactory.buildScopeParams();
         Map<String, Object> params = new HashMap<>();
-
-        List<String> roleKeys = LoginHelper.getLoginUser().getRoles().stream()
-                .map(com.gxpublish.brain.common.core.domain.dto.RoleDTO::getRoleKey)
-                .toList();
-
-        strategy.buildScopeParams(params, roleKeys, LoginHelper.getUserId());
+        params.put("scopeParam", scopeParam);
 
         return baseMapper.customSelectList(bo, params);
     }
@@ -118,6 +102,7 @@ public class EditorialReviewServiceImpl implements IEditorialReviewService {
         EditorialReview add = MapstructUtils.convert(bo, EditorialReview.class);
         // 新增时强制使用枚举小写值，避免前端传入大写导致后续比较失败
         add.setStatus(BusinessStatusEnum.DRAFT.getStatus());
+        add.setReviewStatus(ReviewStatusEnum.DRAFT.getCode());
         // 设置发起人
         if (add.getUserId() == null) {
             add.setUserId(LoginHelper.getUserId());
@@ -140,10 +125,12 @@ public class EditorialReviewServiceImpl implements IEditorialReviewService {
     public EditorialReviewVo submitAndFlowStart(EditorialReviewBo bo) {
         if (bo.getId() != null) {
             EditorialReview existing = baseMapper.selectById(bo.getId());
-            if (BusinessStatusEnum.BACK.getStatus().equals(existing.getStatus())) {
+            if (BusinessStatusEnum.BACK.getStatus().equals(existing.getStatus())
+                    || ReviewStatusEnum.BACK.getCode().equals(existing.getReviewStatus())) {
                 throw new ServiceException("当前申请已被退回，请通过审批组件办理重新提交");
             }
-            if (!BusinessStatusEnum.DRAFT.getStatus().equals(existing.getStatus())) {
+            if (!BusinessStatusEnum.DRAFT.getStatus().equals(existing.getStatus())
+                    && !ReviewStatusEnum.DRAFT.getCode().equals(existing.getReviewStatus())) {
                 throw new ServiceException("只有草稿状态可发起审批");
             }
             updateByBo(bo);
@@ -209,7 +196,9 @@ public class EditorialReviewServiceImpl implements IEditorialReviewService {
 
         // 校验：仅草稿和退回状态允许修改表单内容
         if (!BusinessStatusEnum.DRAFT.getStatus().equals(oldReview.getStatus())
-                && !BusinessStatusEnum.BACK.getStatus().equals(oldReview.getStatus())) {
+                && !BusinessStatusEnum.BACK.getStatus().equals(oldReview.getStatus())
+                && !ReviewStatusEnum.DRAFT.getCode().equals(oldReview.getReviewStatus())
+                && !ReviewStatusEnum.BACK.getCode().equals(oldReview.getReviewStatus())) {
             throw new ServiceException("当前流程状态为审批中或已结束，不允许修改申请内容");
         }
 
@@ -390,6 +379,30 @@ public class EditorialReviewServiceImpl implements IEditorialReviewService {
             } else if (StringUtils.isNotBlank(newStatus)) {
                 review.setStatus(newStatus);
             }
+
+            // 同步最新的精细化状态 reviewStatus
+            if (BusinessStatusEnum.BACK.getStatus().equals(review.getStatus())) {
+                review.setReviewStatus(ReviewStatusEnum.BACK.getCode());
+            } else if (BusinessStatusEnum.CANCEL.getStatus().equals(review.getStatus())) {
+                review.setReviewStatus(ReviewStatusEnum.CANCELED.getCode());
+            } else if (BusinessStatusEnum.FINISH.getStatus().equals(review.getStatus())) {
+                review.setReviewStatus(ReviewStatusEnum.APPROVED.getCode());
+            } else if (BusinessStatusEnum.TERMINATION.getStatus().equals(review.getStatus())) {
+                review.setReviewStatus(ReviewStatusEnum.TERMINATED.getCode());
+            } else if (BusinessStatusEnum.WAITING.getStatus().equals(review.getStatus())) {
+                // 流转中，根据当前节点特征来判断精确业务状态
+                String nodeCode = processEvent.getNodeCode();
+                if ("1b2489b3-db28-4b57-82c1-3fd1c8ae1d59".equals(nodeCode)) {
+                    review.setReviewStatus(ReviewStatusEnum.WAITING_FIRST.getCode());
+                } else if ("ee5f5403-21c2-49e8-80b1-3c72ddad0148".equals(nodeCode)) {
+                    review.setReviewStatus(ReviewStatusEnum.WAITING_SECOND.getCode());
+                } else if ("2583d1cb-2312-4f41-9cfc-35784c59330a".equals(nodeCode)) {
+                    review.setReviewStatus(ReviewStatusEnum.WAITING_FINAL.getCode());
+                } else {
+                    review.setReviewStatus(ReviewStatusEnum.WAITING_FIRST.getCode());
+                }
+            }
+
             baseMapper.updateById(review);
 
             // 记录审批历史

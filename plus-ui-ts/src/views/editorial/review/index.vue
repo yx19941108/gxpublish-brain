@@ -67,7 +67,7 @@
             type="primary"
             icon="Edit"
             @click="handleUpdate(scope.row)"
-            v-if="scope.row.status === 'draft' || scope.row.status === 'back'"
+            v-if="(scope.row.status === 'draft' || scope.row.status === 'back') && scope.row.userId === userStore.userId"
             v-hasPermi="['editorial:review:edit']"
             >修改</el-button
           >
@@ -77,7 +77,7 @@
             type="primary"
             icon="Delete"
             @click="handleDelete(scope.row)"
-            v-if="scope.row.status === 'draft'"
+            v-if="scope.row.status === 'draft' && scope.row.userId === userStore.userId"
             v-hasPermi="['editorial:review:remove']"
             >删除</el-button
           >
@@ -94,8 +94,10 @@ import { ref, reactive, toRefs, onMounted, onActivated } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { listReview, delReview, type EditorialReviewQuery, type EditorialReviewVo } from '@/api/editorial/review';
+import { useUserStore } from '@/store/modules/user';
 
 const router = useRouter();
+const userStore = useUserStore();
 const loading = ref(true);
 const showSearch = ref(true);
 const ids = ref<Array<number | string>>([]);

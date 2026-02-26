@@ -22,7 +22,7 @@
     </resultMap>
 
     <sql id="selectEditorialReviewVo">
-        SELECT r.id, r.title, r.content, r.dept_id, r.user_id, r.status, r.apply_code, 
+        SELECT r.id, r.title, r.content, r.dept_id, r.user_id, r.status, r.review_status, r.apply_code, 
                r.current_attachment_id, r.create_dept, r.create_by, r.create_time, 
                r.update_by, r.update_time, r.process_type
         FROM brain_editorial_review r
@@ -31,47 +31,34 @@
     <!-- 通用的作用域查询条件 -->
     <sql id="dataScopeCondition">
         <choose>
-            <!-- 超级管理员或全局放开：无特殊过滤 -->
-            <when test="params.scopeType == 'ALL'"></when>
-            <!-- 发起人：只能看自己的 -->
-            <when test="params.scopeType == 'APPLICANT'">
-                AND r.create_by = #{params.userId}
+            <!-- 超级管理员：无特殊过滤 -->
+            <when test="params.scopeParam.isAdmin != null and params.scopeParam.isAdmin == true">
             </when>
-            <!-- 审批人：看涉及自己的流程任务 -->
-            <when test="params.scopeType == 'APPROVER'">
-                AND EXISTS (SELECT 1 FROM flow_instance fi
-                LEFT JOIN flow_task ft ON fi.id = ft.instance_id
-                LEFT JOIN flow_user fu ON ft.id = fu.associated
-                LEFT JOIN flow_his_task fht ON fi.id = fht.instance_id
-                WHERE fi.business_id = CAST(r.id AS CHAR)
-                AND (fu.processed_by = #{params.userId}
-                <if test="params.roleKeys != null and params.roleKeys.size() > 0">
-                    OR fu.processed_by IN
-                    <foreach item="role" collection="params.roleKeys" open="(" separator="," close=")">
-                        #{role}
-                    </foreach>
-                </if>
-                OR fht.approver = #{params.userId}))
-            </when>
-            <!-- 混合身份：看自己发起的，以及涉及自己审批的流程任务 -->
-            <when test="params.scopeType == 'MIXED'">
-                AND (r.create_by = #{params.userId} OR EXISTS (SELECT 1 FROM flow_instance fi
-                LEFT JOIN flow_task ft ON fi.id = ft.instance_id
-                LEFT JOIN flow_user fu ON ft.id = fu.associated
-                LEFT JOIN flow_his_task fht ON fi.id = fht.instance_id
-                WHERE fi.business_id = CAST(r.id AS CHAR)
-                AND (fu.processed_by = #{params.userId}
-                <if test="params.roleKeys != null and params.roleKeys.size() > 0">
-                    OR fu.processed_by IN
-                    <foreach item="role" collection="params.roleKeys" open="(" separator="," close=")">
-                        #{role}
-                    </foreach>
-                </if>
-                OR fht.approver = #{params.userId})))
-            </when>
-            <!-- 兜底过滤，防止越权 -->
             <otherwise>
-                AND 1 = 0
+                AND (
+                    1 = 0
+                    <!-- 发起人可视自己创建的 -->
+                    <if test="params.scopeParam.isApplicant != null and params.scopeParam.isApplicant == true">
+                        OR r.user_id = #{params.scopeParam.userId}
+                    </if>
+                    <!-- 审批人可视自己负责状态的 -->
+                    <if test="params.scopeParam.isApprover != null and params.scopeParam.isApprover == true and params.scopeParam.visibleStatuses != null and params.scopeParam.visibleStatuses.size() > 0">
+                        OR r.review_status IN
+                        <foreach item="status" collection="params.scopeParam.visibleStatuses" open="(" separator="," close=")">
+                            #{status}
+                        </foreach>
+                    </if>
+                    <!-- 兜底兼顾历史查询：只要参与过审批或发起就能看记录 -->
+                    <if test="params.scopeParam.userId != null">
+                        OR r.user_id = #{params.scopeParam.userId}
+                        OR EXISTS (
+                            SELECT 1 FROM flow_instance fi
+                            INNER JOIN flow_his_task fht ON fi.id = fht.instance_id
+                            WHERE fi.business_id = CAST(r.id AS CHAR)
+                            AND fht.approver = CAST(#{params.scopeParam.userId} AS CHAR)
+                        )
+                    </if>
+                )
             </otherwise>
         </choose>
     </sql>
@@ -90,7 +77,7 @@
             <if test="bo != null and bo.userId != null">
                 AND r.user_id = #{bo.userId}
             </if>
-            <if test="params != null and params.scopeType != null">
+            <if test="params != null and params.scopeParam != null">
                 <include refid="dataScopeCondition"/>
             </if>
         </where>
@@ -111,7 +98,7 @@
             <if test="bo != null and bo.userId != null">
                 AND r.user_id = #{bo.userId}
             </if>
-            <if test="params != null and params.scopeType != null">
+            <if test="params != null and params.scopeParam != null">
                 <include refid="dataScopeCondition"/>
             </if>
         </where>

@@ -165,13 +165,10 @@ const logout = async () => {
     type: 'warning'
   } as ElMessageBoxOptions);
   userStore.logout().then(() => {
-    router.replace({
-      path: '/login',
-      query: {
-        redirect: encodeURIComponent(router.currentRoute.value.fullPath || '/')
-      }
-    });
-    proxy?.$tab.closeAllPage();
+    const redirectUrl = encodeURIComponent(router.currentRoute.value.fullPath || '/');
+    location.href = import.meta.env.VITE_APP_CONTEXT_PATH + 'login?redirect=' + redirectUrl;
+  }).catch(() => {
+    location.href = import.meta.env.VITE_APP_CONTEXT_PATH + 'login';
   });
 };
 

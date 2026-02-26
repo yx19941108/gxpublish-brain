@@ -56,6 +56,11 @@ public class EditorialReviewBo extends BaseEntity {
     private String status;
 
     /**
+     * 三审三校专属精细业务状态 (如 10待一审, 20待二审)
+     */
+    private Integer reviewStatus;
+
+    /**
      * 流程类型
      */
     @NotBlank(message = "流程类型不能为空", groups = { AddGroup.class, EditGroup.class })

@@ -47,9 +47,14 @@ public class EditorialReview extends BaseEntity {
     private Long userId;
 
     /**
-     * 业务状态: DRAFT, WAITING, APPROVED, REJECTED
+     * 业务大状态: DRAFT, WAITING, FINISH, CANCEL 等引擎原生流转形态
      */
     private String status;
+
+    /**
+     * 三审三校专属精细业务状态 (如 10待一审, 20待二审)
+     */
+    private Integer reviewStatus;
 
     /**
      * 流程实例关联码

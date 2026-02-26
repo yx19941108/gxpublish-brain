@@ -73,8 +73,14 @@ public class EditorialReviewVo implements Serializable {
     /**
      * 业务状态
      */
-    @ExcelProperty(value = "业务状态")
+    @ExcelProperty(value = "流转状态")
     private String status;
+
+    /**
+     * 三审三校专属精细业务状态 (如 10待一审, 20待二审)
+     */
+    @ExcelProperty(value = "业务状态")
+    private Integer reviewStatus;
 
     /**
      * 流程类型

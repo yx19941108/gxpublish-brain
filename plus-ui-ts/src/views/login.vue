@@ -149,18 +149,25 @@ const handleLogin = () => {
         localStorage.removeItem('password');
         localStorage.removeItem('rememberMe');
       }
-      // 调用action的登录方法
-      const [err] = await to(userStore.login(loginForm.value));
-      if (!err) {
-        const redirectUrl = redirect.value || '/';
-        await router.push(redirectUrl);
-        loading.value = false;
-      } else {
-        loading.value = false;
-        // 重新获取验证码
-        if (captchaEnabled.value) {
-          await getCode();
+      try {
+        const [err] = await to(userStore.login(loginForm.value));
+        if (!err) {
+          let redirectUrl = redirect.value || '/';
+          // Force hard reload using location.href to ensure fresh state and prevent router deadlock
+          if (redirectUrl.startsWith('/')) {
+             redirectUrl = redirectUrl.substring(1);
+          }
+          location.href = import.meta.env.VITE_APP_CONTEXT_PATH + redirectUrl;
+        } else {
+          loading.value = false;
+          // 重新获取验证码
+          if (captchaEnabled.value) {
+            await getCode();
+          }
         }
+      } catch (reason) {
+        loading.value = false;
+        console.error('Login action failed unexpectedly:', reason);
       }
     } else {
       console.log('error submit!', fields);
