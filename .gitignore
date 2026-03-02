@@ -49,5 +49,6 @@ logs/
 tmp/
 temp/
 /data/
+.agent-temp/
 *.zip
 *.jar
