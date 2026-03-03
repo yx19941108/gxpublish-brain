@@ -1,15 +1,17 @@
 package com.gxpublish.brain.system.strategy;
 
-import cn.hutool.core.io.IoUtil;
-import com.gxpublish.brain.common.core.utils.SpringUtils;
+import com.gxpublish.brain.common.core.exception.ServiceException;
+import com.gxpublish.brain.common.core.utils.StringUtils;
 import com.gxpublish.brain.common.tus.strategy.TusUploadStrategy;
 import com.gxpublish.brain.system.domain.vo.SysOssVo;
 import com.gxpublish.brain.system.service.ISysOssService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-import org.springframework.web.multipart.MultipartFile;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 
 /**
  * 将 TUS 断点续传上来的流转化为 SysOss 系统文件的一项策略实现。
@@ -26,14 +28,46 @@ public class SysOssTusUploadStrategy implements TusUploadStrategy {
     public Object finishUpload(String uploadUrl, String originalName, String contentType, InputStream inputStream)
             throws Exception {
         log.info("SysOssTusUploadStrategy finalizing upload for: {}", originalName);
+        if (inputStream == null) {
+            throw new ServiceException("Uploaded stream is empty");
+        }
+        Path tempDir = null;
+        Path tempFile = null;
+        try {
+            tempDir = Files.createTempDirectory("tus-finalize-");
+            tempFile = tempDir.resolve(sanitizeOriginalName(originalName));
+            Files.copy(inputStream, tempFile, StandardCopyOption.REPLACE_EXISTING);
 
-        // 读取完整流内容并构建标准的 MultipartFile 代理对象，复用现有 OSS 上传通道
-        byte[] bytes = IoUtil.readBytes(inputStream);
-        MultipartFile multipartFile = new TusMultipartFile(bytes, "file", originalName, contentType);
+            // 落盘后复用系统已有 upload(File) 链路，避免大文件全量入内存
+            SysOssVo sysOssVo = sysOssService.upload(tempFile.toFile());
+            return sysOssVo;
+        } finally {
+            if (tempFile != null) {
+                try {
+                    Files.deleteIfExists(tempFile);
+                } catch (Exception e) {
+                    log.warn("Failed to delete temp TUS file: {}", tempFile, e);
+                }
+            }
+            if (tempDir != null) {
+                try {
+                    Files.deleteIfExists(tempDir);
+                } catch (Exception e) {
+                    log.warn("Failed to delete temp TUS directory: {}", tempDir, e);
+                }
+            }
+        }
+    }
 
-        // 调用标准文件上传，并持久化 SysOss 表记录
-        SysOssVo sysOssVo = sysOssService.upload(multipartFile);
-
-        return sysOssVo;
+    private String sanitizeOriginalName(String originalName) {
+        String fileName = StringUtils.defaultIfBlank(originalName, "upload.bin");
+        String normalizedPath = fileName.replace("\\", "/");
+        if (normalizedPath.contains("/")) {
+            fileName = StringUtils.substringAfterLast(normalizedPath, "/");
+        } else {
+            fileName = normalizedPath;
+        }
+        fileName = fileName.replaceAll("[\\\\/:*?\"<>|]", "_");
+        return StringUtils.defaultIfBlank(fileName, "upload.bin");
     }
 }

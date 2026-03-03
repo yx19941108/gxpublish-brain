@@ -8,6 +8,7 @@ import com.gxpublish.brain.common.core.domain.dto.StartProcessDTO;
 import com.gxpublish.brain.common.core.domain.model.LoginUser;
 import com.gxpublish.brain.common.core.domain.event.ProcessDeleteEvent;
 import com.gxpublish.brain.common.core.domain.event.ProcessEvent;
+import com.gxpublish.brain.common.core.domain.event.ProcessTaskEvent;
 import com.gxpublish.brain.common.core.enums.BusinessStatusEnum;
 import com.gxpublish.brain.common.core.exception.ServiceException;
 import com.gxpublish.brain.common.core.service.WorkflowService;
@@ -55,6 +56,23 @@ public class EditorialReviewServiceImpl implements IEditorialReviewService {
 
     public static final String HAS_CERTIFICATE_APPLICANT_ROLE_KEY = "editorial_review_applicant_has_certificate";
     public static final String EDITORIAL_REVIEW_FLOW_CODE = "editorial_review_flow";
+    private static final Set<String> FIRST_REVIEW_NODE_CODES = Set.of(
+            "1b2489b3-db28-4b57-82c1-3fd1c8ae1d59",
+            "dept-audit-node",
+            "first-audit-node",
+            "first-review-node",
+            "level1-audit-node");
+    private static final Set<String> SECOND_REVIEW_NODE_CODES = Set.of(
+            "ee5f5403-21c2-49e8-80b1-3c72ddad0148",
+            "second-audit-node",
+            "second-review-node",
+            "level2-audit-node");
+    private static final Set<String> THIRD_REVIEW_NODE_CODES = Set.of(
+            "2583d1cb-2312-4f41-9cfc-35784c59330a",
+            "final-audit-node",
+            "third-audit-node",
+            "third-review-node",
+            "level3-audit-node");
     private final EditorialReviewMapper baseMapper;
     private final EditorialAttachmentMapper attachmentMapper;
     private final EditorialLinkMapper linkMapper;
@@ -380,7 +398,7 @@ public class EditorialReviewServiceImpl implements IEditorialReviewService {
                 review.setStatus(newStatus);
             }
 
-            // 同步最新的精细化状态 reviewStatus
+            // 流程终态与提交初始化在 ProcessEvent 同步，中间态交给 ProcessTaskEvent 同步
             if (BusinessStatusEnum.BACK.getStatus().equals(review.getStatus())) {
                 review.setReviewStatus(ReviewStatusEnum.BACK.getCode());
             } else if (BusinessStatusEnum.CANCEL.getStatus().equals(review.getStatus())) {
@@ -389,18 +407,8 @@ public class EditorialReviewServiceImpl implements IEditorialReviewService {
                 review.setReviewStatus(ReviewStatusEnum.APPROVED.getCode());
             } else if (BusinessStatusEnum.TERMINATION.getStatus().equals(review.getStatus())) {
                 review.setReviewStatus(ReviewStatusEnum.TERMINATED.getCode());
-            } else if (BusinessStatusEnum.WAITING.getStatus().equals(review.getStatus())) {
-                // 流转中，根据当前节点特征来判断精确业务状态
-                String nodeCode = processEvent.getNodeCode();
-                if ("1b2489b3-db28-4b57-82c1-3fd1c8ae1d59".equals(nodeCode)) {
-                    review.setReviewStatus(ReviewStatusEnum.WAITING_FIRST.getCode());
-                } else if ("ee5f5403-21c2-49e8-80b1-3c72ddad0148".equals(nodeCode)) {
-                    review.setReviewStatus(ReviewStatusEnum.WAITING_SECOND.getCode());
-                } else if ("2583d1cb-2312-4f41-9cfc-35784c59330a".equals(nodeCode)) {
-                    review.setReviewStatus(ReviewStatusEnum.WAITING_FINAL.getCode());
-                } else {
-                    review.setReviewStatus(ReviewStatusEnum.WAITING_FIRST.getCode());
-                }
+            } else if (isSubmit && BusinessStatusEnum.WAITING.getStatus().equals(review.getStatus())) {
+                review.setReviewStatus(ReviewStatusEnum.WAITING_FIRST.getCode());
             }
 
             baseMapper.updateById(review);
@@ -427,6 +435,46 @@ public class EditorialReviewServiceImpl implements IEditorialReviewService {
             history.setOperateType(opType);
             historyMapper.insert(history);
         }
+    }
+
+    @EventListener(condition = "#processTaskEvent.flowCode.startsWith('editorial_review')")
+    public void processTaskHandler(ProcessTaskEvent processTaskEvent) {
+        log.info("审校流程任务事件: {}", processTaskEvent);
+        EditorialReview review = baseMapper.selectById(Convert.toLong(processTaskEvent.getBusinessId()));
+        if (review == null) {
+            return;
+        }
+        if (!BusinessStatusEnum.WAITING.getStatus().equals(review.getStatus())) {
+            return;
+        }
+        Integer reviewStatus = resolveWaitingReviewStatus(processTaskEvent.getNodeCode(), processTaskEvent.getNodeName());
+        if (reviewStatus == null || Objects.equals(reviewStatus, review.getReviewStatus())) {
+            return;
+        }
+        review.setReviewStatus(reviewStatus);
+        baseMapper.updateById(review);
+    }
+
+    private Integer resolveWaitingReviewStatus(String nodeCode, String nodeName) {
+        String normalizedCode = StringUtils.lowerCase(StringUtils.defaultString(nodeCode));
+        String normalizedName = StringUtils.deleteWhitespace(StringUtils.defaultString(nodeName));
+
+        if (FIRST_REVIEW_NODE_CODES.contains(normalizedCode)
+                || StringUtils.containsAny(normalizedCode, "first", "level1", "dept-audit")
+                || StringUtils.containsAnyIgnoreCase(normalizedName, "一审", "一级", "初审", "部门经理审批")) {
+            return ReviewStatusEnum.WAITING_FIRST.getCode();
+        }
+        if (SECOND_REVIEW_NODE_CODES.contains(normalizedCode)
+                || StringUtils.containsAny(normalizedCode, "second", "level2")
+                || StringUtils.containsAnyIgnoreCase(normalizedName, "二审", "二级", "复审")) {
+            return ReviewStatusEnum.WAITING_SECOND.getCode();
+        }
+        if (THIRD_REVIEW_NODE_CODES.contains(normalizedCode)
+                || StringUtils.containsAny(normalizedCode, "third", "level3", "final")
+                || StringUtils.containsAnyIgnoreCase(normalizedName, "三审", "三级", "终审", "总编室审批", "社领导审批")) {
+            return ReviewStatusEnum.WAITING_FINAL.getCode();
+        }
+        return null;
     }
 
     @EventListener(condition = "#processDeleteEvent.flowCode.startsWith('editorial_review')")

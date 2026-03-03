@@ -82,6 +82,7 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['update:modelValue', 'update:fileName', 'update:fileUrl', 'update:fileSize', 'success', 'error']);
+const DEFAULT_CHUNK_SIZE = 5 * 1024 * 1024;
 
 // 上传状态
 const uploading = ref(false);
@@ -117,30 +118,93 @@ watch(() => props.fileName, (val) => {
   if (val) innerFileName.value = val;
 });
 
+/** 统一将 upload url 规范成 /tus/upload/{id} */
+const normalizeUploadUrl = (rawUploadUrl?: string | null): string => {
+  if (!rawUploadUrl) return '';
+  const withoutQuery = rawUploadUrl.split('?')[0];
+  const marker = '/tus/upload/';
+  const markerIndex = withoutQuery.indexOf(marker);
+  if (markerIndex >= 0) {
+    return withoutQuery.substring(markerIndex);
+  }
+  return withoutQuery;
+};
+
 /** 预览文件（通过后端 API 获取，避免预签名 URL 过期） */
-const handlePreview = () => {
+const downloadBlob = (blob: Blob, fileName: string) => {
+  const blobUrl = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = blobUrl;
+  a.download = fileName;
+  a.target = '_blank';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(blobUrl);
+};
+
+const fetchOssBlobById = async (ossId: string): Promise<Blob> => {
+  const baseURL = import.meta.env.VITE_APP_BASE_API;
+  const response = await fetch(baseURL + '/resource/oss/download/' + ossId, {
+    headers: {
+      Authorization: 'Bearer ' + getToken(),
+      clientid: import.meta.env.VITE_APP_CLIENT_ID
+    }
+  });
+  const blob = await response.blob();
+  const contentType = response.headers.get('content-type') || '';
+  if (!response.ok || contentType.includes('application/json')) {
+    const errorText = await blob.text();
+    throw new Error(errorText || '文件访问失败');
+  }
+  return blob;
+};
+
+const handlePreview = async () => {
+  const previewWindow = window.open('', '_blank');
   const ossId = props.modelValue;
   if (ossId) {
-    // 使用后端下载 API 新窗口打开
-    const baseURL = import.meta.env.VITE_APP_BASE_API;
-    window.open(baseURL + '/resource/oss/download/' + ossId, '_blank');
-  } else if (displayFileUrl.value) {
-    window.open(displayFileUrl.value, '_blank');
+    try {
+      const blob = await fetchOssBlobById(ossId);
+      const blobUrl = URL.createObjectURL(blob);
+      if (previewWindow) {
+        previewWindow.location.href = blobUrl;
+      } else {
+        window.open(blobUrl, '_blank');
+      }
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 60 * 1000);
+      return;
+    } catch (error) {
+      console.error('预览文件失败，回退到直链预览:', error);
+    }
+  }
+  if (displayFileUrl.value) {
+    if (previewWindow) {
+      previewWindow.location.href = displayFileUrl.value;
+    } else {
+      window.open(displayFileUrl.value, '_blank');
+    }
+    return;
+  }
+  if (previewWindow) {
+    previewWindow.close();
   }
 };
 
 /** 下载文件（通过后端 API） */
-const handleDownload = () => {
+const handleDownload = async () => {
   const ossId = props.modelValue;
   if (ossId) {
-    const baseURL = import.meta.env.VITE_APP_BASE_API;
-    const a = document.createElement('a');
-    a.href = baseURL + '/resource/oss/download/' + ossId;
-    a.download = displayFileName.value;
-    a.target = '_blank';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    try {
+      const blob = await fetchOssBlobById(ossId);
+      downloadBlob(blob, displayFileName.value);
+      return;
+    } catch (error) {
+      console.error('下载文件失败，回退到直链下载:', error);
+    }
+  }
+  if (displayFileUrl.value) {
+    window.open(displayFileUrl.value, '_blank');
   }
 };
 
@@ -165,6 +229,8 @@ const customUpload = (options: any): Promise<unknown> => {
 
     upload = new tus.Upload(file, {
       endpoint: props.endpoint,
+      chunkSize: DEFAULT_CHUNK_SIZE,
+      storeFingerprintForResuming: true,
       retryDelays: [0, 3000, 5000, 10000, 20000],
       headers: {
         Authorization: 'Bearer ' + getToken(),
@@ -196,8 +262,11 @@ const customUpload = (options: any): Promise<unknown> => {
         }
       },
       onSuccess: async () => {
-        const uploadUrl = upload!.url;
         try {
+          const uploadUrl = normalizeUploadUrl(upload?.url);
+          if (!uploadUrl || !uploadUrl.startsWith('/tus/upload/')) {
+            throw new Error('未获取到有效的上传会话地址');
+          }
           const response = await fetch(import.meta.env.VITE_APP_BASE_API + '/tus/upload/finish', {
             method: 'POST',
             headers: {
