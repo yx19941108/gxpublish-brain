@@ -35,17 +35,17 @@ public enum EditorialRoleEnum {
     /**
      * 审批流转：一级编辑室主任审批角色，可见“待一审”的稿件
      */
-    FIRST_APPROVER("editorial_first_level_approver", ReviewStatusEnum.WAITING_FIRST.getCode()),
+    FIRST_APPROVER("editorial_first_level_approver", 10),
 
     /**
      * 审批流转：二级总编室复审角色，可见“待二审”的稿件
      */
-    SECOND_APPROVER("editorial_second_level_approver", ReviewStatusEnum.WAITING_SECOND.getCode()),
+    SECOND_APPROVER("editorial_second_level_approver", 20),
 
     /**
      * 审批流转：三级社领导终审角色，可见“待终审”的稿件
      */
-    FINAL_APPROVER("editorial_third_level_approver", ReviewStatusEnum.WAITING_FINAL.getCode());
+    FINAL_APPROVER("editorial_third_level_approver", 30);
 
     /**
      * 实际数据库 sys_role 表的角色标识（完全强对应）

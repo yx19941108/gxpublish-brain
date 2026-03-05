@@ -16,8 +16,6 @@
 
     <el-card shadow="never" style="height: 78vh; overflow-y: auto" class="mt-2">
       <el-form ref="reviewFormRef" v-loading="loading" :disabled="isView" :model="form" :rules="rules" label-width="100px">
-
-
         <el-form-item label="流程类型" prop="processType">
           <el-radio-group v-model="form.processType" :disabled="!!form.id || isView">
             <el-radio label="AUDIT">审核流程</el-radio>
@@ -231,7 +229,7 @@ const submitForm = async (status: string, mode: boolean) => {
           res = await addReview(form);
         }
         form.id = res.data.id; // 回填ID
-        
+
         ElMessage.success('暂存成功');
         close();
       } else {

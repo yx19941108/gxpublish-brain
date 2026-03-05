@@ -40,7 +40,9 @@ const handleApprovalRecord = () => {
 const submitButtonShow = computed(() => {
   return (
     props.pageType === 'add' ||
-    (props.pageType === 'update' && props.status && (props.status.toLowerCase() === 'draft' || props.status.toLowerCase() === 'cancel' || props.status.toLowerCase() === 'back'))
+    (props.pageType === 'update' &&
+      props.status &&
+      (props.status.toLowerCase() === 'draft' || props.status.toLowerCase() === 'cancel' || props.status.toLowerCase() === 'back'))
   );
 });
 

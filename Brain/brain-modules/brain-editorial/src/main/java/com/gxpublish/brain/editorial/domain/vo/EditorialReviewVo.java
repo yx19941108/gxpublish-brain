@@ -121,4 +121,9 @@ public class EditorialReviewVo implements Serializable {
      */
     private List<EditorialLinkVo> linkList;
 
+    /**
+     * 当前用户是否可编辑
+     */
+    private Boolean canEdit;
+
 }

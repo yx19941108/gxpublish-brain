@@ -4,6 +4,7 @@ import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.convert.Convert;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.gxpublish.brain.common.core.domain.dto.RoleDTO;
 import com.gxpublish.brain.common.core.domain.dto.StartProcessDTO;
 import com.gxpublish.brain.common.core.domain.model.LoginUser;
 import com.gxpublish.brain.common.core.domain.event.ProcessDeleteEvent;
@@ -35,6 +36,7 @@ import com.gxpublish.brain.editorial.domain.param.EditorialScopeParam;
 import com.gxpublish.brain.editorial.enums.ReviewStatusEnum;
 import com.gxpublish.brain.editorial.service.strategy.EditorialDataScopeFactory;
 import com.gxpublish.brain.workflow.common.constant.FlowConstant;
+import com.gxpublish.brain.workflow.handler.FlowProcessEventHandler;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -102,6 +104,17 @@ public class EditorialReviewServiceImpl implements IEditorialReviewService {
         params.put("scopeParam", scopeParam);
 
         Page<EditorialReviewVo> result = baseMapper.customSelectPage(pageQuery.build(), bo, params);
+
+        // 判断当前角色是否展示编辑按钮
+        List<String> currentUseRoleKeyList = LoginHelper.getNotNullLoginUser().getRoles().stream().map(RoleDTO::getRoleKey).toList();
+        for (EditorialReviewVo record : result.getRecords()) {
+            List<String> canEditRoleKeyList = ReviewStatusEnum.getByStatus(record.getReviewStatus()).getCanEditRoleKeyList();
+            if (CollUtil.containsAny(canEditRoleKeyList, currentUseRoleKeyList)) {
+                record.setCanEdit(true);
+            } else {
+                record.setCanEdit(false);
+            }
+        }
         return TableDataInfo.build(result);
     }
 

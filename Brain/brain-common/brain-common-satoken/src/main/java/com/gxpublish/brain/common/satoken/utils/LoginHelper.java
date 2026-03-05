@@ -6,6 +6,7 @@ import cn.dev33.satoken.stp.parameter.SaLoginParameter;
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.convert.Convert;
 import cn.hutool.core.util.ObjectUtil;
+import com.gxpublish.brain.common.core.exception.base.BaseException;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import com.gxpublish.brain.common.core.constant.SystemConstants;
@@ -68,6 +69,14 @@ public class LoginHelper {
         SaSession session = StpUtil.getTokenSession();
         if (ObjectUtil.isNull(session)) {
             return null;
+        }
+        return (T) session.get(LOGIN_USER_KEY);
+    }
+
+    public static <T extends LoginUser> T getNotNullLoginUser() {
+        SaSession session = StpUtil.getTokenSession();
+        if (ObjectUtil.isNull(session)) {
+            throw new BaseException("登录信息不存在");
         }
         return (T) session.get(LOGIN_USER_KEY);
     }
