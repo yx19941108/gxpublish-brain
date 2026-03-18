@@ -1,0 +1,142 @@
+// place your custom styles here
+.vp-hero-info {
+  padding-top: 40px;
+  .vp-hero-image {
+    min-height: 26rem;
+  }
+}
+
+.vp-navbar {
+  .nav-link:hover {
+    img.icon {
+      color: var(--theme-color) !important;
+    }
+  }
+  .dropdown-title {
+    display: flex;
+    align-items: center;
+    .title {
+      display: flex;
+      align-items: center;
+    }
+  }
+}
+.vp-hero-actions {
+  display: flex;
+  align-items: center;
+  .vp-hero-action {
+    display: flex;
+    align-items: center;
+  }
+}
+
+.vp-sidebar > .vp-sidebar-links {
+  padding: 8px 0 2.8rem 0;
+  overflow-y: auto;
+  height: calc(100% - 254px);
+}
+
+.vp-sidebar {
+  overflow-y: hidden;
+  .vp-sidebar-header {
+    margin-inline: 0;
+  }
+}
+
+.vp-feature-title {
+  display: flex;
+  align-items: center;
+  .icon {
+    height: 22.98px;
+  }
+}
+
+.theme-hope-content table img {
+  max-width: 100% !important;
+}
+
+.external-link-icon .theme-hope-content a[href*="://"]:not(.no-external-link-icon)::after, .external-link-icon .theme-hope-content a[target=_blank]:not(.no-external-link-icon)::after {
+  display: none;
+}
+
+/* 设置透明边框，可以调整最后一个值来改变透明度 */
+.no-border {
+  border: 1px solid rgba(0, 0, 0, 0);
+}
+
+.link-style {
+  cursor: pointer;
+  line-height: 33px;
+}
+
+/* 悬浮时的颜色 */
+.link-style:hover {
+  color: red;
+  text-decoration: underline; /* 始终显示下划线 */
+}
+
+.vp-notice-wrapper {
+  width: auto; /* 自适应宽度 */
+  height: auto; /* 自适应高度 */
+}
+
+.vp-notice-wrapper a {
+  color: inherit; /* 继承父级文字颜色 */
+  text-decoration: none; /* 去掉下划线 */
+}
+
+.vp-notice-wrapper a:hover {
+  color: red; /* 鼠标悬停时变成红色 */
+}
+
+.vp-sidebar-links, .vp-nav-links {
+  font-size: 18px;
+}
+.vp-highlight-image {
+  width: 33rem;
+}
+.vp-hero-info-wrapper.fullscreen {
+  height: 81vh !important;
+}
+.vp-hero-title {
+  text-align: center;
+}
+#main-description {
+  max-width: 46rem;
+}
+
+.red-no-bg {
+  color: red;
+  padding: 2px 8px;
+}
+
+.red-bg {
+   @extend .red-no-bg;
+   background-color: #f0f0f0;
+ }
+
+.red-bg-bold {
+  @extend .red-bg;
+  font-weight: bold;
+}
+
+.red-font {
+  color: red;
+  padding: 8px;
+  font-size: 20px;
+}
+
+.red-font-bold {
+  @extend .red-font;
+  font-weight: bold;
+}
+
+.big-font {
+  padding: 8px;
+  font-size: 20px
+}
+
+.yat {
+  border: 2px solid #ccc;
+  margin-bottom: 3px;
+}
