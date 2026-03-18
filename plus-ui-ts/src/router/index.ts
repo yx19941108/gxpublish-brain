@@ -96,19 +96,29 @@ export const constantRoutes: RouteRecordRaw[] = [
     redirect: 'noredirect',
     children: [
       {
+        path: 'review/form',
+        component: () => import('@/views/editorial/review/form.vue'),
+        name: 'EditorialReviewForm',
+        meta: { title: '审校表单', activeMenu: '/editorial/review' }
+      },
+      {
+        path: 'review/detail',
+        component: () => import('@/views/editorial/review/detail.vue'),
+        name: 'EditorialReviewDetail',
+        meta: { title: '审校详情', activeMenu: '/editorial/review' }
+      },
+      {
         path: 'review/reviewEdit',
         component: () => import('@/views/editorial/review/reviewEdit.vue'),
-        name: 'EditorialReviewEdit',
-        meta: { title: '编辑部审批流程', activeMenu: '/editorial/review' }
+        name: 'EditorialReviewLegacyFallback',
+        meta: { title: '审校旧入口兜底', activeMenu: '/editorial/review' }
       }
     ]
   }
 ];
 
 // 动态路由，基于用户权限动态去加载
-export const dynamicRoutes: RouteRecordRaw[] = [
-
-];
+export const dynamicRoutes: RouteRecordRaw[] = [];
 
 /**
  * 创建路由

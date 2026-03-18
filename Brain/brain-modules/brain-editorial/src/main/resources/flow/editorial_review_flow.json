@@ -10,6 +10,7 @@
             "skipList": [
                 {
                     "skipType": "PASS",
+                    "skipCondition": null,
                     "nowNodeCode": "start-node",
                     "nextNodeCode": "applicant-node",
                     "coordinate": "120,200;180,200"
@@ -27,43 +28,71 @@
             "skipList": [
                 {
                     "skipType": "PASS",
+                    "skipCondition": "default@@${!isCertified}",
                     "nowNodeCode": "applicant-node",
-                    "nextNodeCode": "dept-audit-node",
-                    "coordinate": "300,200;360,200"
+                    "nextNodeCode": "first-review-node",
+                    "coordinate": "300,160;360,160"
+                },
+                {
+                    "skipType": "PASS",
+                    "skipCondition": "default@@${isCertified}",
+                    "nowNodeCode": "applicant-node",
+                    "nextNodeCode": "second-review-node",
+                    "coordinate": "300,240;540,240"
                 }
             ]
         },
         {
             "nodeType": "1",
-            "nodeCode": "dept-audit-node",
-            "nodeName": "部门经理审批",
-            "permissionFlag": "role:1",
+            "nodeCode": "first-review-node",
+            "nodeName": "一级审批",
+            "permissionFlag": "${editorialFirstLevelApprover}",
             "nodeRatio": "0.000",
-            "coordinate": "420,200|420,200",
+            "coordinate": "420,160|420,160",
             "ext": "[{\"code\":\"ButtonPermissionEnum\",\"value\":\"back,termination,transfer,file\"}]",
             "skipList": [
                 {
                     "skipType": "PASS",
-                    "nowNodeCode": "dept-audit-node",
-                    "nextNodeCode": "final-audit-node",
-                    "coordinate": "480,200;540,200"
+                    "skipCondition": null,
+                    "nowNodeCode": "first-review-node",
+                    "nextNodeCode": "second-review-node",
+                    "coordinate": "480,160;540,160"
                 }
             ]
         },
         {
             "nodeType": "1",
-            "nodeCode": "final-audit-node",
-            "nodeName": "总编室审批",
-            "permissionFlag": "role:1",
+            "nodeCode": "second-review-node",
+            "nodeName": "二级审批",
+            "permissionFlag": "${editorialSecondLevelApprover}",
             "nodeRatio": "0.000",
             "coordinate": "600,200|600,200",
             "ext": "[{\"code\":\"ButtonPermissionEnum\",\"value\":\"back,termination,transfer,file\"}]",
             "skipList": [
                 {
                     "skipType": "PASS",
-                    "nowNodeCode": "final-audit-node",
-                    "nextNodeCode": "end-node",
+                    "skipCondition": null,
+                    "nowNodeCode": "second-review-node",
+                    "nextNodeCode": "final-review-node",
                     "coordinate": "660,200;720,200"
+                }
+            ]
+        },
+        {
+            "nodeType": "1",
+            "nodeCode": "final-review-node",
+            "nodeName": "终审",
+            "permissionFlag": "${editorialThirdLevelApprover}",
+            "nodeRatio": "0.000",
+            "coordinate": "780,200|780,200",
+            "ext": "[{\"code\":\"ButtonPermissionEnum\",\"value\":\"back,termination,transfer,file\"}]",
+            "skipList": [
+                {
+                    "skipType": "PASS",
+                    "skipCondition": null,
+                    "nowNodeCode": "final-review-node",
+                    "nextNodeCode": "end-node",
+                    "coordinate": "840,200;900,200"
                 }
             ]
         },
@@ -73,7 +102,7 @@
             "nodeName": "结束",
             "permissionFlag": null,
             "nodeRatio": "0.000",
-            "coordinate": "780,200|780,200",
+            "coordinate": "960,200|960,200",
             "skipList": []
         }
     ],
@@ -83,5 +112,5 @@
     "category": "editorial",
     "version": "1",
     "formCustom": "N",
-    "formPath": "/editorial/review/reviewEdit"
+    "formPath": "/editorial/review/detail"
 }

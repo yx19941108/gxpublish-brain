@@ -1,16 +1,25 @@
 <template>
   <div class="app-container">
-    <el-form :model="queryParams" ref="queryRef" :inline="true" v-show="showSearch" label-width="68px">
+    <el-form ref="queryRef" :model="queryParams" :inline="true" label-width="68px" v-show="showSearch">
       <el-form-item label="标题" prop="title">
         <el-input v-model="queryParams.title" placeholder="请输入标题" clearable style="width: 240px" @keyup.enter="handleQuery" />
       </el-form-item>
-      <el-form-item label="状态" prop="status">
-        <el-select v-model="queryParams.status" placeholder="请选择状态" clearable style="width: 240px">
-          <el-option label="草稿" value="draft" />
-          <el-option label="待审批" value="waiting" />
-          <el-option label="已通过" value="finish" />
-          <el-option label="已驳回" value="back" />
-          <el-option label="已撤销" value="cancel" />
+      <el-form-item label="审校状态" prop="reviewStatus">
+        <el-select v-model="queryParams.reviewStatus" placeholder="请选择审校状态" clearable style="width: 240px">
+          <el-option label="草稿" value="DRAFT" />
+          <el-option label="待一审" value="WAITING_FIRST" />
+          <el-option label="待二审" value="WAITING_SECOND" />
+          <el-option label="待终审" value="WAITING_FINAL" />
+          <el-option label="已通过" value="APPROVED" />
+          <el-option label="已退回" value="BACK" />
+          <el-option label="已撤销" value="CANCELED" />
+          <el-option label="已终止" value="TERMINATED" />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="流程类型" prop="processType">
+        <el-select v-model="queryParams.processType" placeholder="请选择流程类型" clearable style="width: 240px">
+          <el-option label="审核流程" value="AUDIT" />
+          <el-option label="校验流程" value="PROOFREAD" />
         </el-select>
       </el-form-item>
       <el-form-item>
@@ -24,63 +33,55 @@
         <el-button type="primary" plain icon="Plus" @click="handleAdd" v-hasPermi="['editorial:review:add']">新增</el-button>
       </el-col>
       <el-col :span="1.5">
-        <el-button type="danger" plain icon="Delete" :disabled="multiple" @click="handleDelete()" v-hasPermi="['editorial:review:remove']"
-          >删除</el-button
-        >
+        <el-button type="danger" plain icon="Delete" :disabled="multiple" @click="handleDelete()" v-hasPermi="['editorial:review:remove']">
+          删除
+        </el-button>
       </el-col>
-      <right-toolbar v-model:showSearch="showSearch" @queryTable="getList"></right-toolbar>
+      <right-toolbar v-model:showSearch="showSearch" @queryTable="getList" />
     </el-row>
 
     <el-table v-loading="loading" :data="reviewList" @selection-change="handleSelectionChange">
       <el-table-column type="selection" width="55" align="center" />
-
-      <el-table-column label="标题" align="center" prop="title" :show-overflow-tooltip="true" />
-      <el-table-column label="流程类型" align="center" prop="processType">
-        <template #default="scope">
-          <el-tag v-if="scope.row.processType === 'AUDIT'" type="primary">审核流程</el-tag>
-          <el-tag v-else-if="scope.row.processType === 'PROOFREAD'" type="success">校验流程</el-tag>
-          <span v-else>-</span>
+      <el-table-column label="标题" align="center" prop="title" :show-overflow-tooltip="true" min-width="260" />
+      <el-table-column label="流程类型" align="center" min-width="120">
+        <template #default="{ row }">
+          <el-tag :type="getReviewProcessTypeMeta(row.processType).type">
+            {{ getReviewProcessTypeMeta(row.processType).label }}
+          </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="部门" align="center" prop="deptName" />
-      <el-table-column label="发起人" align="center" prop="userName" />
-      <el-table-column label="状态" align="center" prop="status">
-        <template #default="scope">
-          <el-tag v-if="scope.row.status === 'finish'" type="success">已通过</el-tag>
-          <el-tag v-else-if="scope.row.status === 'back'" type="danger">已驳回</el-tag>
-          <el-tag v-else-if="scope.row.status === 'waiting'" type="warning">待审批</el-tag>
-          <el-tag v-else-if="scope.row.status === 'cancel'" type="info">已撤销</el-tag>
-          <el-tag v-else-if="scope.row.status === 'termination'" type="info">已终止</el-tag>
-          <el-tag v-else-if="scope.row.status === 'invalid'" type="info">已作废</el-tag>
-          <el-tag v-else type="info">草稿</el-tag>
+      <el-table-column label="发起人" align="center" min-width="120">
+        <template #default="{ row }">{{ row.user.name || '-' }}</template>
+      </el-table-column>
+      <el-table-column label="部门" align="center" min-width="140">
+        <template #default="{ row }">{{ row.dept.name || '-' }}</template>
+      </el-table-column>
+      <el-table-column label="审校状态" align="center" min-width="120">
+        <template #default="{ row }">
+          <el-tag :type="getReviewStatusMeta(row.reviewStatus).type">
+            {{ getReviewStatusMeta(row.reviewStatus).label }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="可编辑" align="center" width="90">
+        <template #default="{ row }">
+          <el-tag :type="row.canEdit ? 'success' : 'info'">{{ row.canEdit ? '是' : '否' }}</el-tag>
         </template>
       </el-table-column>
       <el-table-column label="创建时间" align="center" prop="createTime" width="180">
-        <template #default="scope">
-          <span>{{ parseTime(scope.row.createTime) }}</span>
+        <template #default="{ row }">
+          <span>{{ parseTime(row.createTime) }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="操作" align="center" class-name="small-padding fixed-width">
-        <template #default="scope">
-          <el-button
-            link
-            type="primary"
-            icon="Edit"
-            @click="handleUpdate(scope.row)"
-            v-if="(scope.row.status === 'draft' || scope.row.status === 'back') && scope.row.userId === userStore.userId"
-            v-hasPermi="['editorial:review:edit']"
+      <el-table-column label="操作" align="center" class-name="small-padding fixed-width" width="220">
+        <template #default="{ row }">
+          <el-button link type="primary" icon="Edit" @click="handleUpdate(row)" v-if="row.canEdit" v-hasPermi="['editorial:review:edit']"
             >修改</el-button
           >
-          <el-button link type="primary" icon="View" @click="handleView(scope.row)">详情</el-button>
-          <el-button
-            link
-            type="primary"
-            icon="Delete"
-            @click="handleDelete(scope.row)"
-            v-if="scope.row.status === 'draft' && scope.row.userId === userStore.userId"
-            v-hasPermi="['editorial:review:remove']"
-            >删除</el-button
-          >
+          <el-button link type="primary" icon="View" @click="handleView(row)">详情</el-button>
+          <el-button link type="primary" icon="Delete" @click="handleDelete(row)" v-if="row.canEdit" v-hasPermi="['editorial:review:remove']">
+            删除
+          </el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -90,35 +91,47 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, toRefs, onMounted, onActivated } from 'vue';
+import { onActivated, onMounted, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { listReview, delReview, type EditorialReviewQuery, type EditorialReviewVo } from '@/api/editorial/review';
-import { useUserStore } from '@/store/modules/user';
+
+import { deleteReview, listReviewPage, type ReviewPageQuery } from '@/api/editorial/review';
+
+import {
+  createReviewDetailLocation,
+  createReviewFormLocation,
+  getReviewProcessTypeMeta,
+  getReviewStatusMeta,
+  mapReviewPageItem
+} from './integration';
+import type { ReviewPageItem } from './model';
 
 const router = useRouter();
-const userStore = useUserStore();
+
 const loading = ref(true);
 const showSearch = ref(true);
 const ids = ref<Array<number | string>>([]);
-const single = ref(true);
 const multiple = ref(true);
 const total = ref(0);
-const reviewList = ref<EditorialReviewVo[]>([]);
+const reviewList = ref<ReviewPageItem[]>([]);
 
-const queryParams = reactive<EditorialReviewQuery>({
+const queryParams = reactive<ReviewPageQuery>({
   pageNum: 1,
   pageSize: 10,
   title: undefined,
-  status: undefined
+  reviewStatus: undefined,
+  processType: undefined
 });
 
 const getList = async () => {
   loading.value = true;
-  const res = await listReview(queryParams);
-  reviewList.value = res.rows;
-  total.value = res.total;
-  loading.value = false;
+  try {
+    const response = await listReviewPage(queryParams);
+    reviewList.value = (response.rows || []).map((item) => mapReviewPageItem(item));
+    total.value = response.total || 0;
+  } finally {
+    loading.value = false;
+  }
 };
 
 const handleQuery = () => {
@@ -128,40 +141,48 @@ const handleQuery = () => {
 
 const resetQuery = () => {
   queryParams.title = undefined;
-  queryParams.status = undefined;
+  queryParams.reviewStatus = undefined;
+  queryParams.processType = undefined;
   handleQuery();
 };
 
-const handleSelectionChange = (selection: EditorialReviewVo[]) => {
+const handleSelectionChange = (selection: ReviewPageItem[]) => {
   ids.value = selection.map((item) => item.id);
-  single.value = selection.length !== 1;
   multiple.value = !selection.length;
 };
 
 const handleAdd = () => {
-  router.push({ path: '/editorial/review/reviewEdit', query: { type: 'add' } });
+  router.push(createReviewFormLocation({ type: 'add' }));
 };
 
-const handleUpdate = (row: EditorialReviewVo) => {
-  const id = row.id || ids.value[0];
-  router.push({ path: '/editorial/review/reviewEdit', query: { id, type: 'update' } });
+const handleUpdate = (row: ReviewPageItem) => {
+  router.push(
+    createReviewFormLocation({
+      id: String(row.id),
+      type: 'update'
+    })
+  );
 };
 
-const handleView = (row: EditorialReviewVo) => {
-  router.push({ path: '/editorial/review/reviewEdit', query: { id: row.id, type: 'view' } });
+const handleView = (row: ReviewPageItem) => {
+  router.push(
+    createReviewDetailLocation({
+      id: String(row.id),
+      type: 'view'
+    })
+  );
 };
 
-const handleDelete = async (row?: EditorialReviewVo) => {
+const handleDelete = async (row?: ReviewPageItem) => {
   const deleteIds = row?.id || ids.value;
-  ElMessageBox.confirm('是否确认删除选中的数据项？', '警告', {
+  await ElMessageBox.confirm('是否确认删除选中的数据项？', '警告', {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
     type: 'warning'
-  }).then(async () => {
-    await delReview(deleteIds);
-    getList();
-    ElMessage.success('删除成功');
   });
+  await deleteReview(deleteIds);
+  ElMessage.success('删除成功');
+  await getList();
 };
 
 onMounted(() => {

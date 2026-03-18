@@ -2,7 +2,9 @@
   <div style="display: flex; justify-content: space-between">
     <div>
       <el-button v-if="submitButtonShow" :loading="props.buttonLoading" type="info" @click="submitForm('draft', mode)">暂存</el-button>
-      <el-button v-if="submitButtonShow" :loading="props.buttonLoading" type="primary" @click="submitForm('submit', mode)">提 交</el-button>
+      <el-button v-if="submitButtonShow" :loading="props.buttonLoading" type="primary" @click="submitForm('submit', mode)">{{
+        props.submitLabel
+      }}</el-button>
       <el-button v-if="approvalButtonShow" :loading="props.buttonLoading" type="primary" @click="approvalVerifyOpen">审批</el-button>
       <el-button v-if="props.id && props.status?.toLowerCase() !== 'draft'" type="primary" @click="handleApprovalRecord">流程进度</el-button>
       <slot />
@@ -20,7 +22,8 @@ const props = defineProps({
   pageType: propTypes.string.def(''),
   buttonLoading: propTypes.bool.def(false),
   id: propTypes.string.def('') || propTypes.number.def(),
-  mode: propTypes.bool.def(false)
+  mode: propTypes.bool.def(false),
+  submitLabel: propTypes.string.def('提交')
 });
 const emits = defineEmits(['submitForm', 'approvalVerifyOpen', 'handleApprovalRecord']);
 //暂存，提交
@@ -36,19 +39,24 @@ const handleApprovalRecord = () => {
   emits('handleApprovalRecord');
 };
 
+const normalizedStatus = computed(() => {
+  return String(props.status || '')
+    .trim()
+    .toUpperCase();
+});
+
+const isWaitingStatus = computed(() => {
+  return normalizedStatus.value === 'WAITING' || normalizedStatus.value.startsWith('WAITING_');
+});
+
 //校验提交按钮是否显示
 const submitButtonShow = computed(() => {
-  return (
-    props.pageType === 'add' ||
-    (props.pageType === 'update' &&
-      props.status &&
-      (props.status.toLowerCase() === 'draft' || props.status.toLowerCase() === 'cancel' || props.status.toLowerCase() === 'back'))
-  );
+  return props.pageType === 'add' || (props.pageType === 'update' && (normalizedStatus.value === 'DRAFT' || normalizedStatus.value === 'BACK'));
 });
 
 //校验审批按钮是否显示
 const approvalButtonShow = computed(() => {
-  return props.pageType === 'approval' && props.status && props.status.toLowerCase() === 'waiting';
+  return props.pageType === 'approval' && isWaitingStatus.value;
 });
 
 //返回

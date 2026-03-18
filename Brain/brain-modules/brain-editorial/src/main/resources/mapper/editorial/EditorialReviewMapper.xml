@@ -4,58 +4,42 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.gxpublish.brain.editorial.mapper.EditorialReviewMapper">
 
-    <resultMap type="com.gxpublish.brain.editorial.domain.vo.EditorialReviewVo" id="EditorialReviewResult">
-        <result property="id" column="id"/>
-        <result property="title" column="title"/>
-        <result property="content" column="content"/>
-        <result property="deptId" column="dept_id"/>
-        <result property="userId" column="user_id"/>
-        <result property="status" column="status"/>
-        <result property="applyCode" column="apply_code"/>
-        <result property="currentAttachmentId" column="current_attachment_id"/>
-        <result property="createDept" column="create_dept"/>
-        <result property="createBy" column="create_by"/>
-        <result property="createTime" column="create_time"/>
-        <result property="updateBy" column="update_by"/>
-        <result property="updateTime" column="update_time"/>
-        <result property="processType" column="process_type"/>
-    </resultMap>
-
-    <sql id="selectEditorialReviewVo">
-        SELECT r.id, r.title, r.content, r.dept_id, r.user_id, r.status, r.review_status, r.apply_code, 
-               r.current_attachment_id, r.create_dept, r.create_by, r.create_time, 
-               r.update_by, r.update_time, r.process_type
+    <sql id="selectEditorialReviewPageItemVo">
+        SELECT r.id,
+               r.title,
+               r.status,
+               r.review_status,
+               r.process_type,
+               r.create_time,
+               r.user_id,
+               r.dept_id
         FROM brain_editorial_review r
     </sql>
 
-    <!-- 通用的作用域查询条件 -->
     <sql id="dataScopeCondition">
         <choose>
-            <!-- 超级管理员：无特殊过滤 -->
             <when test="params.scopeParam.isAdmin != null and params.scopeParam.isAdmin == true">
             </when>
             <otherwise>
                 AND (
                     1 = 0
-                    <!-- 发起人可视自己创建的 -->
                     <if test="params.scopeParam.isApplicant != null and params.scopeParam.isApplicant == true">
                         OR r.user_id = #{params.scopeParam.userId}
                     </if>
-                    <!-- 审批人可视自己负责状态的 -->
                     <if test="params.scopeParam.isApprover != null and params.scopeParam.isApprover == true and params.scopeParam.visibleStatuses != null and params.scopeParam.visibleStatuses.size() > 0">
                         OR r.review_status IN
                         <foreach item="status" collection="params.scopeParam.visibleStatuses" open="(" separator="," close=")">
                             #{status}
                         </foreach>
                     </if>
-                    <!-- 兜底兼顾历史查询：只要参与过审批或发起就能看记录 -->
                     <if test="params.scopeParam.userId != null">
                         OR r.user_id = #{params.scopeParam.userId}
                         OR EXISTS (
-                            SELECT 1 FROM flow_instance fi
+                            SELECT 1
+                            FROM flow_instance fi
                             INNER JOIN flow_his_task fht ON fi.id = fht.instance_id
                             WHERE fi.business_id = CAST(r.id AS CHAR)
-                            AND fht.approver = CAST(#{params.scopeParam.userId} AS CHAR)
+                              AND fht.approver = CAST(#{params.scopeParam.userId} AS CHAR)
                         )
                     </if>
                 )
@@ -63,9 +47,8 @@
         </choose>
     </sql>
 
-    <!-- 自定义分页查询 -->
-    <select id="customSelectPage" resultType="com.gxpublish.brain.editorial.domain.vo.EditorialReviewVo">
-        <include refid="selectEditorialReviewVo"/>
+    <select id="customSelectPage" resultType="com.gxpublish.brain.editorial.domain.vo.EditorialReviewPageItemVo">
+        <include refid="selectEditorialReviewPageItemVo"/>
         <where>
             r.del_flag = '0'
             <if test="bo != null and bo.title != null and bo.title != ''">
@@ -76,6 +59,9 @@
             </if>
             <if test="bo != null and bo.userId != null">
                 AND r.user_id = #{bo.userId}
+            </if>
+            <if test="bo != null and bo.processType != null and bo.processType != ''">
+                AND r.process_type = #{bo.processType}
             </if>
             <if test="params != null and params.scopeParam != null">
                 <include refid="dataScopeCondition"/>
@@ -84,9 +70,8 @@
         ORDER BY r.create_time DESC
     </select>
 
-    <!-- 自定义列表查询 -->
-    <select id="customSelectList" resultType="com.gxpublish.brain.editorial.domain.vo.EditorialReviewVo">
-        <include refid="selectEditorialReviewVo"/>
+    <select id="customSelectList" resultType="com.gxpublish.brain.editorial.domain.vo.EditorialReviewPageItemVo">
+        <include refid="selectEditorialReviewPageItemVo"/>
         <where>
             r.del_flag = '0'
             <if test="bo != null and bo.title != null and bo.title != ''">
@@ -97,6 +82,9 @@
             </if>
             <if test="bo != null and bo.userId != null">
                 AND r.user_id = #{bo.userId}
+            </if>
+            <if test="bo != null and bo.processType != null and bo.processType != ''">
+                AND r.process_type = #{bo.processType}
             </if>
             <if test="params != null and params.scopeParam != null">
                 <include refid="dataScopeCondition"/>

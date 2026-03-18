@@ -6,10 +6,10 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.gxpublish.brain.common.core.domain.dto.RoleDTO;
 import com.gxpublish.brain.common.core.domain.dto.StartProcessDTO;
-import com.gxpublish.brain.common.core.domain.model.LoginUser;
 import com.gxpublish.brain.common.core.domain.event.ProcessDeleteEvent;
 import com.gxpublish.brain.common.core.domain.event.ProcessEvent;
 import com.gxpublish.brain.common.core.domain.event.ProcessTaskEvent;
+import com.gxpublish.brain.common.core.domain.model.LoginUser;
 import com.gxpublish.brain.common.core.enums.BusinessStatusEnum;
 import com.gxpublish.brain.common.core.exception.ServiceException;
 import com.gxpublish.brain.common.core.service.WorkflowService;
@@ -25,116 +25,96 @@ import com.gxpublish.brain.editorial.domain.EditorialLink;
 import com.gxpublish.brain.editorial.domain.EditorialReview;
 import com.gxpublish.brain.editorial.domain.bo.EditorialLinkBo;
 import com.gxpublish.brain.editorial.domain.bo.EditorialReviewBo;
+import com.gxpublish.brain.editorial.domain.param.EditorialScopeParam;
 import com.gxpublish.brain.editorial.domain.vo.EditorialHistoryVo;
-import com.gxpublish.brain.editorial.domain.vo.EditorialReviewVo;
+import com.gxpublish.brain.editorial.domain.vo.EditorialReviewDetailVo;
+import com.gxpublish.brain.editorial.domain.vo.EditorialReviewPageItemVo;
+import com.gxpublish.brain.editorial.enums.EditorialRoleEnum;
+import com.gxpublish.brain.editorial.enums.ReviewStatusEnum;
 import com.gxpublish.brain.editorial.mapper.EditorialAttachmentMapper;
 import com.gxpublish.brain.editorial.mapper.EditorialHistoryMapper;
 import com.gxpublish.brain.editorial.mapper.EditorialLinkMapper;
 import com.gxpublish.brain.editorial.mapper.EditorialReviewMapper;
+import com.gxpublish.brain.editorial.mapper.EditorialWorkflowRoleMapper;
 import com.gxpublish.brain.editorial.service.IEditorialReviewService;
-import com.gxpublish.brain.editorial.domain.param.EditorialScopeParam;
-import com.gxpublish.brain.editorial.enums.ReviewStatusEnum;
 import com.gxpublish.brain.editorial.service.strategy.EditorialDataScopeFactory;
+import com.gxpublish.brain.editorial.support.EditorialReviewContractAssembler;
+import com.gxpublish.brain.editorial.support.EditorialReviewWorkflowDefinition;
 import com.gxpublish.brain.workflow.common.constant.FlowConstant;
-import com.gxpublish.brain.workflow.handler.FlowProcessEventHandler;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.*;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
- * 编辑部审校Service业务层处理
- *
- * @author gxpublish
+ * 编辑部审校 Service 业务层处理。
  */
 @RequiredArgsConstructor
 @Service
 @Slf4j
 public class EditorialReviewServiceImpl implements IEditorialReviewService {
 
-    public static final String HAS_CERTIFICATE_APPLICANT_ROLE_KEY = "editorial_review_applicant_has_certificate";
-    public static final String EDITORIAL_REVIEW_FLOW_CODE = "editorial_review_flow";
-    private static final Set<String> FIRST_REVIEW_NODE_CODES = Set.of(
-            "1b2489b3-db28-4b57-82c1-3fd1c8ae1d59",
-            "dept-audit-node",
-            "first-audit-node",
-            "first-review-node",
-            "level1-audit-node");
-    private static final Set<String> SECOND_REVIEW_NODE_CODES = Set.of(
-            "ee5f5403-21c2-49e8-80b1-3c72ddad0148",
-            "second-audit-node",
-            "second-review-node",
-            "level2-audit-node");
-    private static final Set<String> THIRD_REVIEW_NODE_CODES = Set.of(
-            "2583d1cb-2312-4f41-9cfc-35784c59330a",
-            "final-audit-node",
-            "third-audit-node",
-            "third-review-node",
-            "level3-audit-node");
     private final EditorialReviewMapper baseMapper;
     private final EditorialAttachmentMapper attachmentMapper;
     private final EditorialLinkMapper linkMapper;
     private final EditorialHistoryMapper historyMapper;
     private final WorkflowService workflowService;
     private final EditorialDataScopeFactory dataScopeFactory;
+    private final EditorialWorkflowRoleMapper workflowRoleMapper;
 
     @Override
-    public EditorialReviewVo queryById(Long id) {
-        EditorialReviewVo vo = baseMapper.selectVoById(id);
-        if (vo != null) {
-            // 查询当前附件
-            if (vo.getCurrentAttachmentId() != null) {
-                vo.setAttachment(attachmentMapper.selectVoById(vo.getCurrentAttachmentId()));
-            }
-            // 查询关联链接
-            vo.setLinkList(linkMapper.selectVoList(
-                    new LambdaQueryWrapper<EditorialLink>().eq(EditorialLink::getReviewId, id)));
+    public EditorialReviewDetailVo queryById(Long id) {
+        EditorialReviewDetailVo detail = baseMapper.selectVoById(id);
+        if (detail == null) {
+            return null;
         }
-        return vo;
+        if (detail.getCurrentAttachmentId() != null) {
+            detail.setAttachment(attachmentMapper.selectVoById(detail.getCurrentAttachmentId()));
+        }
+        detail.setLinkList(linkMapper.selectVoList(
+            new LambdaQueryWrapper<EditorialLink>().eq(EditorialLink::getReviewId, id)));
+        detail.setCanEdit(canCurrentUserEdit(detail.getReviewStatus(), getCurrentUserRoleKeys()));
+        EditorialReviewContractAssembler.populateDetailContract(detail, queryHistoryList(id));
+        return detail;
     }
 
     @Override
-    public TableDataInfo<EditorialReviewVo> queryPageList(EditorialReviewBo bo, PageQuery pageQuery) {
+    public TableDataInfo<EditorialReviewPageItemVo> queryPageList(EditorialReviewBo bo, PageQuery pageQuery) {
         EditorialScopeParam scopeParam = dataScopeFactory.buildScopeParams();
         Map<String, Object> params = new HashMap<>();
         params.put("scopeParam", scopeParam);
 
-        Page<EditorialReviewVo> result = baseMapper.customSelectPage(pageQuery.build(), bo, params);
-
-        // 判断当前角色是否展示编辑按钮
-        List<String> currentUseRoleKeyList = LoginHelper.getNotNullLoginUser().getRoles().stream().map(RoleDTO::getRoleKey).toList();
-        for (EditorialReviewVo record : result.getRecords()) {
-            List<String> canEditRoleKeyList = ReviewStatusEnum.getByStatus(record.getReviewStatus()).getCanEditRoleKeyList();
-            if (CollUtil.containsAny(canEditRoleKeyList, currentUseRoleKeyList)) {
-                record.setCanEdit(true);
-            } else {
-                record.setCanEdit(false);
-            }
-        }
+        Page<EditorialReviewPageItemVo> result = baseMapper.customSelectPage(pageQuery.build(), bo, params);
+        populatePageRecords(result.getRecords(), getCurrentUserRoleKeys());
         return TableDataInfo.build(result);
     }
 
     @Override
-    public List<EditorialReviewVo> queryList(EditorialReviewBo bo) {
+    public List<EditorialReviewPageItemVo> queryList(EditorialReviewBo bo) {
         EditorialScopeParam scopeParam = dataScopeFactory.buildScopeParams();
         Map<String, Object> params = new HashMap<>();
         params.put("scopeParam", scopeParam);
 
-        return baseMapper.customSelectList(bo, params);
+        List<EditorialReviewPageItemVo> list = baseMapper.customSelectList(bo, params);
+        populatePageRecords(list, getCurrentUserRoleKeys());
+        return list;
     }
 
     @Transactional(rollbackFor = Exception.class)
     @Override
-    public EditorialReviewVo insertByBo(EditorialReviewBo bo) {
+    public EditorialReviewDetailVo insertByBo(EditorialReviewBo bo) {
+        prepareBoForWrite(bo);
         EditorialReview add = MapstructUtils.convert(bo, EditorialReview.class);
-        // 新增时强制使用枚举小写值，避免前端传入大写导致后续比较失败
         add.setStatus(BusinessStatusEnum.DRAFT.getStatus());
         add.setReviewStatus(ReviewStatusEnum.DRAFT.getCode());
-        // 设置发起人
         if (add.getUserId() == null) {
             add.setUserId(LoginHelper.getUserId());
         }
@@ -142,26 +122,23 @@ public class EditorialReviewServiceImpl implements IEditorialReviewService {
         baseMapper.insert(add);
         bo.setId(add.getId());
 
-        // 处理附件
         handleAttachment(bo, add.getId());
-
-        // 处理链接
         handleLinks(bo.getLinkList(), add.getId());
-
         return queryById(add.getId());
     }
 
     @Transactional(rollbackFor = Exception.class)
     @Override
-    public EditorialReviewVo submitAndFlowStart(EditorialReviewBo bo) {
+    public EditorialReviewDetailVo submitAndFlowStart(EditorialReviewBo bo) {
+        prepareBoForWrite(bo);
         if (bo.getId() != null) {
             EditorialReview existing = baseMapper.selectById(bo.getId());
             if (BusinessStatusEnum.BACK.getStatus().equals(existing.getStatus())
-                    || ReviewStatusEnum.BACK.getCode().equals(existing.getReviewStatus())) {
+                || ReviewStatusEnum.BACK.getCode().equals(existing.getReviewStatus())) {
                 throw new ServiceException("当前申请已被退回，请通过审批组件办理重新提交");
             }
             if (!BusinessStatusEnum.DRAFT.getStatus().equals(existing.getStatus())
-                    && !ReviewStatusEnum.DRAFT.getCode().equals(existing.getReviewStatus())) {
+                && !ReviewStatusEnum.DRAFT.getCode().equals(existing.getReviewStatus())) {
                 throw new ServiceException("只有草稿状态可发起审批");
             }
             updateByBo(bo);
@@ -170,47 +147,55 @@ public class EditorialReviewServiceImpl implements IEditorialReviewService {
         }
 
         EditorialReview review = baseMapper.selectById(bo.getId());
+        return startWorkflow(review);
+    }
 
-        // 判断发起人是否有证
-        boolean isCertified = false;
-        LoginUser loginUser = LoginHelper.getLoginUser();
-        if (loginUser != null && CollUtil.isNotEmpty(loginUser.getRoles())) {
-            isCertified = loginUser.getRoles().stream()
-                    .anyMatch(role -> HAS_CERTIFICATE_APPLICANT_ROLE_KEY.equals(role.getRoleKey()));
+    @Transactional(rollbackFor = Exception.class)
+    @Override
+    public EditorialReviewDetailVo resubmitAndFlowStart(EditorialReviewBo bo) {
+        EditorialReview existing = baseMapper.selectById(bo.getId());
+        if (existing == null) {
+            throw new ServiceException("申请不存在");
+        }
+        if (!BusinessStatusEnum.BACK.getStatus().equals(existing.getStatus())
+            && !ReviewStatusEnum.BACK.getCode().equals(existing.getReviewStatus())) {
+            throw new ServiceException("只有退回状态可重新提交");
         }
 
-        // 发起流程
+        updateByBo(bo);
+        EditorialReview review = baseMapper.selectById(bo.getId());
+        return startWorkflow(review);
+    }
+
+    private EditorialReviewDetailVo startWorkflow(EditorialReview review) {
+        boolean certifiedApplicant = isCertifiedApplicant(LoginHelper.getLoginUser());
         StartProcessDTO startProcess = new StartProcessDTO();
         startProcess.setBusinessId(review.getId().toString());
-        if (StringUtils.isBlank(bo.getFlowCode())) {
-            throw new ServiceException("流程定义编码不能为空");
-        }
-        startProcess.setFlowCode(bo.getFlowCode());
+        startProcess.setFlowCode(EditorialReviewWorkflowDefinition.FLOW_CODE);
         Map<String, Object> variables = new HashMap<>();
         variables.put("ignore", true);
-        variables.put("isCertified", isCertified);
-        startProcess.setVariables(variables); // 忽略权限校验, 传入有证标记
+        variables.put("isCertified", certifiedApplicant);
+        variables.putAll(buildApproverPermissionVariables());
+        startProcess.setVariables(variables);
 
         boolean flag = workflowService.startCompleteTask(startProcess);
         if (!flag) {
             throw new ServiceException("流程发起异常");
         }
 
-        // 如果该发起人属于“有证”用户，系统自动跳过一级审批时，留下一条通过记录
-        if (isCertified) {
+        if (certifiedApplicant) {
             EditorialHistory history = new EditorialHistory();
             history.setReviewId(review.getId());
+            LoginUser loginUser = LoginHelper.getLoginUser();
             if (loginUser != null) {
                 history.setOperatorId(loginUser.getUserId());
                 history.setOperatorName(loginUser.getUsername());
             }
             history.setOperateTime(new Date());
             history.setOperateType("自动跳过");
-
             Map<String, Object> diff = new HashMap<>();
             diff.put("action", "发起人持证自动通过一级审批");
             history.setFieldDiff(diff);
-
             historyMapper.insert(history);
         }
 
@@ -219,17 +204,17 @@ public class EditorialReviewServiceImpl implements IEditorialReviewService {
 
     @Transactional(rollbackFor = Exception.class)
     @Override
-    public EditorialReviewVo updateByBo(EditorialReviewBo bo) {
+    public EditorialReviewDetailVo updateByBo(EditorialReviewBo bo) {
+        prepareBoForWrite(bo);
         EditorialReview oldReview = baseMapper.selectById(bo.getId());
         if (oldReview == null) {
             throw new ServiceException("申请不存在");
         }
 
-        // 校验：仅草稿和退回状态允许修改表单内容
         if (!BusinessStatusEnum.DRAFT.getStatus().equals(oldReview.getStatus())
-                && !BusinessStatusEnum.BACK.getStatus().equals(oldReview.getStatus())
-                && !ReviewStatusEnum.DRAFT.getCode().equals(oldReview.getReviewStatus())
-                && !ReviewStatusEnum.BACK.getCode().equals(oldReview.getReviewStatus())) {
+            && !BusinessStatusEnum.BACK.getStatus().equals(oldReview.getStatus())
+            && !ReviewStatusEnum.DRAFT.getCode().equals(oldReview.getReviewStatus())
+            && !ReviewStatusEnum.BACK.getCode().equals(oldReview.getReviewStatus())) {
             throw new ServiceException("当前流程状态为审批中或已结束，不允许修改申请内容");
         }
 
@@ -240,32 +225,23 @@ public class EditorialReviewServiceImpl implements IEditorialReviewService {
 
         EditorialReview update = MapstructUtils.convert(bo, EditorialReview.class);
 
-        // 处理附件版本
         boolean attachmentChanged = handleAttachment(bo, bo.getId());
         if (attachmentChanged) {
-            update.setCurrentAttachmentId(null); // 指示重新查询或逻辑需调整
-            // 重新获取最新的 attachmentId 从 DB (或者 handleAttachment 返回 ID)
-            // 这里简化：handleAttachment 内部已经更新了 review 表的 currentAttachmentId 如果变化
             EditorialReview refreshed = baseMapper.selectById(bo.getId());
             update.setCurrentAttachmentId(refreshed.getCurrentAttachmentId());
         }
 
-        // 如果处于审批中 (WAITING)，记录 diff
         if (BusinessStatusEnum.WAITING.getStatus().equals(oldReview.getStatus())) {
             recordHistory(oldReview, update, bo.getLinkList(), attachmentChanged);
         }
 
         baseMapper.updateById(update);
-
-        // 处理链接 (全量替换)
         handleLinks(bo.getLinkList(), bo.getId());
-
         return queryById(bo.getId());
     }
 
     private boolean handleAttachment(EditorialReviewBo bo, Long reviewId) {
         if (StringUtils.isBlank(bo.getAttachmentOssId())) {
-            // 如果没传附件，判断是否需要清理
             EditorialReview review = baseMapper.selectById(reviewId);
             if (review.getCurrentAttachmentId() != null) {
                 LambdaQueryWrapper<EditorialAttachment> wrapper = new LambdaQueryWrapper<>();
@@ -291,9 +267,7 @@ public class EditorialReviewServiceImpl implements IEditorialReviewService {
             }
         }
 
-        // 如果 OSS ID 不同，说明上传了新文件
         if (!StringUtils.equals(bo.getAttachmentOssId(), currentOssId)) {
-            // 不保留历史附件的话，先删除旧的
             LambdaQueryWrapper<EditorialAttachment> wrapper = new LambdaQueryWrapper<>();
             wrapper.eq(EditorialAttachment::getReviewId, reviewId);
             attachmentMapper.delete(wrapper);
@@ -311,10 +285,8 @@ public class EditorialReviewServiceImpl implements IEditorialReviewService {
             newAttachment.setVersion(currentVersion + 1);
             newAttachment.setUploaderId(LoginHelper.getUserId());
             newAttachment.setCreateTime(new Date());
-
             attachmentMapper.insert(newAttachment);
 
-            // 更新主表 currentAttachmentId
             review.setCurrentAttachmentId(newAttachment.getId());
             baseMapper.updateById(review);
             return true;
@@ -323,17 +295,18 @@ public class EditorialReviewServiceImpl implements IEditorialReviewService {
     }
 
     private void handleLinks(List<EditorialLinkBo> linkBoList, Long reviewId) {
-        if (linkBoList == null)
+        if (linkBoList == null) {
             return;
+        }
 
-        // 删除旧的 (简单粗暴全量替换，或根据 ID 更新)
-        // 这里采用保留 ID 的更新+新增+删除
-        List<Long> inputIds = linkBoList.stream().map(EditorialLinkBo::getId).filter(Objects::nonNull)
-                .collect(Collectors.toList());
+        List<Long> inputIds = linkBoList.stream()
+            .map(EditorialLinkBo::getId)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toList());
         if (CollUtil.isNotEmpty(inputIds)) {
             linkMapper.delete(new LambdaQueryWrapper<EditorialLink>()
-                    .eq(EditorialLink::getReviewId, reviewId)
-                    .notIn(EditorialLink::getId, inputIds));
+                .eq(EditorialLink::getReviewId, reviewId)
+                .notIn(EditorialLink::getId, inputIds));
         } else {
             linkMapper.delete(new LambdaQueryWrapper<EditorialLink>().eq(EditorialLink::getReviewId, reviewId));
         }
@@ -350,27 +323,29 @@ public class EditorialReviewServiceImpl implements IEditorialReviewService {
     }
 
     private void recordHistory(EditorialReview oldVal, EditorialReview newVal, List<EditorialLinkBo> links,
-            boolean attachmentChanged) {
+                               boolean attachmentChanged) {
         Map<String, Object> diff = new HashMap<>();
 
         if (!StringUtils.equals(oldVal.getTitle(), newVal.getTitle())) {
             diff.put("title", Map.of("old", oldVal.getTitle(), "new", newVal.getTitle()));
         }
         if (!StringUtils.equals(oldVal.getContent(), newVal.getContent())) {
-            diff.put("content", Map.of("old", "...", "new", "...")); // 内容太长不全存
+            diff.put("content", Map.of("old", "...", "new", "..."));
         }
         if (attachmentChanged) {
             diff.put("attachment", "Version updated");
         }
-        // Links diff logic omitted for brevity
+        if (CollUtil.isNotEmpty(links)) {
+            diff.put("linkCount", links.size());
+        }
 
         if (!diff.isEmpty()) {
             EditorialHistory history = new EditorialHistory();
             history.setReviewId(oldVal.getId());
             history.setOperatorId(LoginHelper.getUserId());
             try {
-                history.setOperatorName(LoginHelper.getUsername()); // 可能为空
-            } catch (Exception e) {
+                history.setOperatorName(LoginHelper.getUsername());
+            } catch (Exception ignored) {
             }
             history.setOperateTime(new Date());
             history.setOperateType("MODIFY");
@@ -389,105 +364,79 @@ public class EditorialReviewServiceImpl implements IEditorialReviewService {
     @Override
     public List<EditorialHistoryVo> queryHistoryList(Long reviewId) {
         return historyMapper.selectVoList(
-                new LambdaQueryWrapper<EditorialHistory>()
-                        .eq(EditorialHistory::getReviewId, reviewId)
-                        .orderByDesc(EditorialHistory::getOperateTime));
+            new LambdaQueryWrapper<EditorialHistory>()
+                .eq(EditorialHistory::getReviewId, reviewId)
+                .orderByDesc(EditorialHistory::getOperateTime));
     }
 
     @EventListener(condition = "#processEvent.flowCode.startsWith('editorial_review')")
     public void processHandler(ProcessEvent processEvent) {
         log.info("审校流程事件: {}", processEvent);
         EditorialReview review = baseMapper.selectById(Convert.toLong(processEvent.getBusinessId()));
-        if (review != null) {
-            boolean isSubmit = Boolean.TRUE.equals(processEvent.getSubmit());
-            String newStatus = processEvent.getStatus();
-
-            if (isSubmit) {
-                if (StringUtils.isBlank(review.getApplyCode())) {
-                    review.setApplyCode(Convert.toStr(processEvent.getParams().get(FlowConstant.BUSINESS_CODE)));
-                }
-                review.setStatus(BusinessStatusEnum.WAITING.getStatus());
-            } else if (StringUtils.isNotBlank(newStatus)) {
-                review.setStatus(newStatus);
-            }
-
-            // 流程终态与提交初始化在 ProcessEvent 同步，中间态交给 ProcessTaskEvent 同步
-            if (BusinessStatusEnum.BACK.getStatus().equals(review.getStatus())) {
-                review.setReviewStatus(ReviewStatusEnum.BACK.getCode());
-            } else if (BusinessStatusEnum.CANCEL.getStatus().equals(review.getStatus())) {
-                review.setReviewStatus(ReviewStatusEnum.CANCELED.getCode());
-            } else if (BusinessStatusEnum.FINISH.getStatus().equals(review.getStatus())) {
-                review.setReviewStatus(ReviewStatusEnum.APPROVED.getCode());
-            } else if (BusinessStatusEnum.TERMINATION.getStatus().equals(review.getStatus())) {
-                review.setReviewStatus(ReviewStatusEnum.TERMINATED.getCode());
-            } else if (isSubmit && BusinessStatusEnum.WAITING.getStatus().equals(review.getStatus())) {
-                review.setReviewStatus(ReviewStatusEnum.WAITING_FIRST.getCode());
-            }
-
-            baseMapper.updateById(review);
-
-            // 记录审批历史
-            EditorialHistory history = new EditorialHistory();
-            history.setReviewId(review.getId());
-            try {
-                history.setOperatorId(LoginHelper.getUserId());
-                history.setOperatorName(LoginHelper.getUsername());
-            } catch (Exception e) {
-                log.warn("获取历史操作人信息失败: {}", e.getMessage());
-            }
-            history.setOperateTime(new Date());
-
-            String opType = "FLOW_NODE";
-            if (isSubmit) {
-                opType = "发起审批";
-            } else if (StringUtils.isNotBlank(newStatus)) {
-                opType = "FLOW_" + newStatus;
-            } else {
-                opType = "流程流转";
-            }
-            history.setOperateType(opType);
-            historyMapper.insert(history);
+        if (review == null) {
+            return;
         }
+        boolean submit = Boolean.TRUE.equals(processEvent.getSubmit());
+        String newStatus = processEvent.getStatus();
+        Map<String, Object> params = processEvent.getParams() == null ? Map.of() : processEvent.getParams();
+
+        if (submit) {
+            if (StringUtils.isBlank(review.getApplyCode())) {
+                review.setApplyCode(Convert.toStr(params.get(FlowConstant.BUSINESS_CODE)));
+            }
+            review.setStatus(BusinessStatusEnum.WAITING.getStatus());
+        } else if (StringUtils.isNotBlank(newStatus)) {
+            review.setStatus(newStatus);
+        }
+
+        if (BusinessStatusEnum.BACK.getStatus().equals(review.getStatus())) {
+            review.setReviewStatus(ReviewStatusEnum.BACK.getCode());
+        } else if (BusinessStatusEnum.CANCEL.getStatus().equals(review.getStatus())) {
+            review.setReviewStatus(ReviewStatusEnum.CANCELED.getCode());
+        } else if (BusinessStatusEnum.FINISH.getStatus().equals(review.getStatus())) {
+            review.setReviewStatus(ReviewStatusEnum.APPROVED.getCode());
+        } else if (BusinessStatusEnum.TERMINATION.getStatus().equals(review.getStatus())) {
+            review.setReviewStatus(ReviewStatusEnum.TERMINATED.getCode());
+        } else if (submit && BusinessStatusEnum.WAITING.getStatus().equals(review.getStatus())) {
+            review.setReviewStatus(EditorialReviewWorkflowDefinition.resolveSubmitWaitingStatus(
+                Convert.toBool(params.get("isCertified"), false)));
+        }
+
+        baseMapper.updateById(review);
+
+        EditorialHistory history = new EditorialHistory();
+        history.setReviewId(review.getId());
+        try {
+            history.setOperatorId(LoginHelper.getUserId());
+            history.setOperatorName(LoginHelper.getUsername());
+        } catch (Exception e) {
+            log.warn("获取历史操作人信息失败: {}", e.getMessage());
+        }
+        history.setOperateTime(new Date());
+
+        String opType = "FLOW_NODE";
+        if (submit) {
+            opType = "发起审批";
+        } else if (StringUtils.isNotBlank(newStatus)) {
+            opType = "FLOW_" + newStatus;
+        }
+        history.setOperateType(opType);
+        historyMapper.insert(history);
     }
 
     @EventListener(condition = "#processTaskEvent.flowCode.startsWith('editorial_review')")
     public void processTaskHandler(ProcessTaskEvent processTaskEvent) {
         log.info("审校流程任务事件: {}", processTaskEvent);
         EditorialReview review = baseMapper.selectById(Convert.toLong(processTaskEvent.getBusinessId()));
-        if (review == null) {
+        if (review == null || !BusinessStatusEnum.WAITING.getStatus().equals(review.getStatus())) {
             return;
         }
-        if (!BusinessStatusEnum.WAITING.getStatus().equals(review.getStatus())) {
-            return;
-        }
-        Integer reviewStatus = resolveWaitingReviewStatus(processTaskEvent.getNodeCode(), processTaskEvent.getNodeName());
+        Integer reviewStatus = EditorialReviewWorkflowDefinition.resolveWaitingStatus(processTaskEvent.getNodeCode());
         if (reviewStatus == null || Objects.equals(reviewStatus, review.getReviewStatus())) {
             return;
         }
         review.setReviewStatus(reviewStatus);
         baseMapper.updateById(review);
-    }
-
-    private Integer resolveWaitingReviewStatus(String nodeCode, String nodeName) {
-        String normalizedCode = StringUtils.lowerCase(StringUtils.defaultString(nodeCode));
-        String normalizedName = StringUtils.deleteWhitespace(StringUtils.defaultString(nodeName));
-
-        if (FIRST_REVIEW_NODE_CODES.contains(normalizedCode)
-                || StringUtils.containsAny(normalizedCode, "first", "level1", "dept-audit")
-                || StringUtils.containsAnyIgnoreCase(normalizedName, "一审", "一级", "初审", "部门经理审批")) {
-            return ReviewStatusEnum.WAITING_FIRST.getCode();
-        }
-        if (SECOND_REVIEW_NODE_CODES.contains(normalizedCode)
-                || StringUtils.containsAny(normalizedCode, "second", "level2")
-                || StringUtils.containsAnyIgnoreCase(normalizedName, "二审", "二级", "复审")) {
-            return ReviewStatusEnum.WAITING_SECOND.getCode();
-        }
-        if (THIRD_REVIEW_NODE_CODES.contains(normalizedCode)
-                || StringUtils.containsAny(normalizedCode, "third", "level3", "final")
-                || StringUtils.containsAnyIgnoreCase(normalizedName, "三审", "三级", "终审", "总编室审批", "社领导审批")) {
-            return ReviewStatusEnum.WAITING_FINAL.getCode();
-        }
-        return null;
     }
 
     @EventListener(condition = "#processDeleteEvent.flowCode.startsWith('editorial_review')")
@@ -497,5 +446,70 @@ public class EditorialReviewServiceImpl implements IEditorialReviewService {
         if (review != null) {
             baseMapper.deleteById(review.getId());
         }
+    }
+
+    private void prepareBoForWrite(EditorialReviewBo bo) {
+        bo.setProcessType(EditorialReviewWorkflowDefinition.normalizeProcessType(bo.getProcessType()));
+        bo.setFlowCode(EditorialReviewWorkflowDefinition.FLOW_CODE);
+    }
+
+    private void populatePageRecords(List<EditorialReviewPageItemVo> records, List<String> currentRoleKeys) {
+        for (EditorialReviewPageItemVo record : records) {
+            record.setCanEdit(canCurrentUserEdit(record.getReviewStatus(), currentRoleKeys));
+            EditorialReviewContractAssembler.populatePageContract(record);
+        }
+    }
+
+    private boolean canCurrentUserEdit(Integer reviewStatus, List<String> currentRoleKeys) {
+        if (reviewStatus == null) {
+            return false;
+        }
+        List<String> canEditRoleKeyList = ReviewStatusEnum.getByStatus(reviewStatus).getCanEditRoleKeyList();
+        return CollUtil.containsAny(canEditRoleKeyList, currentRoleKeys);
+    }
+
+    private List<String> getCurrentUserRoleKeys() {
+        LoginUser loginUser = LoginHelper.getLoginUser();
+        if (loginUser == null || CollUtil.isEmpty(loginUser.getRoles())) {
+            return List.of();
+        }
+        return loginUser.getRoles().stream().map(RoleDTO::getRoleKey).toList();
+    }
+
+    private boolean isCertifiedApplicant(LoginUser loginUser) {
+        if (loginUser == null || CollUtil.isEmpty(loginUser.getRoles())) {
+            return false;
+        }
+        return loginUser.getRoles().stream()
+            .anyMatch(role -> EditorialRoleEnum.APPLICANT_CER.getRoleKey().equals(role.getRoleKey()));
+    }
+
+    private Map<String, Object> buildApproverPermissionVariables() {
+        List<String> roleKeys = List.of(
+            EditorialRoleEnum.FIRST_APPROVER.getRoleKey(),
+            EditorialRoleEnum.SECOND_APPROVER.getRoleKey(),
+            EditorialRoleEnum.FINAL_APPROVER.getRoleKey());
+        Map<String, Long> roleIdMap = workflowRoleMapper.selectRoleRefs(roleKeys).stream()
+            .collect(Collectors.toMap(
+                roleRef -> roleRef.getRoleKey(),
+                roleRef -> roleRef.getRoleId(),
+                (left, right) -> left));
+
+        Map<String, Object> variables = new HashMap<>();
+        variables.put(EditorialReviewWorkflowDefinition.FIRST_APPROVER_PERMISSION_VAR,
+            toPermissionFlag(roleIdMap, EditorialRoleEnum.FIRST_APPROVER.getRoleKey()));
+        variables.put(EditorialReviewWorkflowDefinition.SECOND_APPROVER_PERMISSION_VAR,
+            toPermissionFlag(roleIdMap, EditorialRoleEnum.SECOND_APPROVER.getRoleKey()));
+        variables.put(EditorialReviewWorkflowDefinition.FINAL_APPROVER_PERMISSION_VAR,
+            toPermissionFlag(roleIdMap, EditorialRoleEnum.FINAL_APPROVER.getRoleKey()));
+        return variables;
+    }
+
+    private String toPermissionFlag(Map<String, Long> roleIdMap, String roleKey) {
+        Long roleId = roleIdMap.get(roleKey);
+        if (roleId == null) {
+            throw new ServiceException("缺少审批角色 seed: " + roleKey);
+        }
+        return "role:" + roleId;
     }
 }
