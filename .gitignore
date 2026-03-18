@@ -50,5 +50,10 @@ tmp/
 temp/
 /data/
 .agent-temp/
+.worktrees/
+/.agents/
+/.claude/
+/Brain/data/
+/tmphome*/
 *.zip
 *.jar
