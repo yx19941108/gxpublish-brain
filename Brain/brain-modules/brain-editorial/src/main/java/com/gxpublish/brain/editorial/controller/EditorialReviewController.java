@@ -11,7 +11,8 @@ import com.gxpublish.brain.common.mybatis.core.page.TableDataInfo;
 import com.gxpublish.brain.common.web.core.BaseController;
 import com.gxpublish.brain.editorial.domain.bo.EditorialReviewBo;
 import com.gxpublish.brain.editorial.domain.vo.EditorialHistoryVo;
-import com.gxpublish.brain.editorial.domain.vo.EditorialReviewVo;
+import com.gxpublish.brain.editorial.domain.vo.EditorialReviewDetailVo;
+import com.gxpublish.brain.editorial.domain.vo.EditorialReviewPageItemVo;
 import com.gxpublish.brain.editorial.service.IEditorialReviewService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -41,7 +42,7 @@ public class EditorialReviewController extends BaseController {
     @SaCheckPermission("editorial:review:list")
     @Operation(summary = "查询审校申请列表")
     @GetMapping("/list")
-    public TableDataInfo<EditorialReviewVo> list(EditorialReviewBo bo, PageQuery pageQuery) {
+    public TableDataInfo<EditorialReviewPageItemVo> list(EditorialReviewBo bo, PageQuery pageQuery) {
         return editorialReviewService.queryPageList(bo, pageQuery);
     }
 
@@ -51,7 +52,7 @@ public class EditorialReviewController extends BaseController {
     @SaCheckPermission("editorial:review:query")
     @Operation(summary = "获取审校申请详细信息")
     @GetMapping(value = "/{id}")
-    public R<EditorialReviewVo> getInfo(@PathVariable Long id) {
+    public R<EditorialReviewDetailVo> getInfo(@PathVariable Long id) {
         return R.ok(editorialReviewService.queryById(id));
     }
 
@@ -62,7 +63,7 @@ public class EditorialReviewController extends BaseController {
     @Log(title = "审校申请", businessType = BusinessType.INSERT)
     @Operation(summary = "新增审校申请(保存草稿)")
     @PostMapping
-    public R<EditorialReviewVo> add(@Validated(AddGroup.class) @RequestBody EditorialReviewBo bo) {
+    public R<EditorialReviewDetailVo> add(@Validated(AddGroup.class) @RequestBody EditorialReviewBo bo) {
         return R.ok(editorialReviewService.insertByBo(bo));
     }
 
@@ -73,7 +74,7 @@ public class EditorialReviewController extends BaseController {
     @Log(title = "审校申请", businessType = BusinessType.UPDATE)
     @Operation(summary = "修改审校申请")
     @PutMapping
-    public R<EditorialReviewVo> edit(@Validated(EditGroup.class) @RequestBody EditorialReviewBo bo) {
+    public R<EditorialReviewDetailVo> edit(@Validated(EditGroup.class) @RequestBody EditorialReviewBo bo) {
         return R.ok(editorialReviewService.updateByBo(bo));
     }
 
@@ -84,8 +85,19 @@ public class EditorialReviewController extends BaseController {
     @Log(title = "审校申请", businessType = BusinessType.INSERT)
     @Operation(summary = "提交并开启流程")
     @PostMapping("/submit")
-    public R<EditorialReviewVo> submit(@Validated(AddGroup.class) @RequestBody EditorialReviewBo bo) {
+    public R<EditorialReviewDetailVo> submit(@Validated(AddGroup.class) @RequestBody EditorialReviewBo bo) {
         return R.ok(editorialReviewService.submitAndFlowStart(bo));
+    }
+
+    /**
+     * 退回后重新提交
+     */
+    @SaCheckPermission("editorial:review:edit")
+    @Log(title = "审校申请", businessType = BusinessType.UPDATE)
+    @Operation(summary = "退回后重新提交")
+    @PostMapping("/resubmit")
+    public R<EditorialReviewDetailVo> resubmit(@Validated(EditGroup.class) @RequestBody EditorialReviewBo bo) {
+        return R.ok(editorialReviewService.resubmitAndFlowStart(bo));
     }
 
     /**

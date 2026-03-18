@@ -87,7 +87,7 @@ const DEFAULT_CHUNK_SIZE = 5 * 1024 * 1024;
 // 上传状态
 const uploading = ref(false);
 const percentage = ref(0);
-const progressStatus = ref<"" | "success" | "warning" | "exception">("");
+const progressStatus = ref<'' | 'success' | 'warning' | 'exception'>('');
 const paused = ref(false);
 let upload: tus.Upload | null = null;
 
@@ -111,12 +111,18 @@ const displayFileUrl = computed(() => {
 });
 
 // 监听外部 props 变更以同步内部状态
-watch(() => props.fileUrl, (val) => {
-  if (val) innerFileUrl.value = val;
-});
-watch(() => props.fileName, (val) => {
-  if (val) innerFileName.value = val;
-});
+watch(
+  () => props.fileUrl,
+  (val) => {
+    if (val) innerFileUrl.value = val;
+  }
+);
+watch(
+  () => props.fileName,
+  (val) => {
+    if (val) innerFileName.value = val;
+  }
+);
 
 /** 统一将 upload url 规范成 /tus/upload/{id} */
 const normalizeUploadUrl = (rawUploadUrl?: string | null): string => {

@@ -80,7 +80,13 @@
     <!-- 加签组件 -->
     <UserSelect ref="multiInstanceUserRef" :multiple="true" @confirm-call-back="addMultiInstanceUser"></UserSelect>
     <!-- 弹窗选人 -->
-    <UserSelect ref="porUserRef" :data="form.assigneeMap[nodeCode]" :multiple="true" :userIds="popUserIds" @confirm-call-back="handlePopUser"></UserSelect>
+    <UserSelect
+      ref="porUserRef"
+      :data="form.assigneeMap[nodeCode]"
+      :multiple="true"
+      :userIds="popUserIds"
+      @confirm-call-back="handlePopUser"
+    ></UserSelect>
 
     <!-- 驳回开始 -->
     <el-dialog v-model="backVisible" draggable title="驳回" width="40%" :close-on-click-modal="false">
@@ -265,7 +271,7 @@ const openDialog = async (id?: string) => {
   selectCopyUserList.value = task.value.copyList;
   selectCopyUserIds.value = task.value.copyList.map((e) => e.userId).join(',');
   varNodeList.value = task.value.varList;
-  console.log('varNodeList', varNodeList.value)
+  console.log('varNodeList', varNodeList.value);
   buttonDisabled.value = false;
   try {
     const data = {
