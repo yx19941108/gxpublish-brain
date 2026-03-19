@@ -106,4 +106,9 @@ public class EditorialReviewBo extends BaseEntity {
      */
     private List<EditorialLinkBo> linkList;
 
+    /**
+     * 多附件主合同，兼容旧单附件字段。
+     */
+    private List<EditorialAttachmentBo> attachmentList;
+
 }

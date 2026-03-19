@@ -6,6 +6,7 @@ import com.gxpublish.brain.editorial.domain.vo.EditorialNamedRefVo;
 import com.gxpublish.brain.editorial.domain.vo.EditorialReviewApprovalContextVo;
 import com.gxpublish.brain.editorial.domain.vo.EditorialReviewDetailVo;
 import com.gxpublish.brain.editorial.domain.vo.EditorialReviewPageItemVo;
+import com.gxpublish.brain.editorial.domain.vo.EditorialReviewTaskContextVo;
 
 import java.util.List;
 
@@ -25,12 +26,28 @@ public final class EditorialReviewContractAssembler {
         pageItem.setDept(buildNamedRef(pageItem.getDeptId(), pageItem.getDeptName()));
     }
 
+    public static void populateTaskContract(EditorialReviewPageItemVo pageItem,
+                                            EditorialReviewTaskContextVo taskContext,
+                                            boolean canApprove) {
+        if (pageItem == null) {
+            return;
+        }
+        if (taskContext != null) {
+            pageItem.setTaskId(taskContext.getTaskId());
+            pageItem.setInstanceId(taskContext.getInstanceId());
+        }
+        pageItem.setCanApprove(canApprove);
+    }
+
     public static void populateDetailContract(EditorialReviewDetailVo detail,
-                                              List<EditorialHistoryVo> historyList) {
+                                              List<EditorialHistoryVo> historyList,
+                                              EditorialReviewTaskContextVo taskContext,
+                                              boolean canApprove) {
         if (detail == null) {
             return;
         }
         populatePageContract(detail);
+        populateTaskContract(detail, taskContext, canApprove);
         detail.setHistoryList(CollUtil.isEmpty(historyList) ? List.of() : historyList);
         EditorialReviewApprovalContextVo approvalContext = new EditorialReviewApprovalContextVo();
         approvalContext.setFlowCode(EditorialReviewWorkflowDefinition.FLOW_CODE);
@@ -40,6 +57,11 @@ public final class EditorialReviewContractAssembler {
         approvalContext.setStatus(detail.getStatus());
         approvalContext.setReviewStatus(detail.getReviewStatus());
         approvalContext.setCanEdit(detail.getCanEdit());
+        approvalContext.setCanApprove(canApprove);
+        if (taskContext != null) {
+            approvalContext.setTaskId(taskContext.getTaskId());
+            approvalContext.setInstanceId(taskContext.getInstanceId());
+        }
         detail.setApprovalContext(approvalContext);
     }
 

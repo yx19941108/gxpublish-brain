@@ -27,4 +27,10 @@ public class EditorialReviewApprovalContextVo implements Serializable {
     private Integer reviewStatus;
 
     private Boolean canEdit;
+
+    private Boolean canApprove;
+
+    private Long taskId;
+
+    private Long instanceId;
 }

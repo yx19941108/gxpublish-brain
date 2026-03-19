@@ -3,13 +3,18 @@ import { describe, expect, it } from 'vitest';
 import {
   canCancelReviewProcess,
   createLegacyReviewFallbackLocation,
+  getReviewRowActions,
   getReviewStatusMeta,
   isEditableReviewStatus,
   isWaitingReviewStatus,
   mapReviewDetailModel,
+  mapReviewFormModel,
   mapReviewPageItem,
   normalizeReviewStatus,
+  resolveReviewFormPageType,
   resolveReviewApprovalButtonPageType
+  ,
+  toReviewActionPayload
 } from './integration';
 
 describe('editorial review integration', () => {
@@ -35,6 +40,61 @@ describe('editorial review integration', () => {
     expect(item.canEdit).toBe(false);
     expect(item.user.name).toBe('申请人');
     expect(item.dept.name).toBe('编辑部');
+  });
+
+  it('maps page contract approval fields explicitly for waiting approver rows', () => {
+    const item = mapReviewPageItem({
+      id: 102,
+      title: '待二审样本',
+      status: 'WAITING',
+      reviewStatus: 'WAITING_SECOND',
+      canEdit: true,
+      canApprove: true,
+      taskId: 'task-102',
+      instanceId: 'instance-102',
+      processType: 'AUDIT',
+      user: {
+        id: 9,
+        name: '申请人'
+      },
+      dept: {
+        id: 3,
+        name: '编辑部'
+      },
+      createTime: '2026-03-19 12:00:00'
+    } as any);
+
+    expect(item.canApprove).toBe(true);
+    expect(item.taskId).toBe('task-102');
+    expect(item.instanceId).toBe('instance-102');
+  });
+
+  it('returns modify and approve actions only for current approver waiting rows', () => {
+    expect(
+      getReviewRowActions({
+        reviewStatus: 'WAITING_SECOND',
+        canEdit: true,
+        canApprove: true
+      } as any)
+    ).toEqual({
+      showEdit: true,
+      showApprove: true,
+      showDetail: false,
+      showDelete: false
+    });
+
+    expect(
+      getReviewRowActions({
+        reviewStatus: 'WAITING_SECOND',
+        canEdit: false,
+        canApprove: false
+      } as any)
+    ).toEqual({
+      showEdit: false,
+      showApprove: false,
+      showDetail: true,
+      showDelete: false
+    });
   });
 
   it('recognizes both legacy and staged waiting statuses for approval shell', () => {
@@ -106,6 +166,88 @@ describe('editorial review integration', () => {
     expect(detail.processType).toBe('PROOFREAD');
   });
 
+  it('maps multi-attachment detail data and preserves latest legacy attachment fields', () => {
+    const form = mapReviewFormModel({
+      id: 13,
+      title: '多附件合同',
+      status: 'WAITING',
+      reviewStatus: 'WAITING_FIRST',
+      canEdit: true,
+      processType: 'AUDIT',
+      createTime: '2026-03-19 12:10:00',
+      user: {
+        id: 7,
+        name: '申请人'
+      },
+      dept: {
+        id: 2,
+        name: '编辑部'
+      },
+      content: 'detail content',
+      remark: 'detail remark',
+      attachmentList: [
+        {
+          id: 1,
+          reviewId: 13,
+          fileName: 'first.pdf',
+          ossId: 'oss-first',
+          fileUrl: 'https://example.com/first.pdf',
+          fileSize: 100
+        },
+        {
+          id: 2,
+          reviewId: 13,
+          fileName: 'second.mp4',
+          ossId: 'oss-second',
+          fileUrl: 'https://example.com/second.mp4',
+          fileSize: 200
+        }
+      ],
+      linkList: []
+    } as any);
+
+    expect(form.attachmentList).toHaveLength(2);
+    expect(form.attachmentList[0].fileName).toBe('first.pdf');
+    expect(form.attachmentOssId).toBe('oss-second');
+    expect(form.attachmentFileName).toBe('second.mp4');
+  });
+
+  it('writes multi-attachment payload and keeps latest attachment legacy fallback fields', () => {
+    const payload = toReviewActionPayload({
+      id: 13,
+      title: '多附件写回',
+      content: 'payload content',
+      deptId: 2,
+      status: 'WAITING',
+      reviewStatus: 'WAITING_SECOND',
+      canEdit: true,
+      remark: 'payload remark',
+      attachmentList: [
+        {
+          ossId: 'oss-first',
+          fileName: 'first.pdf',
+          fileUrl: 'https://example.com/first.pdf',
+          fileSize: 100,
+          version: 1
+        },
+        {
+          ossId: 'oss-second',
+          fileName: 'second.mp4',
+          fileUrl: 'https://example.com/second.mp4',
+          fileSize: 200,
+          version: 2
+        }
+      ],
+      linkList: [],
+      flowCode: 'editorial_review_flow',
+      processType: 'AUDIT'
+    } as any);
+
+    expect(payload.attachmentList).toHaveLength(2);
+    expect(payload.attachmentOssId).toBe('oss-second');
+    expect(payload.attachmentFileName).toBe('second.mp4');
+  });
+
   it('redirects legacy reviewEdit entry to the new shell route with fallback marker', () => {
     expect(createLegacyReviewFallbackLocation({ id: '12', type: 'view' })).toEqual({
       path: '/editorial/review/detail',
@@ -137,6 +279,26 @@ describe('editorial review integration', () => {
   it('keeps only BACK as resubmit-editable status', () => {
     expect(isEditableReviewStatus('BACK')).toBe(true);
     expect(isEditableReviewStatus('CANCELED')).toBe(false);
+  });
+
+  it('treats update route with active approval task as approval-edit page type', () => {
+    expect(
+      resolveReviewFormPageType({
+        routeType: 'update',
+        reviewStatus: 'WAITING_SECOND',
+        taskId: 'task-200',
+        canApprove: true
+      })
+    ).toBe('approval');
+
+    expect(
+      resolveReviewFormPageType({
+        routeType: 'update',
+        reviewStatus: 'BACK',
+        taskId: undefined,
+        canApprove: false
+      })
+    ).toBe('update');
   });
 
   it('allows only applicant waiting-shell detail to cancel process', () => {

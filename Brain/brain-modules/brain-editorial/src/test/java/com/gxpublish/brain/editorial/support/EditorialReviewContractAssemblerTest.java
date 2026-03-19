@@ -3,6 +3,7 @@ package com.gxpublish.brain.editorial.support;
 import com.gxpublish.brain.editorial.domain.vo.EditorialHistoryVo;
 import com.gxpublish.brain.editorial.domain.vo.EditorialReviewDetailVo;
 import com.gxpublish.brain.editorial.domain.vo.EditorialReviewPageItemVo;
+import com.gxpublish.brain.editorial.domain.vo.EditorialReviewTaskContextVo;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
@@ -37,20 +38,28 @@ class EditorialReviewContractAssemblerTest {
         detail.setProcessType("AUDIT");
         detail.setStatus("waiting");
         detail.setReviewStatus(20);
+        detail.setCanEdit(Boolean.TRUE);
         detail.setUserId(11L);
         detail.setUserName("申请人甲");
         detail.setDeptId(22L);
         detail.setDeptName("编辑部");
         EditorialHistoryVo history = new EditorialHistoryVo();
         history.setOperateType("submit");
+        EditorialReviewTaskContextVo taskContext = new EditorialReviewTaskContextVo();
+        taskContext.setTaskId(123L);
+        taskContext.setInstanceId(456L);
 
-        EditorialReviewContractAssembler.populateDetailContract(detail, List.of(history));
+        EditorialReviewContractAssembler.populateDetailContract(detail, List.of(history), taskContext, true);
 
         assertEquals("editorial_review_flow", detail.getApprovalContext().getFlowCode());
         assertEquals("/editorial/review/detail", detail.getApprovalContext().getFormPath());
         assertEquals("AUDIT", detail.getApprovalContext().getProcessType());
         assertEquals("waiting", detail.getApprovalContext().getStatus());
         assertEquals(20, detail.getApprovalContext().getReviewStatus());
+        assertEquals(123L, detail.getApprovalContext().getTaskId());
+        assertEquals(456L, detail.getApprovalContext().getInstanceId());
+        assertEquals(Boolean.TRUE, detail.getApprovalContext().getCanApprove());
+        assertEquals(Boolean.TRUE, detail.getApprovalContext().getCanEdit());
         assertIterableEquals(List.of(history), detail.getHistoryList());
         assertEquals("申请人甲", detail.getUser().getName());
         assertEquals("编辑部", detail.getDept().getName());

@@ -31,6 +31,8 @@ public class EditorialReviewDetailVo extends EditorialReviewPageItemVo {
 
     private EditorialAttachmentVo attachment;
 
+    private List<EditorialAttachmentVo> attachmentList;
+
     private List<EditorialLinkVo> linkList;
 
     private List<EditorialHistoryVo> historyList;

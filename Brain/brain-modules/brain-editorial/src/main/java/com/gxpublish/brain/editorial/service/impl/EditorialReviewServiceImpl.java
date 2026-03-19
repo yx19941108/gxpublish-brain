@@ -23,12 +23,16 @@ import com.gxpublish.brain.editorial.domain.EditorialAttachment;
 import com.gxpublish.brain.editorial.domain.EditorialHistory;
 import com.gxpublish.brain.editorial.domain.EditorialLink;
 import com.gxpublish.brain.editorial.domain.EditorialReview;
+import com.gxpublish.brain.editorial.domain.bo.EditorialAttachmentBo;
 import com.gxpublish.brain.editorial.domain.bo.EditorialLinkBo;
 import com.gxpublish.brain.editorial.domain.bo.EditorialReviewBo;
 import com.gxpublish.brain.editorial.domain.param.EditorialScopeParam;
+import com.gxpublish.brain.editorial.domain.vo.EditorialAttachmentVo;
 import com.gxpublish.brain.editorial.domain.vo.EditorialHistoryVo;
+import com.gxpublish.brain.editorial.domain.vo.EditorialLinkVo;
 import com.gxpublish.brain.editorial.domain.vo.EditorialReviewDetailVo;
 import com.gxpublish.brain.editorial.domain.vo.EditorialReviewPageItemVo;
+import com.gxpublish.brain.editorial.domain.vo.EditorialReviewTaskContextVo;
 import com.gxpublish.brain.editorial.enums.EditorialRoleEnum;
 import com.gxpublish.brain.editorial.enums.ReviewStatusEnum;
 import com.gxpublish.brain.editorial.mapper.EditorialAttachmentMapper;
@@ -48,10 +52,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Date;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
+import java.util.HashSet;
 import java.util.stream.Collectors;
 
 /**
@@ -76,13 +85,18 @@ public class EditorialReviewServiceImpl implements IEditorialReviewService {
         if (detail == null) {
             return null;
         }
-        if (detail.getCurrentAttachmentId() != null) {
-            detail.setAttachment(attachmentMapper.selectVoById(detail.getCurrentAttachmentId()));
-        }
-        detail.setLinkList(linkMapper.selectVoList(
-            new LambdaQueryWrapper<EditorialLink>().eq(EditorialLink::getReviewId, id)));
-        detail.setCanEdit(canCurrentUserEdit(detail.getReviewStatus(), getCurrentUserRoleKeys()));
-        EditorialReviewContractAssembler.populateDetailContract(detail, queryHistoryList(id));
+        List<EditorialAttachmentVo> attachmentList = listReviewAttachments(id);
+        detail.setAttachmentList(attachmentList);
+        detail.setAttachment(resolveCurrentAttachment(detail.getCurrentAttachmentId(), attachmentList));
+        detail.setLinkList(listReviewLinks(id));
+        LoginUser loginUser = LoginHelper.getLoginUser();
+        EditorialReviewTaskContextVo taskContext = resolveCurrentTaskContext(id);
+        detail.setCanEdit(canCurrentUserEdit(detail.getReviewStatus(), detail.getUserId(), taskContext, loginUser));
+        EditorialReviewContractAssembler.populateDetailContract(
+            detail,
+            queryHistoryList(id),
+            taskContext,
+            canCurrentUserApprove(detail.getReviewStatus(), taskContext));
         return detail;
     }
 
@@ -93,7 +107,7 @@ public class EditorialReviewServiceImpl implements IEditorialReviewService {
         params.put("scopeParam", scopeParam);
 
         Page<EditorialReviewPageItemVo> result = baseMapper.customSelectPage(pageQuery.build(), bo, params);
-        populatePageRecords(result.getRecords(), getCurrentUserRoleKeys());
+        populatePageRecords(result.getRecords(), LoginHelper.getLoginUser());
         return TableDataInfo.build(result);
     }
 
@@ -104,7 +118,7 @@ public class EditorialReviewServiceImpl implements IEditorialReviewService {
         params.put("scopeParam", scopeParam);
 
         List<EditorialReviewPageItemVo> list = baseMapper.customSelectList(bo, params);
-        populatePageRecords(list, getCurrentUserRoleKeys());
+        populatePageRecords(list, LoginHelper.getLoginUser());
         return list;
     }
 
@@ -122,7 +136,7 @@ public class EditorialReviewServiceImpl implements IEditorialReviewService {
         baseMapper.insert(add);
         bo.setId(add.getId());
 
-        handleAttachment(bo, add.getId());
+        handleAttachments(bo, add.getId());
         handleLinks(bo.getLinkList(), add.getId());
         return queryById(add.getId());
     }
@@ -131,6 +145,7 @@ public class EditorialReviewServiceImpl implements IEditorialReviewService {
     @Override
     public EditorialReviewDetailVo submitAndFlowStart(EditorialReviewBo bo) {
         prepareBoForWrite(bo);
+        validateSubmitMaterials(bo);
         if (bo.getId() != null) {
             EditorialReview existing = baseMapper.selectById(bo.getId());
             if (BusinessStatusEnum.BACK.getStatus().equals(existing.getStatus())
@@ -162,6 +177,7 @@ public class EditorialReviewServiceImpl implements IEditorialReviewService {
             throw new ServiceException("只有退回状态可重新提交");
         }
 
+        validateSubmitMaterials(bo);
         updateByBo(bo);
         EditorialReview review = baseMapper.selectById(bo.getId());
         return startWorkflow(review);
@@ -210,88 +226,81 @@ public class EditorialReviewServiceImpl implements IEditorialReviewService {
         if (oldReview == null) {
             throw new ServiceException("申请不存在");
         }
-
-        if (!BusinessStatusEnum.DRAFT.getStatus().equals(oldReview.getStatus())
-            && !BusinessStatusEnum.BACK.getStatus().equals(oldReview.getStatus())
-            && !ReviewStatusEnum.DRAFT.getCode().equals(oldReview.getReviewStatus())
-            && !ReviewStatusEnum.BACK.getCode().equals(oldReview.getReviewStatus())) {
-            throw new ServiceException("当前流程状态为审批中或已结束，不允许修改申请内容");
-        }
-
-        Long currentUserId = LoginHelper.getUserId();
-        if (!currentUserId.equals(oldReview.getCreateBy()) && !LoginHelper.isSuperAdmin()) {
-            throw new ServiceException("只有发起人可以修改表单内容");
-        }
+        LoginUser loginUser = LoginHelper.getLoginUser();
+        EditorialReviewTaskContextVo taskContext = resolveCurrentTaskContext(bo.getId());
+        validateUpdatePermission(oldReview, taskContext, loginUser);
+        List<EditorialLinkVo> oldLinks = listReviewLinks(bo.getId());
+        List<EditorialAttachmentVo> oldAttachments = listReviewAttachments(bo.getId());
 
         EditorialReview update = MapstructUtils.convert(bo, EditorialReview.class);
-
-        boolean attachmentChanged = handleAttachment(bo, bo.getId());
-        if (attachmentChanged) {
-            EditorialReview refreshed = baseMapper.selectById(bo.getId());
-            update.setCurrentAttachmentId(refreshed.getCurrentAttachmentId());
-        }
-
-        if (BusinessStatusEnum.WAITING.getStatus().equals(oldReview.getStatus())) {
-            recordHistory(oldReview, update, bo.getLinkList(), attachmentChanged);
-        }
-
         baseMapper.updateById(update);
+        handleAttachments(bo, bo.getId());
         handleLinks(bo.getLinkList(), bo.getId());
+        EditorialReview refreshedReview = baseMapper.selectById(bo.getId());
+        recordHistory(
+            oldReview,
+            refreshedReview,
+            oldLinks,
+            listReviewLinks(bo.getId()),
+            oldAttachments,
+            listReviewAttachments(bo.getId()),
+            "MODIFY");
         return queryById(bo.getId());
     }
 
-    private boolean handleAttachment(EditorialReviewBo bo, Long reviewId) {
-        if (StringUtils.isBlank(bo.getAttachmentOssId())) {
-            EditorialReview review = baseMapper.selectById(reviewId);
-            if (review.getCurrentAttachmentId() != null) {
-                LambdaQueryWrapper<EditorialAttachment> wrapper = new LambdaQueryWrapper<>();
-                wrapper.eq(EditorialAttachment::getReviewId, reviewId);
-                attachmentMapper.delete(wrapper);
-                review.setCurrentAttachmentId(null);
-                baseMapper.updateById(review);
-                return true;
-            }
+    private boolean handleAttachments(EditorialReviewBo bo, Long reviewId) {
+        EditorialReview review = baseMapper.selectById(reviewId);
+        if (review == null) {
+            return false;
+        }
+        List<EditorialAttachmentVo> existingAttachments = listReviewAttachments(reviewId);
+        List<EditorialAttachmentBo> requestAttachments = resolveRequestedAttachments(bo);
+        if (CollUtil.isEmpty(requestAttachments)) {
             return false;
         }
 
-        EditorialReview review = baseMapper.selectById(reviewId);
-        Long currentAttachmentId = review.getCurrentAttachmentId();
-        String currentOssId = null;
-        int currentVersion = 0;
+        Map<String, EditorialAttachmentVo> existingByKey = existingAttachments.stream()
+            .filter(item -> StringUtils.isNotBlank(item.getOssId()))
+            .collect(Collectors.toMap(
+                EditorialAttachmentVo::getOssId,
+                item -> item,
+                (left, right) -> left,
+                LinkedHashMap::new));
+        int nextVersion = existingAttachments.stream()
+            .map(EditorialAttachmentVo::getVersion)
+            .filter(Objects::nonNull)
+            .max(Integer::compareTo)
+            .orElse(0);
+        boolean changed = false;
+        Long latestAttachmentId = review.getCurrentAttachmentId();
 
-        if (currentAttachmentId != null) {
-            EditorialAttachment currentAttachment = attachmentMapper.selectById(currentAttachmentId);
-            if (currentAttachment != null) {
-                currentOssId = currentAttachment.getOssId();
-                currentVersion = currentAttachment.getVersion() != null ? currentAttachment.getVersion() : 0;
+        for (EditorialAttachmentBo requestAttachment : requestAttachments) {
+            if (StringUtils.isBlank(requestAttachment.getOssId())) {
+                continue;
             }
-        }
-
-        if (!StringUtils.equals(bo.getAttachmentOssId(), currentOssId)) {
-            LambdaQueryWrapper<EditorialAttachment> wrapper = new LambdaQueryWrapper<>();
-            wrapper.eq(EditorialAttachment::getReviewId, reviewId);
-            attachmentMapper.delete(wrapper);
-
+            if (existingByKey.containsKey(requestAttachment.getOssId())) {
+                latestAttachmentId = existingByKey.get(requestAttachment.getOssId()).getId();
+                continue;
+            }
             EditorialAttachment newAttachment = new EditorialAttachment();
             newAttachment.setReviewId(reviewId);
-            newAttachment.setOssId(bo.getAttachmentOssId());
-            newAttachment.setFileName(bo.getAttachmentFileName());
-            if (StringUtils.isNotBlank(bo.getAttachmentFileUrl())) {
-                newAttachment.setFileUrl(bo.getAttachmentFileUrl());
-            }
-            if (bo.getAttachmentFileSize() != null) {
-                newAttachment.setFileSize(bo.getAttachmentFileSize());
-            }
-            newAttachment.setVersion(currentVersion + 1);
+            newAttachment.setOssId(requestAttachment.getOssId());
+            newAttachment.setFileName(requestAttachment.getFileName());
+            newAttachment.setFileUrl(requestAttachment.getFileUrl());
+            newAttachment.setFileSize(requestAttachment.getFileSize());
+            newAttachment.setVersion(++nextVersion);
             newAttachment.setUploaderId(LoginHelper.getUserId());
             newAttachment.setCreateTime(new Date());
             attachmentMapper.insert(newAttachment);
-
-            review.setCurrentAttachmentId(newAttachment.getId());
-            baseMapper.updateById(review);
-            return true;
+            latestAttachmentId = newAttachment.getId();
+            changed = true;
         }
-        return false;
+
+        if (!Objects.equals(review.getCurrentAttachmentId(), latestAttachmentId)) {
+            review.setCurrentAttachmentId(latestAttachmentId);
+            baseMapper.updateById(review);
+        }
+        return changed;
     }
 
     private void handleLinks(List<EditorialLinkBo> linkBoList, Long reviewId) {
@@ -312,7 +321,13 @@ public class EditorialReviewServiceImpl implements IEditorialReviewService {
         }
 
         for (EditorialLinkBo linkBo : linkBoList) {
+            if (linkBo == null) {
+                continue;
+            }
             EditorialLink link = MapstructUtils.convert(linkBo, EditorialLink.class);
+            if (link == null) {
+                continue;
+            }
             link.setReviewId(reviewId);
             if (link.getId() == null) {
                 linkMapper.insert(link);
@@ -322,36 +337,49 @@ public class EditorialReviewServiceImpl implements IEditorialReviewService {
         }
     }
 
-    private void recordHistory(EditorialReview oldVal, EditorialReview newVal, List<EditorialLinkBo> links,
-                               boolean attachmentChanged) {
-        Map<String, Object> diff = new HashMap<>();
+    private void recordHistory(EditorialReview oldVal,
+                               EditorialReview newVal,
+                               List<EditorialLinkVo> oldLinks,
+                               List<EditorialLinkVo> newLinks,
+                               List<EditorialAttachmentVo> oldAttachments,
+                               List<EditorialAttachmentVo> newAttachments,
+                               String operateType) {
+        Map<String, Object> diff = new LinkedHashMap<>();
+        appendDiff(diff, "title", oldVal == null ? null : oldVal.getTitle(), newVal == null ? null : newVal.getTitle());
+        appendDiff(diff, "content", oldVal == null ? null : oldVal.getContent(), newVal == null ? null : newVal.getContent());
+        appendDiff(diff, "remark", oldVal == null ? null : oldVal.getRemark(), newVal == null ? null : newVal.getRemark());
+        appendDiff(diff, "processType", oldVal == null ? null : oldVal.getProcessType(), newVal == null ? null : newVal.getProcessType());
+        appendDiff(diff, "deptId", oldVal == null ? null : oldVal.getDeptId(), newVal == null ? null : newVal.getDeptId());
 
-        if (!StringUtils.equals(oldVal.getTitle(), newVal.getTitle())) {
-            diff.put("title", Map.of("old", oldVal.getTitle(), "new", newVal.getTitle()));
-        }
-        if (!StringUtils.equals(oldVal.getContent(), newVal.getContent())) {
-            diff.put("content", Map.of("old", "...", "new", "..."));
-        }
-        if (attachmentChanged) {
-            diff.put("attachment", "Version updated");
-        }
-        if (CollUtil.isNotEmpty(links)) {
-            diff.put("linkCount", links.size());
+        List<Map<String, Object>> oldLinkSnapshots = toLinkSnapshots(oldLinks);
+        List<Map<String, Object>> newLinkSnapshots = toLinkSnapshots(newLinks);
+        if (!Objects.equals(oldLinkSnapshots, newLinkSnapshots)) {
+            diff.put("linkList", createChangeEntry(oldLinkSnapshots, newLinkSnapshots));
         }
 
-        if (!diff.isEmpty()) {
-            EditorialHistory history = new EditorialHistory();
-            history.setReviewId(oldVal.getId());
-            history.setOperatorId(LoginHelper.getUserId());
-            try {
-                history.setOperatorName(LoginHelper.getUsername());
-            } catch (Exception ignored) {
-            }
-            history.setOperateTime(new Date());
-            history.setOperateType("MODIFY");
-            history.setFieldDiff(diff);
-            historyMapper.insert(history);
+        List<Map<String, Object>> oldAttachmentSnapshots = toAttachmentSnapshots(oldAttachments);
+        List<Map<String, Object>> newAttachmentSnapshots = toAttachmentSnapshots(newAttachments);
+        if (!Objects.equals(oldAttachmentSnapshots, newAttachmentSnapshots)) {
+            Map<String, Object> attachmentDiff = createChangeEntry(oldAttachmentSnapshots, newAttachmentSnapshots);
+            attachmentDiff.put("added", findAddedAttachmentSnapshots(oldAttachments, newAttachments));
+            diff.put("attachmentList", attachmentDiff);
         }
+
+        if (diff.isEmpty()) {
+            return;
+        }
+
+        EditorialHistory history = new EditorialHistory();
+        history.setReviewId(oldVal != null ? oldVal.getId() : newVal.getId());
+        history.setOperatorId(LoginHelper.getUserId());
+        try {
+            history.setOperatorName(LoginHelper.getUsername());
+        } catch (Exception ignored) {
+        }
+        history.setOperateTime(new Date());
+        history.setOperateType(operateType);
+        history.setFieldDiff(diff);
+        historyMapper.insert(history);
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -413,14 +441,8 @@ public class EditorialReviewServiceImpl implements IEditorialReviewService {
             log.warn("获取历史操作人信息失败: {}", e.getMessage());
         }
         history.setOperateTime(new Date());
-
-        String opType = "FLOW_NODE";
-        if (submit) {
-            opType = "发起审批";
-        } else if (StringUtils.isNotBlank(newStatus)) {
-            opType = "FLOW_" + newStatus;
-        }
-        history.setOperateType(opType);
+        history.setOperateType(resolveProcessOperateType(processEvent));
+        history.setFieldDiff(buildProcessFieldDiff(review, processEvent));
         historyMapper.insert(history);
     }
 
@@ -453,27 +475,43 @@ public class EditorialReviewServiceImpl implements IEditorialReviewService {
         bo.setFlowCode(EditorialReviewWorkflowDefinition.FLOW_CODE);
     }
 
-    private void populatePageRecords(List<EditorialReviewPageItemVo> records, List<String> currentRoleKeys) {
+    private void populatePageRecords(List<EditorialReviewPageItemVo> records, LoginUser loginUser) {
+        if (CollUtil.isEmpty(records)) {
+            return;
+        }
+        Map<Long, EditorialReviewTaskContextVo> taskContextMap = loadCurrentTaskContextMap(records);
         for (EditorialReviewPageItemVo record : records) {
-            record.setCanEdit(canCurrentUserEdit(record.getReviewStatus(), currentRoleKeys));
+            EditorialReviewTaskContextVo taskContext = taskContextMap.get(record.getId());
+            record.setCanEdit(canCurrentUserEdit(record.getReviewStatus(), record.getUserId(), taskContext, loginUser));
             EditorialReviewContractAssembler.populatePageContract(record);
+            EditorialReviewContractAssembler.populateTaskContract(
+                record,
+                taskContext,
+                canCurrentUserApprove(record.getReviewStatus(), taskContext));
         }
     }
 
-    private boolean canCurrentUserEdit(Integer reviewStatus, List<String> currentRoleKeys) {
-        if (reviewStatus == null) {
+    private boolean canCurrentUserEdit(Integer reviewStatus,
+                                       Long applicantUserId,
+                                       EditorialReviewTaskContextVo taskContext,
+                                       LoginUser loginUser) {
+        if (reviewStatus == null || loginUser == null) {
             return false;
         }
-        List<String> canEditRoleKeyList = ReviewStatusEnum.getByStatus(reviewStatus).getCanEditRoleKeyList();
-        return CollUtil.containsAny(canEditRoleKeyList, currentRoleKeys);
+        if (LoginHelper.isSuperAdmin()) {
+            return true;
+        }
+        if (ReviewStatusEnum.DRAFT.getCode().equals(reviewStatus) || ReviewStatusEnum.BACK.getCode().equals(reviewStatus)) {
+            return Objects.equals(applicantUserId, loginUser.getUserId());
+        }
+        return canCurrentUserApprove(reviewStatus, taskContext);
     }
 
-    private List<String> getCurrentUserRoleKeys() {
-        LoginUser loginUser = LoginHelper.getLoginUser();
-        if (loginUser == null || CollUtil.isEmpty(loginUser.getRoles())) {
-            return List.of();
-        }
-        return loginUser.getRoles().stream().map(RoleDTO::getRoleKey).toList();
+    private boolean canCurrentUserApprove(Integer reviewStatus, EditorialReviewTaskContextVo taskContext) {
+        return reviewStatus != null
+            && ReviewStatusEnum.getByStatus(reviewStatus).getFlowStatus().equals(BusinessStatusEnum.WAITING.getStatus())
+            && taskContext != null
+            && taskContext.getTaskId() != null;
     }
 
     private boolean isCertifiedApplicant(LoginUser loginUser) {
@@ -511,5 +549,237 @@ public class EditorialReviewServiceImpl implements IEditorialReviewService {
             throw new ServiceException("缺少审批角色 seed: " + roleKey);
         }
         return "role:" + roleId;
+    }
+
+    private void validateSubmitMaterials(EditorialReviewBo bo) {
+        boolean hasAttachment = CollUtil.isNotEmpty(resolveRequestedAttachments(bo));
+        if (!hasAttachment && bo.getId() != null) {
+            hasAttachment = CollUtil.isNotEmpty(listReviewAttachments(bo.getId()));
+        }
+        boolean hasLink = CollUtil.isNotEmpty(bo.getLinkList())
+            && bo.getLinkList().stream().anyMatch(link -> StringUtils.isNotBlank(link.getUrl()));
+        if (!hasLink && bo.getId() != null) {
+            hasLink = CollUtil.isNotEmpty(listReviewLinks(bo.getId()));
+        }
+        if (!hasAttachment && !hasLink) {
+            throw new ServiceException("提交审批时，附件和关联链接至少需要填写一项");
+        }
+    }
+
+    private void validateUpdatePermission(EditorialReview oldReview,
+                                          EditorialReviewTaskContextVo taskContext,
+                                          LoginUser loginUser) {
+        Integer reviewStatus = oldReview.getReviewStatus();
+        if (reviewStatus == null) {
+            throw new ServiceException("当前申请缺少审校状态，不允许修改");
+        }
+        if (ReviewStatusEnum.DRAFT.getCode().equals(reviewStatus) || ReviewStatusEnum.BACK.getCode().equals(reviewStatus)) {
+            Long currentUserId = LoginHelper.getUserId();
+            Long applicantUserId = oldReview.getUserId() != null ? oldReview.getUserId() : oldReview.getCreateBy();
+            if (!Objects.equals(currentUserId, applicantUserId) && !LoginHelper.isSuperAdmin()) {
+                throw new ServiceException("只有发起人可以修改表单内容");
+            }
+            return;
+        }
+        if (!canCurrentUserEdit(reviewStatus, oldReview.getUserId(), taskContext, loginUser)) {
+            throw new ServiceException("当前流程状态下，只有当前节点责任审批人可以修改表单内容");
+        }
+    }
+
+    private EditorialReviewTaskContextVo resolveCurrentTaskContext(Long reviewId) {
+        if (reviewId == null || LoginHelper.getUserId() == null) {
+            return null;
+        }
+        return baseMapper.selectCurrentTaskContext(Convert.toStr(reviewId), LoginHelper.getUserIdStr());
+    }
+
+    private Map<Long, EditorialReviewTaskContextVo> loadCurrentTaskContextMap(List<EditorialReviewPageItemVo> records) {
+        if (CollUtil.isEmpty(records) || LoginHelper.getUserId() == null) {
+            return Map.of();
+        }
+        List<String> reviewIds = records.stream()
+            .map(EditorialReviewPageItemVo::getId)
+            .filter(Objects::nonNull)
+            .map(Convert::toStr)
+            .toList();
+        if (CollUtil.isEmpty(reviewIds)) {
+            return Map.of();
+        }
+        return baseMapper.selectCurrentTaskContexts(reviewIds, LoginHelper.getUserIdStr()).stream()
+            .collect(Collectors.toMap(
+                EditorialReviewTaskContextVo::getReviewId,
+                item -> item,
+                (left, right) -> left,
+                LinkedHashMap::new));
+    }
+
+    private List<EditorialAttachmentVo> listReviewAttachments(Long reviewId) {
+        return attachmentMapper.selectVoList(
+            new LambdaQueryWrapper<EditorialAttachment>()
+                .eq(EditorialAttachment::getReviewId, reviewId)
+                .orderByAsc(EditorialAttachment::getVersion)
+                .orderByAsc(EditorialAttachment::getCreateTime)
+                .orderByAsc(EditorialAttachment::getId));
+    }
+
+    private List<EditorialLinkVo> listReviewLinks(Long reviewId) {
+        return linkMapper.selectVoList(
+            new LambdaQueryWrapper<EditorialLink>()
+                .eq(EditorialLink::getReviewId, reviewId)
+                .orderByAsc(EditorialLink::getCreateTime)
+                .orderByAsc(EditorialLink::getId));
+    }
+
+    private EditorialAttachmentVo resolveCurrentAttachment(Long currentAttachmentId, List<EditorialAttachmentVo> attachmentList) {
+        if (CollUtil.isEmpty(attachmentList)) {
+            return null;
+        }
+        if (currentAttachmentId != null) {
+            for (EditorialAttachmentVo attachment : attachmentList) {
+                if (Objects.equals(attachment.getId(), currentAttachmentId)) {
+                    return attachment;
+                }
+            }
+        }
+        return attachmentList.get(attachmentList.size() - 1);
+    }
+
+    private List<EditorialAttachmentBo> resolveRequestedAttachments(EditorialReviewBo bo) {
+        Map<String, EditorialAttachmentBo> attachmentMap = new LinkedHashMap<>();
+        if (CollUtil.isNotEmpty(bo.getAttachmentList())) {
+            for (EditorialAttachmentBo attachmentBo : bo.getAttachmentList()) {
+                if (attachmentBo == null || StringUtils.isBlank(attachmentBo.getOssId())) {
+                    continue;
+                }
+                attachmentMap.putIfAbsent(attachmentBo.getOssId(), attachmentBo);
+            }
+        }
+        if (StringUtils.isNotBlank(bo.getAttachmentOssId())) {
+            EditorialAttachmentBo legacyAttachment = new EditorialAttachmentBo();
+            legacyAttachment.setOssId(bo.getAttachmentOssId());
+            legacyAttachment.setFileName(bo.getAttachmentFileName());
+            legacyAttachment.setFileUrl(bo.getAttachmentFileUrl());
+            legacyAttachment.setFileSize(bo.getAttachmentFileSize());
+            attachmentMap.putIfAbsent(legacyAttachment.getOssId(), legacyAttachment);
+        }
+        return new ArrayList<>(attachmentMap.values());
+    }
+
+    private void appendDiff(Map<String, Object> diff, String field, Object oldValue, Object newValue) {
+        if (!Objects.equals(oldValue, newValue)) {
+            diff.put(field, createChangeEntry(oldValue, newValue));
+        }
+    }
+
+    private Map<String, Object> createChangeEntry(Object oldValue, Object newValue) {
+        Map<String, Object> changeEntry = new LinkedHashMap<>();
+        changeEntry.put("old", oldValue);
+        changeEntry.put("new", newValue);
+        return changeEntry;
+    }
+
+    private List<Map<String, Object>> toLinkSnapshots(List<EditorialLinkVo> links) {
+        if (CollUtil.isEmpty(links)) {
+            return List.of();
+        }
+        return links.stream().map(link -> {
+            Map<String, Object> snapshot = new LinkedHashMap<>();
+            snapshot.put("id", link.getId());
+            snapshot.put("description", link.getDescription());
+            snapshot.put("url", link.getUrl());
+            return snapshot;
+        }).toList();
+    }
+
+    private List<Map<String, Object>> toAttachmentSnapshots(List<EditorialAttachmentVo> attachments) {
+        if (CollUtil.isEmpty(attachments)) {
+            return List.of();
+        }
+        return attachments.stream()
+            .sorted(Comparator.comparing(EditorialAttachmentVo::getVersion, Comparator.nullsLast(Integer::compareTo)))
+            .map(this::toAttachmentSnapshot)
+            .toList();
+    }
+
+    private Map<String, Object> toAttachmentSnapshot(EditorialAttachmentVo attachment) {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("id", attachment.getId());
+        snapshot.put("fileName", attachment.getFileName());
+        snapshot.put("ossId", attachment.getOssId());
+        snapshot.put("fileUrl", attachment.getFileUrl());
+        snapshot.put("fileSize", attachment.getFileSize());
+        snapshot.put("version", attachment.getVersion());
+        snapshot.put("uploaderId", attachment.getUploaderId());
+        snapshot.put("uploaderName", attachment.getUploaderName());
+        snapshot.put("createTime", attachment.getCreateTime());
+        return snapshot;
+    }
+
+    private List<Map<String, Object>> findAddedAttachmentSnapshots(List<EditorialAttachmentVo> oldAttachments,
+                                                                   List<EditorialAttachmentVo> newAttachments) {
+        Set<String> oldOssIds = new HashSet<>();
+        if (CollUtil.isNotEmpty(oldAttachments)) {
+            oldOssIds.addAll(oldAttachments.stream()
+                .map(EditorialAttachmentVo::getOssId)
+                .filter(StringUtils::isNotBlank)
+                .toList());
+        }
+        if (CollUtil.isEmpty(newAttachments)) {
+            return List.of();
+        }
+        return newAttachments.stream()
+            .filter(attachment -> StringUtils.isNotBlank(attachment.getOssId()) && !oldOssIds.contains(attachment.getOssId()))
+            .map(this::toAttachmentSnapshot)
+            .toList();
+    }
+
+    private String resolveProcessOperateType(ProcessEvent processEvent) {
+        if (Boolean.TRUE.equals(processEvent.getSubmit())) {
+            return "发起审批";
+        }
+        String nodeLabel = StringUtils.isNotBlank(processEvent.getNodeName())
+            ? processEvent.getNodeName()
+            : processEvent.getNodeCode();
+        String status = processEvent.getStatus();
+        if (BusinessStatusEnum.CANCEL.getStatus().equals(status)) {
+            return "申请人撤销";
+        }
+        if (BusinessStatusEnum.BACK.getStatus().equals(status)) {
+            return StringUtils.isNotBlank(nodeLabel) ? nodeLabel + "退回" : "退回";
+        }
+        if (BusinessStatusEnum.TERMINATION.getStatus().equals(status)) {
+            return StringUtils.isNotBlank(nodeLabel) ? nodeLabel + "终止" : "终止";
+        }
+        if (BusinessStatusEnum.WAITING.getStatus().equals(status) || BusinessStatusEnum.FINISH.getStatus().equals(status)) {
+            return StringUtils.isNotBlank(nodeLabel) ? nodeLabel + "审批通过" : "审批通过";
+        }
+        if (StringUtils.isNotBlank(nodeLabel)) {
+            return nodeLabel + "办理";
+        }
+        return "流程办理";
+    }
+
+    private Map<String, Object> buildProcessFieldDiff(EditorialReview review, ProcessEvent processEvent) {
+        Map<String, Object> diff = new LinkedHashMap<>();
+        if (review != null) {
+            appendDiff(diff, "reviewStatus", null, review.getReviewStatus());
+            appendDiff(diff, "status", null, review.getStatus());
+            appendDiff(diff, "applyCode", null, review.getApplyCode());
+        }
+        if (StringUtils.isNotBlank(processEvent.getNodeCode()) || StringUtils.isNotBlank(processEvent.getNodeName())) {
+            Map<String, Object> nodeInfo = new LinkedHashMap<>();
+            nodeInfo.put("code", processEvent.getNodeCode());
+            nodeInfo.put("name", processEvent.getNodeName());
+            diff.put("node", createChangeEntry(null, nodeInfo));
+        }
+        Object message = processEvent.getParams() == null ? null : processEvent.getParams().get("message");
+        if (message != null) {
+            diff.put("message", createChangeEntry(null, message));
+        }
+        Object handler = processEvent.getParams() == null ? null : processEvent.getParams().get("handler");
+        if (handler != null) {
+            diff.put("handler", createChangeEntry(null, handler));
+        }
+        return diff;
     }
 }

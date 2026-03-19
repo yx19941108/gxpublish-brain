@@ -212,7 +212,9 @@ const goToEdit = () => {
   router.push(
     createReviewFormLocation({
       id: detail.id ? String(detail.id) : undefined,
-      type: 'update'
+      type: 'update',
+      taskId: detail.shell.canApprove ? detail.shell.taskId : undefined,
+      instanceId: detail.shell.canApprove ? detail.shell.instanceId : undefined
     })
   );
 };

@@ -8,6 +8,8 @@
         :pageType="buttonPageType"
         :submit-label="submitLabel"
         :mode="true"
+        :show-draft-button="false"
+        :show-submit-button="canFormSubmit"
         @submitForm="submitForm"
         @handleApprovalRecord="handleApprovalRecord"
       />
@@ -19,6 +21,7 @@
       </el-form>
     </el-card>
 
+    <submitVerify ref="submitVerifyRef" :task-variables="taskVariables" @submit-callback="submitCallback" />
     <approvalRecord ref="approvalRecordRef" />
   </div>
 </template>
@@ -32,13 +35,14 @@ import type { FormInstance, FormRules } from 'element-plus';
 
 import { listDept } from '@/api/system/dept';
 import type { DeptVO } from '@/api/system/dept/types';
-import { createReviewDraft, getReviewDetail, resubmitReviewAction, updateReviewDraft, submitReviewAction } from '@/api/editorial/review';
+import { createReviewDraft, getReviewDetail, resubmitReviewAction, submitReviewAction, updateReviewDraft } from '@/api/editorial/review';
 import ApprovalButton from '@/components/Process/approvalButton.vue';
 import ApprovalRecord from '@/components/Process/approvalRecord.vue';
+import SubmitVerify from '@/components/Process/submitVerify.vue';
 import { useUserStore } from '@/store/modules/user';
 
 import ReviewFormFields from './components/ReviewFormFields.vue';
-import { getReviewSubmitLabel, mapReviewFormModel, resolveReviewRouteType, toReviewActionPayload } from './integration';
+import { getReviewSubmitLabel, mapReviewFormModel, resolveReviewFormPageType, resolveReviewRouteType, toReviewActionPayload } from './integration';
 import { createEmptyReviewForm } from './model';
 
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
@@ -48,17 +52,28 @@ const userStore = useUserStore();
 
 const reviewFormRef = ref<FormInstance>();
 const approvalRecordRef = ref<InstanceType<typeof ApprovalRecord>>();
+const submitVerifyRef = ref<InstanceType<typeof SubmitVerify>>();
 
 const loading = ref(true);
 const buttonLoading = ref(false);
 const deptOptions = ref<DeptVO[]>([]);
+const taskVariables = ref<Record<string, any>>({});
 const form = reactive(createEmptyReviewForm(userStore.deptId));
 
 const routeQuery = computed(() => route.query as Record<string, unknown>);
 const routeType = computed(() => resolveReviewRouteType(routeQuery.value));
-const buttonPageType = computed(() => (routeType.value === 'update' ? 'update' : 'add'));
+const buttonPageType = computed(() =>
+  resolveReviewFormPageType({
+    routeType: routeType.value,
+    reviewStatus: form.reviewStatus,
+    taskId: form.taskId,
+    canApprove: form.canApprove
+  })
+);
+const isApprovalEdit = computed(() => buttonPageType.value === 'approval');
 const shouldUseResubmit = computed(() => Boolean(form.id) && form.reviewStatus === 'BACK');
-const submitLabel = computed(() => getReviewSubmitLabel(form.reviewStatus));
+const canFormSubmit = computed(() => buttonPageType.value === 'add' || buttonPageType.value === 'update' || buttonPageType.value === 'approval');
+const submitLabel = computed(() => (isApprovalEdit.value ? '保存并审批' : getReviewSubmitLabel(form.reviewStatus)));
 
 const rules = reactive<FormRules>({
   title: [{ required: true, message: '请输入标题', trigger: 'blur' }],
@@ -80,7 +95,7 @@ const getDeptTree = async () => {
 
 const loadDetail = async (id: number | string) => {
   const detailRes = await getReviewDetail(id);
-  Object.assign(form, mapReviewFormModel(detailRes.data));
+  Object.assign(form, mapReviewFormModel(detailRes.data, routeQuery.value));
 };
 
 const initForm = async () => {
@@ -100,6 +115,24 @@ const initForm = async () => {
   loading.value = false;
 };
 
+const validateAttachmentOrLink = () => {
+  const hasAttachment = form.attachmentList.some((attachment) => attachment.ossId);
+  const hasLink = form.linkList.some((link) => link.url?.trim());
+  if (!hasAttachment && !hasLink) {
+    ElMessage.warning('提交审批时，附件和关联链接至少需要填写一项');
+    return false;
+  }
+  return true;
+};
+
+const openApprovalDialogAfterSave = () => {
+  if (!form.taskId) {
+    proxy?.$modal.msgWarning('当前缺少 taskId，无法继续审批');
+    return;
+  }
+  submitVerifyRef.value?.openDialog(form.taskId);
+};
+
 const doSubmit = async (action: 'draft' | 'submit') => {
   const payload = toReviewActionPayload(form);
 
@@ -111,8 +144,15 @@ const doSubmit = async (action: 'draft' | 'submit') => {
     return;
   }
 
-  if (!form.attachmentOssId && form.linkList.length === 0) {
-    ElMessage.warning('提交审批时，附件和关联链接至少需要填写一项');
+  if (!validateAttachmentOrLink()) {
+    return;
+  }
+
+  if (isApprovalEdit.value) {
+    const response = await updateReviewDraft(payload);
+    Object.assign(form, mapReviewFormModel(response.data, routeQuery.value));
+    ElMessage.success('修改已保存，准备进入审批');
+    openApprovalDialogAfterSave();
     return;
   }
 
@@ -149,6 +189,10 @@ const handleApprovalRecord = () => {
     return;
   }
   approvalRecordRef.value?.init(form.id);
+};
+
+const submitCallback = async () => {
+  await close();
 };
 
 onMounted(() => {

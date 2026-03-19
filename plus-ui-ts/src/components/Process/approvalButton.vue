@@ -1,7 +1,7 @@
 <template>
   <div style="display: flex; justify-content: space-between">
     <div>
-      <el-button v-if="submitButtonShow" :loading="props.buttonLoading" type="info" @click="submitForm('draft', mode)">暂存</el-button>
+      <el-button v-if="draftButtonShow" :loading="props.buttonLoading" type="info" @click="submitForm('draft', mode)">暂存</el-button>
       <el-button v-if="submitButtonShow" :loading="props.buttonLoading" type="primary" @click="submitForm('submit', mode)">{{
         props.submitLabel
       }}</el-button>
@@ -23,7 +23,15 @@ const props = defineProps({
   buttonLoading: propTypes.bool.def(false),
   id: propTypes.string.def('') || propTypes.number.def(),
   mode: propTypes.bool.def(false),
-  submitLabel: propTypes.string.def('提交')
+  submitLabel: propTypes.string.def('提交'),
+  showDraftButton: {
+    type: Boolean,
+    default: undefined
+  },
+  showSubmitButton: {
+    type: Boolean,
+    default: undefined
+  }
 });
 const emits = defineEmits(['submitForm', 'approvalVerifyOpen', 'handleApprovalRecord']);
 //暂存，提交
@@ -50,8 +58,22 @@ const isWaitingStatus = computed(() => {
 });
 
 //校验提交按钮是否显示
-const submitButtonShow = computed(() => {
+const defaultSubmitButtonShow = computed(() => {
   return props.pageType === 'add' || (props.pageType === 'update' && (normalizedStatus.value === 'DRAFT' || normalizedStatus.value === 'BACK'));
+});
+
+const draftButtonShow = computed(() => {
+  if (typeof props.showDraftButton === 'boolean') {
+    return props.showDraftButton;
+  }
+  return defaultSubmitButtonShow.value;
+});
+
+const submitButtonShow = computed(() => {
+  if (typeof props.showSubmitButton === 'boolean') {
+    return props.showSubmitButton;
+  }
+  return defaultSubmitButtonShow.value;
 });
 
 //校验审批按钮是否显示

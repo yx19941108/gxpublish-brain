@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.gxpublish.brain.editorial.domain.bo.EditorialReviewBo;
 import com.gxpublish.brain.editorial.domain.vo.EditorialReviewDetailVo;
 import com.gxpublish.brain.editorial.domain.vo.EditorialReviewPageItemVo;
+import com.gxpublish.brain.editorial.domain.vo.EditorialReviewTaskContextVo;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
@@ -30,4 +31,16 @@ public interface EditorialReviewMapper extends BaseMapperPlus<EditorialReview, E
      */
     List<EditorialReviewPageItemVo> customSelectList(@Param("bo") EditorialReviewBo bo,
                                                      @Param("params") Map<String, Object> params);
+
+    /**
+     * 查询当前登录人在指定业务单据上的待办任务上下文。
+     */
+    EditorialReviewTaskContextVo selectCurrentTaskContext(@Param("reviewId") String reviewId,
+                                                          @Param("processedBy") String processedBy);
+
+    /**
+     * 批量查询当前登录人在指定业务单据上的待办任务上下文。
+     */
+    List<EditorialReviewTaskContextVo> selectCurrentTaskContexts(@Param("reviewIds") List<String> reviewIds,
+                                                                 @Param("processedBy") String processedBy);
 }

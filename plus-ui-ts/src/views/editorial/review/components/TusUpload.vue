@@ -47,14 +47,29 @@
     </div>
 
     <div class="text-gray-400 text-xs mt-1" v-if="!disabled && !hasFile && !uploading">支持断点续传，不限大小</div>
+
+    <el-dialog v-model="previewVisible" :title="displayFileName" width="70%" destroy-on-close>
+      <template v-if="previewSource">
+        <img v-if="previewKind === 'image'" :src="previewSource" class="mx-auto max-h-[70vh] max-w-full object-contain" />
+        <iframe v-else-if="previewKind === 'pdf'" :src="previewSource" class="h-[70vh] w-full border-0" />
+        <video v-else-if="previewKind === 'video'" :src="previewSource" controls class="mx-auto max-h-[70vh] max-w-full" />
+        <div v-else class="py-6 text-center">当前文件类型暂不支持页内预览，请使用下载或新窗口打开。</div>
+      </template>
+      <template #footer>
+        <el-button @click="previewVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch, onBeforeUnmount } from 'vue';
 import * as tus from 'tus-js-client';
+import { ElMessage } from 'element-plus';
 import { getToken } from '@/utils/auth';
 import { Document, View, Download, Delete } from '@element-plus/icons-vue';
+
+import { fetchAttachmentBlob, openBlobDownload, resolveAttachmentPreviewKind, type AttachmentPreviewKind } from './attachmentUtils';
 
 const props = defineProps({
   /** OSS 文件 ID（双向绑定） */
@@ -90,6 +105,10 @@ const percentage = ref(0);
 const progressStatus = ref<'' | 'success' | 'warning' | 'exception'>('');
 const paused = ref(false);
 let upload: tus.Upload | null = null;
+const previewVisible = ref(false);
+const previewSource = ref('');
+const previewKind = ref<AttachmentPreviewKind>('other');
+let previewObjectUrl: string | null = null;
 
 // 文件回显状态（上传成功后或外部传入）
 const innerFileUrl = ref('');
@@ -136,81 +155,65 @@ const normalizeUploadUrl = (rawUploadUrl?: string | null): string => {
   return withoutQuery;
 };
 
-/** 预览文件（通过后端 API 获取，避免预签名 URL 过期） */
-const downloadBlob = (blob: Blob, fileName: string) => {
-  const blobUrl = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = blobUrl;
-  a.download = fileName;
-  a.target = '_blank';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(blobUrl);
+const cleanupPreviewUrl = () => {
+  if (previewObjectUrl) {
+    URL.revokeObjectURL(previewObjectUrl);
+    previewObjectUrl = null;
+  }
 };
 
-const fetchOssBlobById = async (ossId: string): Promise<Blob> => {
-  const baseURL = import.meta.env.VITE_APP_BASE_API;
-  const response = await fetch(baseURL + '/resource/oss/download/' + ossId, {
-    headers: {
-      Authorization: 'Bearer ' + getToken(),
-      clientid: import.meta.env.VITE_APP_CLIENT_ID
-    }
-  });
-  const blob = await response.blob();
-  const contentType = response.headers.get('content-type') || '';
-  if (!response.ok || contentType.includes('application/json')) {
-    const errorText = await blob.text();
-    throw new Error(errorText || '文件访问失败');
+watch(previewVisible, (visible) => {
+  if (!visible) {
+    cleanupPreviewUrl();
+    previewSource.value = '';
   }
-  return blob;
-};
+});
 
 const handlePreview = async () => {
-  const previewWindow = window.open('', '_blank');
-  const ossId = props.modelValue;
-  if (ossId) {
-    try {
-      const blob = await fetchOssBlobById(ossId);
-      const blobUrl = URL.createObjectURL(blob);
-      if (previewWindow) {
-        previewWindow.location.href = blobUrl;
-      } else {
-        window.open(blobUrl, '_blank');
-      }
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 60 * 1000);
-      return;
-    } catch (error) {
-      console.error('预览文件失败，回退到直链预览:', error);
-    }
-  }
-  if (displayFileUrl.value) {
-    if (previewWindow) {
-      previewWindow.location.href = displayFileUrl.value;
-    } else {
+  previewKind.value = resolveAttachmentPreviewKind({
+    fileName: displayFileName.value,
+    fileUrl: displayFileUrl.value
+  });
+
+  if (previewKind.value === 'other') {
+    if (displayFileUrl.value) {
       window.open(displayFileUrl.value, '_blank');
+      return;
     }
+    ElMessage.warning('当前文件缺少可预览地址');
     return;
   }
-  if (previewWindow) {
-    previewWindow.close();
+
+  try {
+    cleanupPreviewUrl();
+    const blob = await fetchAttachmentBlob({
+      ossId: props.modelValue,
+      fileUrl: displayFileUrl.value
+    });
+    previewObjectUrl = URL.createObjectURL(blob);
+    previewSource.value = previewObjectUrl;
+    previewVisible.value = true;
+  } catch (error) {
+    console.error('预览文件失败', error);
+    ElMessage.warning('预览文件失败，请稍后重试');
   }
 };
 
 /** 下载文件（通过后端 API） */
 const handleDownload = async () => {
-  const ossId = props.modelValue;
-  if (ossId) {
-    try {
-      const blob = await fetchOssBlobById(ossId);
-      downloadBlob(blob, displayFileName.value);
+  try {
+    const blob = await fetchAttachmentBlob({
+      ossId: props.modelValue,
+      fileUrl: displayFileUrl.value
+    });
+    openBlobDownload(blob, displayFileName.value);
+  } catch (error) {
+    console.error('下载文件失败，回退到直链下载:', error);
+    if (displayFileUrl.value) {
+      window.open(displayFileUrl.value, '_blank');
       return;
-    } catch (error) {
-      console.error('下载文件失败，回退到直链下载:', error);
     }
-  }
-  if (displayFileUrl.value) {
-    window.open(displayFileUrl.value, '_blank');
+    ElMessage.warning('下载文件失败，请稍后重试');
   }
 };
 
@@ -352,6 +355,7 @@ const cancel = () => {
 };
 
 onBeforeUnmount(() => {
+  cleanupPreviewUrl();
   cancel();
 });
 </script>

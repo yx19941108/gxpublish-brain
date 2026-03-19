@@ -30,15 +30,8 @@
     <div v-else class="text-sm leading-6 text-[var(--el-text-color-primary)]">{{ form.deptName || '-' }}</div>
   </el-form-item>
 
-  <el-form-item label="附件" prop="attachmentOssId">
-    <TusUpload
-      v-model="form.attachmentOssId"
-      v-model:fileName="form.attachmentFileName"
-      v-model:fileUrl="form.attachmentFileUrl"
-      v-model:fileSize="form.attachmentFileSize"
-      :version="form.attachmentVersion || 0"
-      :disabled="readonly"
-    />
+  <el-form-item label="附件">
+    <ReviewAttachmentList v-model="form.attachmentList" :readonly="readonly" />
   </el-form-item>
 
   <el-form-item label="关联链接">
@@ -74,7 +67,7 @@ import type { DeptVO } from '@/api/system/dept/types';
 
 import { getReviewProcessTypeMeta } from '../integration';
 import type { ReviewFormModel } from '../model';
-import TusUpload from './TusUpload.vue';
+import ReviewAttachmentList from './ReviewAttachmentList.vue';
 
 const props = defineProps({
   form: {

@@ -73,13 +73,18 @@
           <span>{{ parseTime(row.createTime) }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="操作" align="center" class-name="small-padding fixed-width" width="220">
+      <el-table-column label="操作" align="center" class-name="small-padding fixed-width" width="260">
         <template #default="{ row }">
-          <el-button link type="primary" icon="Edit" @click="handleUpdate(row)" v-if="row.canEdit" v-hasPermi="['editorial:review:edit']"
-            >修改</el-button
-          >
-          <el-button link type="primary" icon="View" @click="handleView(row)">详情</el-button>
-          <el-button link type="primary" icon="Delete" @click="handleDelete(row)" v-if="row.canEdit" v-hasPermi="['editorial:review:remove']">
+          <el-button link type="primary" icon="Edit" @click="handleUpdate(row)" v-if="getRowActions(row).showEdit" v-hasPermi="['editorial:review:edit']">
+            修改
+          </el-button>
+          <el-button link type="primary" icon="Select" @click="handleApprove(row)" v-if="getRowActions(row).showApprove" v-hasPermi="['editorial:review:edit']">
+            审批
+          </el-button>
+          <el-button link type="primary" icon="View" @click="handleView(row)" v-if="getRowActions(row).showDetail">
+            详情
+          </el-button>
+          <el-button link type="primary" icon="Delete" @click="handleDelete(row)" v-if="getRowActions(row).showDelete" v-hasPermi="['editorial:review:remove']">
             删除
           </el-button>
         </template>
@@ -101,6 +106,7 @@ import {
   createReviewDetailLocation,
   createReviewFormLocation,
   getReviewProcessTypeMeta,
+  getReviewRowActions,
   getReviewStatusMeta,
   mapReviewPageItem
 } from './integration';
@@ -159,7 +165,20 @@ const handleUpdate = (row: ReviewPageItem) => {
   router.push(
     createReviewFormLocation({
       id: String(row.id),
-      type: 'update'
+      type: 'update',
+      taskId: row.taskId,
+      instanceId: row.instanceId
+    })
+  );
+};
+
+const handleApprove = (row: ReviewPageItem) => {
+  router.push(
+    createReviewDetailLocation({
+      id: String(row.id),
+      type: 'approval',
+      taskId: row.taskId,
+      instanceId: row.instanceId
     })
   );
 };
@@ -184,6 +203,8 @@ const handleDelete = async (row?: ReviewPageItem) => {
   ElMessage.success('删除成功');
   await getList();
 };
+
+const getRowActions = (row: ReviewPageItem) => getReviewRowActions(row);
 
 onMounted(() => {
   getList();

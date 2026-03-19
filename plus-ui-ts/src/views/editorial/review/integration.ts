@@ -1,9 +1,10 @@
-import type { ReviewApprovalContextResp, ReviewActionPayload, ReviewDetailResp, ReviewHistoryResp, ReviewPageItemResp } from '@/api/editorial/review';
+import type { ReviewActionPayload, ReviewApprovalContextResp, ReviewAttachmentResp, ReviewDetailResp, ReviewHistoryResp, ReviewPageItemResp } from '@/api/editorial/review';
 
 import {
   REVIEW_DETAIL_ROUTE,
   REVIEW_FORM_ROUTE,
   REVIEW_FLOW_CODE,
+  type ReviewAttachmentFormItem,
   type ReviewDetailModel,
   type ReviewFormModel,
   type ReviewHistoryItem,
@@ -62,6 +63,47 @@ const pickQueryValue = (value: unknown) => {
   }
   return typeof value === 'string' ? value : undefined;
 };
+
+const toOptionalNumber = (value: unknown) => {
+  if (value === undefined || value === null || value === '') {
+    return undefined;
+  }
+  const nextValue = Number(value);
+  return Number.isNaN(nextValue) ? undefined : nextValue;
+};
+
+const toAttachmentFormItem = (attachment?: ReviewAttachmentResp | null): ReviewAttachmentFormItem | null => {
+  if (!attachment || (!attachment.ossId && !attachment.fileUrl && !attachment.fileName)) {
+    return null;
+  }
+  return {
+    id: attachment.id ?? null,
+    reviewId: attachment.reviewId,
+    fileName: attachment.fileName,
+    ossId: attachment.ossId,
+    fileUrl: attachment.fileUrl,
+    fileSize: attachment.fileSize ?? null,
+    version: attachment.version,
+    uploaderId: attachment.uploaderId,
+    uploaderName: attachment.uploaderName,
+    createTime: attachment.createTime
+  };
+};
+
+const buildAttachmentList = (detail: ReviewDetailResp): ReviewAttachmentFormItem[] => {
+  const attachments = (detail.attachmentList ?? [])
+    .map((attachment) => toAttachmentFormItem(attachment))
+    .filter(Boolean) as ReviewAttachmentFormItem[];
+  if (attachments.length > 0) {
+    return attachments;
+  }
+
+  const legacyAttachment = toAttachmentFormItem(detail.attachment);
+  return legacyAttachment ? [legacyAttachment] : [];
+};
+
+const pickLatestAttachment = (attachmentList: ReviewAttachmentFormItem[]) =>
+  attachmentList.length > 0 ? attachmentList[attachmentList.length - 1] : undefined;
 
 export const sanitizeReviewQuery = (query: Record<string, unknown> = {}): ReviewRouteQuery => {
   const nextQuery: ReviewRouteQuery = {};
@@ -171,14 +213,6 @@ export const createLegacyReviewFallbackLocation = (query: Record<string, unknown
   return createReviewDetailLocation(nextQuery);
 };
 
-const toOptionalNumber = (value: unknown) => {
-  if (value === undefined || value === null || value === '') {
-    return undefined;
-  }
-  const nextValue = Number(value);
-  return Number.isNaN(nextValue) ? undefined : nextValue;
-};
-
 const mapHistoryItem = (item: ReviewHistoryResp): ReviewHistoryItem => ({
   id: item.id,
   reviewId: item.reviewId,
@@ -198,6 +232,9 @@ export const mapReviewPageItem = (item: ReviewPageItemResp): ReviewPageItem => {
     status: item.status ?? reviewStatus,
     reviewStatus,
     canEdit: Boolean(item.canEdit),
+    canApprove: Boolean(item.canApprove),
+    taskId: item.taskId,
+    instanceId: item.instanceId,
     processType: item.processType,
     createTime: item.createTime,
     user: {
@@ -211,8 +248,12 @@ export const mapReviewPageItem = (item: ReviewPageItemResp): ReviewPageItem => {
   };
 };
 
-export const mapReviewFormModel = (detail: ReviewDetailResp): ReviewFormModel => {
+export const mapReviewFormModel = (detail: ReviewDetailResp, routeQuery: Record<string, unknown> = {}): ReviewFormModel => {
   const reviewStatus = normalizeReviewStatus(detail.reviewStatus ?? detail.status);
+  const sanitized = sanitizeReviewQuery(routeQuery);
+  const approvalContext: ReviewApprovalContextResp = detail.approvalContext ?? {};
+  const attachmentList = buildAttachmentList(detail);
+  const latestAttachment = pickLatestAttachment(attachmentList);
 
   return {
     id: detail.id,
@@ -222,12 +263,16 @@ export const mapReviewFormModel = (detail: ReviewDetailResp): ReviewFormModel =>
     status: detail.status ?? reviewStatus,
     reviewStatus,
     canEdit: Boolean(detail.canEdit),
+    canApprove: Boolean(approvalContext.canApprove),
+    taskId: approvalContext.taskId ?? sanitized.taskId,
+    instanceId: approvalContext.instanceId ?? sanitized.instanceId,
     remark: detail.remark ?? '',
-    attachmentOssId: detail.attachment?.ossId,
-    attachmentFileName: detail.attachment?.fileName,
-    attachmentFileUrl: detail.attachment?.fileUrl,
-    attachmentFileSize: detail.attachment?.fileSize ?? null,
-    attachmentVersion: detail.attachment?.version ?? 0,
+    attachmentList,
+    attachmentOssId: latestAttachment?.ossId,
+    attachmentFileName: latestAttachment?.fileName,
+    attachmentFileUrl: latestAttachment?.fileUrl,
+    attachmentFileSize: latestAttachment?.fileSize ?? null,
+    attachmentVersion: latestAttachment?.version ?? 0,
     linkList: (detail.linkList ?? []).map((link) => ({
       id: link.id ?? null,
       url: link.url,
@@ -244,7 +289,7 @@ export const mapReviewFormModel = (detail: ReviewDetailResp): ReviewFormModel =>
 };
 
 export const mapReviewDetailModel = (detail: ReviewDetailResp, pageType: string, routeQuery: Record<string, unknown> = {}): ReviewDetailModel => {
-  const formModel = mapReviewFormModel(detail);
+  const formModel = mapReviewFormModel(detail, routeQuery);
   const sanitized = sanitizeReviewQuery(routeQuery);
   const approvalContext: ReviewApprovalContextResp = detail.approvalContext ?? {};
 
@@ -271,6 +316,53 @@ export const mapReviewDetailModel = (detail: ReviewDetailResp, pageType: string,
 };
 
 export const getReviewSubmitLabel = (status?: string) => (normalizeReviewStatus(status) === 'BACK' ? '再次提交' : '提交');
+
+export const resolveReviewFormPageType = ({
+  routeType,
+  reviewStatus,
+  taskId,
+  canApprove
+}: {
+  routeType?: ReviewRouteType;
+  reviewStatus?: string;
+  taskId?: string;
+  canApprove?: boolean;
+}) => {
+  if (routeType === 'update' && isWaitingReviewStatus(reviewStatus) && taskId && canApprove) {
+    return 'approval';
+  }
+  return routeType === 'update' ? 'update' : 'add';
+};
+
+export const getReviewRowActions = (row: Pick<ReviewPageItem, 'reviewStatus' | 'canEdit' | 'canApprove'>) => {
+  const reviewStatus = normalizeReviewStatus(row.reviewStatus);
+  const isDraftOrBack = reviewStatus === 'DRAFT' || reviewStatus === 'BACK';
+
+  if (isDraftOrBack && row.canEdit) {
+    return {
+      showEdit: true,
+      showApprove: false,
+      showDetail: true,
+      showDelete: true
+    };
+  }
+
+  if (isWaitingReviewStatus(reviewStatus) && row.canApprove) {
+    return {
+      showEdit: true,
+      showApprove: true,
+      showDetail: false,
+      showDelete: false
+    };
+  }
+
+  return {
+    showEdit: false,
+    showApprove: false,
+    showDetail: true,
+    showDelete: false
+  };
+};
 
 export const canCancelReviewProcess = ({
   pageType,
@@ -305,22 +397,41 @@ export const resolveReviewApprovalButtonPageType = ({
   return canApprove === false ? 'view' : 'approval';
 };
 
-export const toReviewActionPayload = (form: ReviewFormModel): ReviewActionPayload => ({
-  id: form.id,
-  title: form.title,
-  content: form.content,
-  deptId: form.deptId,
-  status: form.status,
-  remark: form.remark,
-  attachmentOssId: form.attachmentOssId,
-  attachmentFileName: form.attachmentFileName,
-  attachmentFileUrl: form.attachmentFileUrl,
-  attachmentFileSize: form.attachmentFileSize,
-  linkList: form.linkList.map((item) => ({
-    id: item.id ?? null,
-    url: item.url,
-    description: item.description
-  })),
-  flowCode: form.flowCode ?? REVIEW_FLOW_CODE,
-  processType: form.processType
-});
+export const toReviewActionPayload = (form: ReviewFormModel): ReviewActionPayload => {
+  const attachmentList = (form.attachmentList ?? [])
+    .filter((attachment) => attachment.ossId || attachment.fileUrl || attachment.fileName)
+    .map((attachment) => ({
+      id: attachment.id ?? null,
+      reviewId: attachment.reviewId,
+      ossId: attachment.ossId,
+      fileName: attachment.fileName,
+      fileUrl: attachment.fileUrl,
+      fileSize: attachment.fileSize ?? null,
+      version: attachment.version,
+      uploaderId: attachment.uploaderId,
+      uploaderName: attachment.uploaderName,
+      createTime: attachment.createTime
+    }));
+  const latestAttachment = attachmentList.length > 0 ? attachmentList[attachmentList.length - 1] : undefined;
+
+  return {
+    id: form.id,
+    title: form.title,
+    content: form.content,
+    deptId: form.deptId,
+    status: form.status,
+    remark: form.remark,
+    attachmentList,
+    attachmentOssId: latestAttachment?.ossId,
+    attachmentFileName: latestAttachment?.fileName,
+    attachmentFileUrl: latestAttachment?.fileUrl,
+    attachmentFileSize: latestAttachment?.fileSize ?? null,
+    linkList: form.linkList.map((item) => ({
+      id: item.id ?? null,
+      url: item.url,
+      description: item.description
+    })),
+    flowCode: form.flowCode ?? REVIEW_FLOW_CODE,
+    processType: form.processType
+  };
+};

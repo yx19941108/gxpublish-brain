@@ -93,4 +93,42 @@
         ORDER BY r.create_time DESC
     </select>
 
+    <select id="selectCurrentTaskContext" resultType="com.gxpublish.brain.editorial.domain.vo.EditorialReviewTaskContextVo">
+        SELECT i.business_id AS review_id,
+               t.id          AS task_id,
+               t.instance_id AS instance_id,
+               t.node_code,
+               t.node_name
+        FROM flow_task t
+                 INNER JOIN flow_instance i ON i.id = t.instance_id AND i.del_flag = '0'
+                 INNER JOIN flow_user u ON u.associated = t.id AND u.del_flag = '0'
+        WHERE t.del_flag = '0'
+          AND t.node_type = 1
+          AND i.business_id = #{reviewId}
+          AND u.processed_by = #{processedBy}
+          AND u.type IN ('1', '2', '3')
+        ORDER BY t.create_time DESC
+        LIMIT 1
+    </select>
+
+    <select id="selectCurrentTaskContexts" resultType="com.gxpublish.brain.editorial.domain.vo.EditorialReviewTaskContextVo">
+        SELECT i.business_id AS review_id,
+               t.id          AS task_id,
+               t.instance_id AS instance_id,
+               t.node_code,
+               t.node_name
+        FROM flow_task t
+                 INNER JOIN flow_instance i ON i.id = t.instance_id AND i.del_flag = '0'
+                 INNER JOIN flow_user u ON u.associated = t.id AND u.del_flag = '0'
+        WHERE t.del_flag = '0'
+          AND t.node_type = 1
+          AND u.processed_by = #{processedBy}
+          AND u.type IN ('1', '2', '3')
+          AND i.business_id IN
+        <foreach item="reviewId" collection="reviewIds" open="(" separator="," close=")">
+            #{reviewId}
+        </foreach>
+        ORDER BY t.create_time DESC
+    </select>
+
 </mapper>

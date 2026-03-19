@@ -11,12 +11,12 @@ export interface ReviewDeptResp {
 }
 
 export interface ReviewAttachmentResp {
-  id: number;
-  reviewId: number;
-  fileName: string;
-  ossId: string;
+  id?: number | null;
+  reviewId?: number;
+  fileName?: string;
+  ossId?: string;
   fileUrl?: string;
-  fileSize?: number;
+  fileSize?: number | null;
   version?: number;
   uploaderId?: number;
   uploaderName?: string;
@@ -42,9 +42,9 @@ export interface ReviewHistoryResp {
 }
 
 export interface ReviewApprovalContextResp {
+  canApprove?: boolean;
   taskId?: string;
   instanceId?: string;
-  canApprove?: boolean;
   canEdit?: boolean;
 }
 
@@ -54,6 +54,9 @@ export interface ReviewPageItemResp {
   status: string;
   reviewStatus: string;
   canEdit: boolean;
+  canApprove?: boolean;
+  taskId?: string;
+  instanceId?: string;
   processType: string;
   createTime: string;
   user: ReviewUserResp;
@@ -73,6 +76,7 @@ export interface ReviewDetailResp {
   content?: string;
   applyCode?: string;
   remark?: string;
+  attachmentList?: ReviewAttachmentResp[];
   attachment?: ReviewAttachmentResp;
   linkList?: ReviewLinkResp[];
   historyList?: ReviewHistoryResp[];
@@ -86,6 +90,7 @@ export interface ReviewActionPayload {
   deptId?: number;
   status?: string;
   remark?: string;
+  attachmentList?: ReviewAttachmentResp[];
   attachmentOssId?: string;
   attachmentFileName?: string;
   attachmentFileUrl?: string;

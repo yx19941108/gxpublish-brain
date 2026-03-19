@@ -32,6 +32,19 @@ export interface ReviewLinkFormItem {
   description: string;
 }
 
+export interface ReviewAttachmentFormItem {
+  id?: number | null;
+  reviewId?: number;
+  fileName?: string;
+  ossId?: string;
+  fileUrl?: string;
+  fileSize?: number | null;
+  version?: number;
+  uploaderId?: number;
+  uploaderName?: string;
+  createTime?: string;
+}
+
 export interface ReviewHistoryItem {
   id: number;
   reviewId: number;
@@ -50,7 +63,11 @@ export interface ReviewFormModel {
   status?: string;
   reviewStatus?: string;
   canEdit?: boolean;
+  canApprove?: boolean;
+  taskId?: string;
+  instanceId?: string;
   remark?: string;
+  attachmentList: ReviewAttachmentFormItem[];
   attachmentOssId?: string;
   attachmentFileName?: string;
   attachmentFileUrl?: string;
@@ -72,6 +89,9 @@ export interface ReviewPageItem {
   status?: string;
   reviewStatus: string;
   canEdit: boolean;
+  canApprove: boolean;
+  taskId?: string;
+  instanceId?: string;
   processType: ReviewProcessType;
   createTime?: string;
   user: ReviewUserSummary;
@@ -109,7 +129,11 @@ export const createEmptyReviewForm = (defaultDeptId?: number): ReviewFormModel =
   status: 'DRAFT',
   reviewStatus: 'DRAFT',
   canEdit: true,
+  canApprove: false,
+  taskId: undefined,
+  instanceId: undefined,
   remark: '',
+  attachmentList: [],
   attachmentOssId: undefined,
   attachmentFileName: undefined,
   attachmentFileUrl: '',

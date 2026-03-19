@@ -43,6 +43,12 @@ public class EditorialReviewPageItemVo implements Serializable {
 
     private Boolean canEdit;
 
+    private Boolean canApprove;
+
+    private Long taskId;
+
+    private Long instanceId;
+
     private EditorialNamedRefVo user;
 
     private EditorialNamedRefVo dept;

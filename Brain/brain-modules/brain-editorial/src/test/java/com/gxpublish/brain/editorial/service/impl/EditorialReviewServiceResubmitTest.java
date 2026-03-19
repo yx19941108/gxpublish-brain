@@ -9,8 +9,11 @@ import com.gxpublish.brain.common.core.exception.ServiceException;
 import com.gxpublish.brain.common.core.service.WorkflowService;
 import com.gxpublish.brain.common.core.utils.SpringUtils;
 import com.gxpublish.brain.common.satoken.utils.LoginHelper;
+import com.gxpublish.brain.editorial.domain.EditorialHistory;
 import com.gxpublish.brain.editorial.domain.EditorialReview;
+import com.gxpublish.brain.editorial.domain.bo.EditorialLinkBo;
 import com.gxpublish.brain.editorial.domain.bo.EditorialReviewBo;
+import com.gxpublish.brain.editorial.domain.vo.EditorialReviewTaskContextVo;
 import com.gxpublish.brain.editorial.domain.vo.EditorialReviewDetailVo;
 import com.gxpublish.brain.editorial.domain.vo.EditorialWorkflowRoleRefVo;
 import com.gxpublish.brain.editorial.enums.ReviewStatusEnum;
@@ -41,6 +44,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
@@ -113,36 +117,22 @@ class EditorialReviewServiceResubmitTest {
             roleRef(22L, "editorial_second_level_approver"),
             roleRef(33L, "editorial_third_level_approver")
         ));
-        Converter converter = mock(Converter.class);
-        when(converter.convert(any(EditorialReviewBo.class), eq(EditorialReview.class))).thenAnswer(invocation -> {
-            EditorialReviewBo source = invocation.getArgument(0);
-            EditorialReview mapped = new EditorialReview();
-            mapped.setId(source.getId());
-            mapped.setTitle(source.getTitle());
-            mapped.setContent(source.getContent());
-            mapped.setProcessType(source.getProcessType());
-            return mapped;
-        });
-
         EditorialReviewBo bo = new EditorialReviewBo();
         bo.setId(reviewId);
         bo.setTitle("退回后重提");
         bo.setContent("更新后的内容");
         bo.setProcessType(" audit ");
-        bo.setLinkList(List.of());
+        EditorialLinkBo linkBo = new EditorialLinkBo();
+        linkBo.setUrl("https://example.com/proof");
+        linkBo.setDescription("回提佐证");
+        bo.setLinkList(List.of(linkBo));
 
         EditorialReviewDetailVo result;
-        GenericApplicationContext context = new GenericApplicationContext();
-        context.registerBean(Converter.class, () -> converter);
-        context.registerBean(SpringUtils.class);
-        context.refresh();
         try (MockedStatic<LoginHelper> loginHelper = org.mockito.Mockito.mockStatic(LoginHelper.class)) {
             loginHelper.when(LoginHelper::getUserId).thenReturn(900L);
             loginHelper.when(LoginHelper::isSuperAdmin).thenReturn(false);
             loginHelper.when(LoginHelper::getLoginUser).thenReturn(null);
             result = assertInstanceOf(EditorialReviewDetailVo.class, method.invoke(service, bo));
-        } finally {
-            context.close();
         }
 
         assertEquals("AUDIT", result.getProcessType());
@@ -226,24 +216,238 @@ class EditorialReviewServiceResubmitTest {
         detail.setStatus(BusinessStatusEnum.BACK.getStatus());
         detail.setReviewStatus(ReviewStatusEnum.BACK.getCode());
         detail.setProcessType("AUDIT");
+        detail.setUserId(900L);
 
         when(baseMapper.selectVoById(reviewId)).thenReturn(detail);
         when(linkMapper.selectVoList(any())).thenReturn(List.of());
         when(historyMapper.selectVoList(any())).thenReturn(List.of());
 
         LoginUser loginUser = new LoginUser();
+        loginUser.setUserId(900L);
         RoleDTO applicantRole = new RoleDTO();
         applicantRole.setRoleKey("editorial_review_applicant");
         loginUser.setRoles(List.of(applicantRole));
 
         try (MockedStatic<LoginHelper> loginHelper = org.mockito.Mockito.mockStatic(LoginHelper.class)) {
             loginHelper.when(LoginHelper::getLoginUser).thenReturn(loginUser);
+            loginHelper.when(LoginHelper::isSuperAdmin).thenReturn(false);
 
             EditorialReviewDetailVo result = service.queryById(reviewId);
 
             assertEquals(Boolean.TRUE, result.getCanEdit());
             assertEquals(Boolean.TRUE, result.getApprovalContext().getCanEdit());
         }
+    }
+
+    @Test
+    void shouldExposeApprovalContextForCurrentApproverInQueryDetail() {
+        Long reviewId = 410L;
+        EditorialReviewDetailVo detail = new EditorialReviewDetailVo();
+        detail.setId(reviewId);
+        detail.setStatus(BusinessStatusEnum.WAITING.getStatus());
+        detail.setReviewStatus(ReviewStatusEnum.WAITING_SECOND.getCode());
+        detail.setProcessType("AUDIT");
+
+        EditorialReviewTaskContextVo taskContext = new EditorialReviewTaskContextVo();
+        taskContext.setTaskId(9001L);
+        taskContext.setInstanceId(9002L);
+
+        when(baseMapper.selectVoById(reviewId)).thenReturn(detail);
+        when(baseMapper.selectCurrentTaskContext(String.valueOf(reviewId), "2000")).thenReturn(taskContext);
+        when(linkMapper.selectVoList(any())).thenReturn(List.of());
+        when(historyMapper.selectVoList(any())).thenReturn(List.of());
+
+        LoginUser loginUser = new LoginUser();
+        RoleDTO approverRole = new RoleDTO();
+        approverRole.setRoleKey("editorial_second_level_approver");
+        loginUser.setRoles(List.of(approverRole));
+        loginUser.setUserId(2000L);
+
+        try (MockedStatic<LoginHelper> loginHelper = org.mockito.Mockito.mockStatic(LoginHelper.class)) {
+            loginHelper.when(LoginHelper::getLoginUser).thenReturn(loginUser);
+            loginHelper.when(LoginHelper::getUserId).thenReturn(2000L);
+            loginHelper.when(LoginHelper::getUserIdStr).thenReturn("2000");
+            loginHelper.when(LoginHelper::isSuperAdmin).thenReturn(false);
+
+            EditorialReviewDetailVo result = service.queryById(reviewId);
+
+            assertEquals(Boolean.TRUE, result.getCanEdit());
+            assertEquals(Boolean.TRUE, result.getApprovalContext().getCanApprove());
+            assertEquals(9001L, result.getApprovalContext().getTaskId());
+            assertEquals(9002L, result.getApprovalContext().getInstanceId());
+        }
+    }
+
+    @Test
+    void shouldAllowCurrentApproverToModifyWaitingReviewAndRecordHistory() throws Exception {
+        Long reviewId = 420L;
+        Method method = EditorialReviewServiceImpl.class.getMethod("updateByBo", EditorialReviewBo.class);
+
+        EditorialReview existing = new EditorialReview();
+        existing.setId(reviewId);
+        existing.setStatus(BusinessStatusEnum.WAITING.getStatus());
+        existing.setReviewStatus(ReviewStatusEnum.WAITING_FIRST.getCode());
+        existing.setCreateBy(1000L);
+        existing.setUserId(1000L);
+
+        EditorialReview refreshed = new EditorialReview();
+        refreshed.setId(reviewId);
+        refreshed.setStatus(BusinessStatusEnum.WAITING.getStatus());
+        refreshed.setReviewStatus(ReviewStatusEnum.WAITING_FIRST.getCode());
+        refreshed.setCreateBy(1000L);
+        refreshed.setUserId(1000L);
+        refreshed.setTitle("审批人修改后的标题");
+        refreshed.setContent("审批人修改后的内容");
+        refreshed.setProcessType("AUDIT");
+
+        EditorialReviewDetailVo detail = new EditorialReviewDetailVo();
+        detail.setId(reviewId);
+        detail.setStatus(BusinessStatusEnum.WAITING.getStatus());
+        detail.setReviewStatus(ReviewStatusEnum.WAITING_FIRST.getCode());
+        detail.setProcessType("AUDIT");
+
+        when(baseMapper.selectById(reviewId)).thenReturn(existing, existing, refreshed);
+        when(baseMapper.selectVoById(reviewId)).thenReturn(detail);
+        when(baseMapper.updateById(any(EditorialReview.class))).thenReturn(1);
+        EditorialReviewTaskContextVo taskContext = new EditorialReviewTaskContextVo();
+        taskContext.setTaskId(7001L);
+        taskContext.setInstanceId(7002L);
+        when(baseMapper.selectCurrentTaskContext(String.valueOf(reviewId), "2000")).thenReturn(taskContext);
+        when(linkMapper.selectVoList(any())).thenReturn(List.of());
+        when(historyMapper.selectVoList(any())).thenReturn(List.of());
+
+        Converter converter = mock(Converter.class);
+        org.mockito.Mockito.lenient().when(converter.convert(any(EditorialReviewBo.class), eq(EditorialReview.class))).thenAnswer(invocation -> {
+            EditorialReviewBo source = invocation.getArgument(0);
+            EditorialReview mapped = new EditorialReview();
+            mapped.setId(source.getId());
+            mapped.setTitle(source.getTitle());
+            mapped.setContent(source.getContent());
+            mapped.setRemark(source.getRemark());
+            mapped.setProcessType(source.getProcessType());
+            return mapped;
+        });
+
+        EditorialReviewBo bo = new EditorialReviewBo();
+        bo.setId(reviewId);
+        bo.setTitle("审批人修改后的标题");
+        bo.setContent("审批人修改后的内容");
+        bo.setProcessType("AUDIT");
+        bo.setLinkList(List.of());
+
+        GenericApplicationContext context = new GenericApplicationContext();
+        context.registerBean(Converter.class, () -> converter);
+        context.registerBean(SpringUtils.class);
+        context.refresh();
+        try (MockedStatic<LoginHelper> loginHelper = org.mockito.Mockito.mockStatic(LoginHelper.class)) {
+            LoginUser approverUser = new LoginUser();
+            RoleDTO approverRole = new RoleDTO();
+            approverRole.setRoleKey("editorial_first_level_approver");
+            approverUser.setRoles(List.of(approverRole));
+            loginHelper.when(LoginHelper::getUserId).thenReturn(2000L);
+            loginHelper.when(LoginHelper::getUserIdStr).thenReturn("2000");
+            loginHelper.when(LoginHelper::isSuperAdmin).thenReturn(false);
+            loginHelper.when(LoginHelper::getUsername).thenReturn("wangwu");
+            loginHelper.when(LoginHelper::getLoginUser).thenReturn(approverUser);
+
+            EditorialReviewDetailVo result = assertInstanceOf(EditorialReviewDetailVo.class, method.invoke(service, bo));
+            assertEquals(reviewId, result.getId());
+        } finally {
+            context.close();
+        }
+
+        ArgumentCaptor<EditorialHistory> historyCaptor = ArgumentCaptor.forClass(EditorialHistory.class);
+        verify(historyMapper).insert(historyCaptor.capture());
+        assertEquals("MODIFY", historyCaptor.getValue().getOperateType());
+        assertTrue(historyCaptor.getValue().getFieldDiff().containsKey("title"));
+    }
+
+    @Test
+    void shouldRejectSubmitWhenNeitherAttachmentNorLinkProvided() {
+        EditorialReviewBo bo = new EditorialReviewBo();
+        bo.setTitle("空附件空链接");
+        bo.setContent("没有任何提交材料");
+        bo.setProcessType("AUDIT");
+        bo.setLinkList(List.of());
+
+        ServiceException ex = assertThrows(ServiceException.class, () -> service.submitAndFlowStart(bo));
+        assertEquals("提交审批时，附件和关联链接至少需要填写一项", ex.getMessage());
+        verifyNoInteractions(workflowService);
+    }
+
+    @Test
+    void shouldExposeAttachmentListAndKeepLegacyAttachmentCompatibility() {
+        Long reviewId = 430L;
+        EditorialReviewDetailVo detail = new EditorialReviewDetailVo();
+        detail.setId(reviewId);
+        detail.setUserId(900L);
+        detail.setStatus(BusinessStatusEnum.BACK.getStatus());
+        detail.setReviewStatus(ReviewStatusEnum.BACK.getCode());
+        detail.setCurrentAttachmentId(502L);
+
+        com.gxpublish.brain.editorial.domain.vo.EditorialAttachmentVo firstAttachment = new com.gxpublish.brain.editorial.domain.vo.EditorialAttachmentVo();
+        firstAttachment.setId(501L);
+        firstAttachment.setOssId("oss-501");
+        firstAttachment.setFileName("old.pdf");
+        firstAttachment.setVersion(1);
+
+        com.gxpublish.brain.editorial.domain.vo.EditorialAttachmentVo secondAttachment = new com.gxpublish.brain.editorial.domain.vo.EditorialAttachmentVo();
+        secondAttachment.setId(502L);
+        secondAttachment.setOssId("oss-502");
+        secondAttachment.setFileName("new.pdf");
+        secondAttachment.setVersion(2);
+
+        when(baseMapper.selectVoById(reviewId)).thenReturn(detail);
+        when(attachmentMapper.selectVoList(any())).thenReturn(List.of(firstAttachment, secondAttachment));
+        when(linkMapper.selectVoList(any())).thenReturn(List.of());
+        when(historyMapper.selectVoList(any())).thenReturn(List.of());
+
+        LoginUser loginUser = new LoginUser();
+        loginUser.setUserId(900L);
+        try (MockedStatic<LoginHelper> loginHelper = org.mockito.Mockito.mockStatic(LoginHelper.class)) {
+            loginHelper.when(LoginHelper::getLoginUser).thenReturn(loginUser);
+            loginHelper.when(LoginHelper::isSuperAdmin).thenReturn(false);
+
+            EditorialReviewDetailVo result = service.queryById(reviewId);
+
+            assertEquals(2, result.getAttachmentList().size());
+            assertEquals(502L, result.getAttachment().getId());
+            assertEquals("new.pdf", result.getAttachment().getFileName());
+        }
+    }
+
+    @Test
+    void shouldWriteHumanReadableOperationTypeForApprovalNode() {
+        Long reviewId = 440L;
+        EditorialReview review = new EditorialReview();
+        review.setId(reviewId);
+        review.setStatus(BusinessStatusEnum.WAITING.getStatus());
+        review.setReviewStatus(ReviewStatusEnum.WAITING_FIRST.getCode());
+        review.setApplyCode("APPLY-440");
+
+        when(baseMapper.selectById(reviewId)).thenReturn(review);
+        when(baseMapper.updateById(any(EditorialReview.class))).thenReturn(1);
+
+        ProcessEvent processEvent = new ProcessEvent();
+        processEvent.setFlowCode(EditorialReviewWorkflowDefinition.FLOW_CODE);
+        processEvent.setBusinessId(String.valueOf(reviewId));
+        processEvent.setStatus(BusinessStatusEnum.WAITING.getStatus());
+        processEvent.setNodeCode("first-review-node");
+        processEvent.setNodeName("一级审批");
+        processEvent.setParams(Map.of("message", "同意", "handler", "wangwu"));
+        processEvent.setSubmit(Boolean.FALSE);
+
+        try (MockedStatic<LoginHelper> loginHelper = org.mockito.Mockito.mockStatic(LoginHelper.class)) {
+            loginHelper.when(LoginHelper::getUserId).thenReturn(2000L);
+            loginHelper.when(LoginHelper::getUsername).thenReturn("wangwu");
+            service.processHandler(processEvent);
+        }
+
+        ArgumentCaptor<EditorialHistory> historyCaptor = ArgumentCaptor.forClass(EditorialHistory.class);
+        verify(historyMapper).insert(historyCaptor.capture());
+        assertEquals("一级审批审批通过", historyCaptor.getValue().getOperateType());
+        assertTrue(historyCaptor.getValue().getFieldDiff().containsKey("node"));
+        assertTrue(historyCaptor.getValue().getFieldDiff().containsKey("message"));
     }
 
     private EditorialWorkflowRoleRefVo roleRef(Long roleId, String roleKey) {
