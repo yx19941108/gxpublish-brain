@@ -1,13 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  canCancelReviewProcess,
   createLegacyReviewFallbackLocation,
   getReviewStatusMeta,
   isEditableReviewStatus,
   isWaitingReviewStatus,
   mapReviewDetailModel,
   mapReviewPageItem,
-  normalizeReviewStatus
+  normalizeReviewStatus,
+  resolveReviewApprovalButtonPageType
 } from './integration';
 
 describe('editorial review integration', () => {
@@ -126,6 +128,8 @@ describe('editorial review integration', () => {
 
   it('surfaces staged review labels once backend starts returning them', () => {
     expect(normalizeReviewStatus('finish')).toBe('APPROVED');
+    expect(normalizeReviewStatus(10 as any)).toBe('WAITING_FIRST');
+    expect(normalizeReviewStatus('50')).toBe('BACK');
     expect(getReviewStatusMeta('WAITING_FINAL').label).toBe('待终审');
     expect(getReviewStatusMeta('TERMINATED').type).toBe('info');
   });
@@ -133,5 +137,65 @@ describe('editorial review integration', () => {
   it('keeps only BACK as resubmit-editable status', () => {
     expect(isEditableReviewStatus('BACK')).toBe(true);
     expect(isEditableReviewStatus('CANCELED')).toBe(false);
+  });
+
+  it('allows only applicant waiting-shell detail to cancel process', () => {
+    expect(
+      canCancelReviewProcess({
+        pageType: 'view',
+        reviewStatus: 'WAITING_SECOND',
+        applicantUserId: 7,
+        currentUserId: 7
+      })
+    ).toBe(true);
+
+    expect(
+      canCancelReviewProcess({
+        pageType: 'approval',
+        reviewStatus: 'WAITING_SECOND',
+        applicantUserId: 7,
+        currentUserId: 7
+      })
+    ).toBe(false);
+
+    expect(
+      canCancelReviewProcess({
+        pageType: 'view',
+        reviewStatus: 'APPROVED',
+        applicantUserId: 7,
+        currentUserId: 7
+      })
+    ).toBe(false);
+
+    expect(
+      canCancelReviewProcess({
+        pageType: 'view',
+        reviewStatus: 'WAITING_FINAL',
+        applicantUserId: 7,
+        currentUserId: 8
+      })
+    ).toBe(false);
+  });
+
+  it('downgrades approval shell button state when backend says current user cannot approve', () => {
+    expect(
+      resolveReviewApprovalButtonPageType({
+        pageType: 'approval',
+        canApprove: false
+      })
+    ).toBe('view');
+
+    expect(
+      resolveReviewApprovalButtonPageType({
+        pageType: 'approval',
+        canApprove: true
+      })
+    ).toBe('approval');
+
+    expect(
+      resolveReviewApprovalButtonPageType({
+        pageType: 'approval'
+      })
+    ).toBe('approval');
   });
 });

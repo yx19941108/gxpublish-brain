@@ -13,6 +13,13 @@ import {
 } from './model';
 
 const REVIEW_STATUS_ALIAS: Record<string, string> = {
+  '0': 'DRAFT',
+  '10': 'WAITING_FIRST',
+  '20': 'WAITING_SECOND',
+  '30': 'WAITING_FINAL',
+  '40': 'APPROVED',
+  '50': 'BACK',
+  '60': 'TERMINATED',
   DRAFT: 'DRAFT',
   WAITING: 'WAITING',
   WAITING_FIRST: 'WAITING_FIRST',
@@ -264,6 +271,39 @@ export const mapReviewDetailModel = (detail: ReviewDetailResp, pageType: string,
 };
 
 export const getReviewSubmitLabel = (status?: string) => (normalizeReviewStatus(status) === 'BACK' ? '再次提交' : '提交');
+
+export const canCancelReviewProcess = ({
+  pageType,
+  reviewStatus,
+  applicantUserId,
+  currentUserId
+}: {
+  pageType?: string;
+  reviewStatus?: string;
+  applicantUserId?: string | number;
+  currentUserId?: string | number;
+}) => {
+  if (pageType === 'approval' || !isWaitingReviewStatus(reviewStatus)) {
+    return false;
+  }
+  if (applicantUserId === undefined || applicantUserId === null || currentUserId === undefined || currentUserId === null) {
+    return false;
+  }
+  return String(applicantUserId) === String(currentUserId);
+};
+
+export const resolveReviewApprovalButtonPageType = ({
+  pageType,
+  canApprove
+}: {
+  pageType?: string;
+  canApprove?: boolean;
+}) => {
+  if (pageType !== 'approval') {
+    return pageType ?? 'view';
+  }
+  return canApprove === false ? 'view' : 'approval';
+};
 
 export const toReviewActionPayload = (form: ReviewFormModel): ReviewActionPayload => ({
   id: form.id,

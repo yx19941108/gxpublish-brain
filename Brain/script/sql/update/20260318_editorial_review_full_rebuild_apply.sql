@@ -413,10 +413,11 @@ VALUES
 SET @node_seed := (SELECT IFNULL(MAX(`id`), 0) FROM `flow_node`);
 SET @start_node_id := @node_seed + 1;
 SET @applicant_node_id := @node_seed + 2;
-SET @first_node_id := @node_seed + 3;
-SET @second_node_id := @node_seed + 4;
-SET @final_node_id := @node_seed + 5;
-SET @end_node_id := @node_seed + 6;
+SET @route_node_id := @node_seed + 3;
+SET @first_node_id := @node_seed + 4;
+SET @second_node_id := @node_seed + 5;
+SET @final_node_id := @node_seed + 6;
+SET @end_node_id := @node_seed + 7;
 
 INSERT INTO `flow_node`
 (`id`, `node_type`, `definition_id`, `node_code`, `node_name`, `permission_flag`, `node_ratio`, `coordinate`,
@@ -428,6 +429,8 @@ VALUES
 (@applicant_node_id, 1, @new_definition_id, 'applicant-node', '审校申请', '', '0.000', '240,200|240,200',
  NULL, NULL, NULL, 'N', @target_form_path, @flow_version, @now_time, @flow_operator, @now_time, @flow_operator,
  '[{"code":"ButtonPermissionEnum","value":"back,termination,file"}]', '0', @target_tenant),
+(@route_node_id, 3, @new_definition_id, 'certified-route-node', 'Certified Route', NULL, '0.000', '420,200|420,200',
+ NULL, NULL, NULL, 'N', NULL, @flow_version, @now_time, @flow_operator, @now_time, @flow_operator, '[]', '0', @target_tenant),
 (@first_node_id, 1, @new_definition_id, 'first-review-node', '一级审批', CONCAT('role:', @first_role_id), '0.000', '420,160|420,160',
  NULL, NULL, NULL, 'N', @target_form_path, @flow_version, @now_time, @flow_operator, @now_time, @flow_operator,
  '[{"code":"ButtonPermissionEnum","value":"back,termination,transfer,file"}]', '0', @target_tenant),
@@ -448,15 +451,17 @@ INSERT INTO `flow_skip`
 VALUES
 (@skip_seed + 1, @new_definition_id, 'start-node', 0, 'applicant-node', 1, NULL, 'PASS',
  NULL, '120,200;180,200', @now_time, @flow_operator, @now_time, @flow_operator, '0', @target_tenant),
-(@skip_seed + 2, @new_definition_id, 'applicant-node', 1, 'first-review-node', 1, '普通申请走一级', 'PASS',
- 'ne@@isCertified|true', '300,160;360,160', @now_time, @flow_operator, @now_time, @flow_operator, '0', @target_tenant),
-(@skip_seed + 3, @new_definition_id, 'applicant-node', 1, 'second-review-node', 1, '持证申请跳一级', 'PASS',
- 'eq@@isCertified|true', '300,240;540,240', @now_time, @flow_operator, @now_time, @flow_operator, '0', @target_tenant),
-(@skip_seed + 4, @new_definition_id, 'first-review-node', 1, 'second-review-node', 1, NULL, 'PASS',
+(@skip_seed + 2, @new_definition_id, 'applicant-node', 1, 'certified-route-node', 3, NULL, 'PASS',
+ NULL, '300,200;360,200', @now_time, @flow_operator, @now_time, @flow_operator, '0', @target_tenant),
+(@skip_seed + 3, @new_definition_id, 'certified-route-node', 3, 'first-review-node', 1, NULL, 'PASS',
+ 'ne@@isCertified|true', '450,160;510,160', @now_time, @flow_operator, @now_time, @flow_operator, '0', @target_tenant),
+(@skip_seed + 4, @new_definition_id, 'certified-route-node', 3, 'second-review-node', 1, NULL, 'PASS',
+ 'eq@@isCertified|true', '450,240;570,240', @now_time, @flow_operator, @now_time, @flow_operator, '0', @target_tenant),
+(@skip_seed + 5, @new_definition_id, 'first-review-node', 1, 'second-review-node', 1, NULL, 'PASS',
  NULL, '480,160;540,160', @now_time, @flow_operator, @now_time, @flow_operator, '0', @target_tenant),
-(@skip_seed + 5, @new_definition_id, 'second-review-node', 1, 'final-review-node', 1, NULL, 'PASS',
+(@skip_seed + 6, @new_definition_id, 'second-review-node', 1, 'final-review-node', 1, NULL, 'PASS',
  NULL, '660,200;720,200', @now_time, @flow_operator, @now_time, @flow_operator, '0', @target_tenant),
-(@skip_seed + 6, @new_definition_id, 'final-review-node', 1, 'end-node', 2, NULL, 'PASS',
+(@skip_seed + 7, @new_definition_id, 'final-review-node', 1, 'end-node', 2, NULL, 'PASS',
  NULL, '840,200;900,200', @now_time, @flow_operator, @now_time, @flow_operator, '0', @target_tenant);
 
 DROP TEMPORARY TABLE IF EXISTS `tmp_editorial_instance_ids`;

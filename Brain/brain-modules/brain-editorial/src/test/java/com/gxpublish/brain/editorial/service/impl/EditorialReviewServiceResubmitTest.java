@@ -1,6 +1,9 @@
 package com.gxpublish.brain.editorial.service.impl;
 
 import com.gxpublish.brain.common.core.domain.dto.StartProcessDTO;
+import com.gxpublish.brain.common.core.domain.dto.RoleDTO;
+import com.gxpublish.brain.common.core.domain.event.ProcessEvent;
+import com.gxpublish.brain.common.core.domain.model.LoginUser;
 import com.gxpublish.brain.common.core.enums.BusinessStatusEnum;
 import com.gxpublish.brain.common.core.exception.ServiceException;
 import com.gxpublish.brain.common.core.service.WorkflowService;
@@ -33,6 +36,7 @@ import io.github.linpeilie.Converter;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -184,6 +188,62 @@ class EditorialReviewServiceResubmitTest {
         assertInstanceOf(ServiceException.class, ex.getCause());
         assertEquals("只有退回状态可重新提交", ex.getCause().getMessage());
         verifyNoInteractions(workflowService);
+    }
+
+    @Test
+    void shouldPromoteCertifiedSubmitDirectlyToSecondWaitingStatus() {
+        Long reviewId = 300L;
+        EditorialReview review = new EditorialReview();
+        review.setId(reviewId);
+        review.setStatus(BusinessStatusEnum.DRAFT.getStatus());
+        review.setReviewStatus(ReviewStatusEnum.DRAFT.getCode());
+
+        when(baseMapper.selectById(reviewId)).thenReturn(review);
+        when(baseMapper.updateById(any(EditorialReview.class))).thenReturn(1);
+
+        ProcessEvent processEvent = new ProcessEvent();
+        processEvent.setFlowCode(EditorialReviewWorkflowDefinition.FLOW_CODE);
+        processEvent.setBusinessId(String.valueOf(reviewId));
+        processEvent.setSubmit(Boolean.TRUE);
+        processEvent.setStatus(BusinessStatusEnum.WAITING.getStatus());
+        processEvent.setParams(Map.of("isCertified", true, "businessCode", "APPLY-300"));
+
+        service.processHandler(processEvent);
+
+        ArgumentCaptor<EditorialReview> updateCaptor = ArgumentCaptor.forClass(EditorialReview.class);
+        verify(baseMapper).updateById(updateCaptor.capture());
+        EditorialReview updated = updateCaptor.getValue();
+        assertEquals(BusinessStatusEnum.WAITING.getStatus(), updated.getStatus());
+        assertEquals(ReviewStatusEnum.WAITING_SECOND.getCode(), updated.getReviewStatus());
+        assertEquals("APPLY-300", updated.getApplyCode());
+    }
+
+    @Test
+    void shouldMarkBackDetailEditableForApplicantInQueryDetailContract() {
+        Long reviewId = 400L;
+        EditorialReviewDetailVo detail = new EditorialReviewDetailVo();
+        detail.setId(reviewId);
+        detail.setStatus(BusinessStatusEnum.BACK.getStatus());
+        detail.setReviewStatus(ReviewStatusEnum.BACK.getCode());
+        detail.setProcessType("AUDIT");
+
+        when(baseMapper.selectVoById(reviewId)).thenReturn(detail);
+        when(linkMapper.selectVoList(any())).thenReturn(List.of());
+        when(historyMapper.selectVoList(any())).thenReturn(List.of());
+
+        LoginUser loginUser = new LoginUser();
+        RoleDTO applicantRole = new RoleDTO();
+        applicantRole.setRoleKey("editorial_review_applicant");
+        loginUser.setRoles(List.of(applicantRole));
+
+        try (MockedStatic<LoginHelper> loginHelper = org.mockito.Mockito.mockStatic(LoginHelper.class)) {
+            loginHelper.when(LoginHelper::getLoginUser).thenReturn(loginUser);
+
+            EditorialReviewDetailVo result = service.queryById(reviewId);
+
+            assertEquals(Boolean.TRUE, result.getCanEdit());
+            assertEquals(Boolean.TRUE, result.getApprovalContext().getCanEdit());
+        }
     }
 
     private EditorialWorkflowRoleRefVo roleRef(Long roleId, String roleKey) {

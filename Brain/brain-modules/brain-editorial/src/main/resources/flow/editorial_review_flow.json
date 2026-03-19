@@ -28,17 +28,34 @@
             "skipList": [
                 {
                     "skipType": "PASS",
-                    "skipCondition": "default@@${!isCertified}",
+                    "skipCondition": null,
                     "nowNodeCode": "applicant-node",
+                    "nextNodeCode": "certified-route-node",
+                    "coordinate": "300,200;360,200"
+                }
+            ]
+        },
+        {
+            "nodeType": "3",
+            "nodeCode": "certified-route-node",
+            "nodeName": "Certified Route",
+            "permissionFlag": null,
+            "nodeRatio": "0.000",
+            "coordinate": "420,200|420,200",
+            "skipList": [
+                {
+                    "skipType": "PASS",
+                    "skipCondition": "ne@@isCertified|true",
+                    "nowNodeCode": "certified-route-node",
                     "nextNodeCode": "first-review-node",
-                    "coordinate": "300,160;360,160"
+                    "coordinate": "450,160;510,160"
                 },
                 {
                     "skipType": "PASS",
-                    "skipCondition": "default@@${isCertified}",
-                    "nowNodeCode": "applicant-node",
+                    "skipCondition": "eq@@isCertified|true",
+                    "nowNodeCode": "certified-route-node",
                     "nextNodeCode": "second-review-node",
-                    "coordinate": "300,240;540,240"
+                    "coordinate": "450,240;570,240"
                 }
             ]
         },

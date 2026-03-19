@@ -1,6 +1,5 @@
 package com.gxpublish.brain.editorial.enums;
 
-import cn.hutool.core.collection.CollUtil;
 import com.google.common.collect.Lists;
 import com.gxpublish.brain.common.core.enums.BusinessStatusEnum;
 import com.gxpublish.brain.editorial.exception.EditorialException;
@@ -25,29 +24,29 @@ public enum ReviewStatusEnum {
      * 引擎映射粗粒度状态：DRAFT (草稿)
      */
     DRAFT(0, "草稿", BusinessStatusEnum.DRAFT.getStatus(),
-        Lists.newArrayList(EditorialRoleEnum.APPLICANT.getRoleKey(),
-            EditorialRoleEnum.APPLICANT_CER.getRoleKey(), EditorialRoleEnum.ADMIN.getRoleKey())),
+        Lists.newArrayList("editorial_review_applicant",
+            "editorial_review_applicant_has_certificate", "admin")),
 
     /**
      * 待一级审批，已提交给该节点审批人
      * 引擎映射粗粒度状态：WAITING (流转中)
      */
     WAITING_FIRST(10, "待一审", BusinessStatusEnum.WAITING.getStatus(),
-        Lists.newArrayList(EditorialRoleEnum.FIRST_APPROVER.getRoleKey(), EditorialRoleEnum.ADMIN.getRoleKey())),
+        Lists.newArrayList("editorial_first_level_approver", "admin")),
 
     /**
      * 待二级审批，已通过一次审批，等待二次审批人
      * 引擎映射粗粒度状态：WAITING (流转中)
      */
     WAITING_SECOND(20, "待二审", BusinessStatusEnum.WAITING.getStatus(),
-        Lists.newArrayList(EditorialRoleEnum.SECOND_APPROVER.getRoleKey(), EditorialRoleEnum.ADMIN.getRoleKey())),
+        Lists.newArrayList("editorial_second_level_approver", "admin")),
 
     /**
      * 待终审，等待最终审批节点
      * 引擎映射粗粒度状态：WAITING (流转中)
      */
     WAITING_FINAL(30, "待终审", BusinessStatusEnum.WAITING.getStatus(),
-        Lists.newArrayList(EditorialRoleEnum.FINAL_APPROVER.getRoleKey(), EditorialRoleEnum.ADMIN.getRoleKey())),
+        Lists.newArrayList("editorial_third_level_approver", "admin")),
 
     /**
      * 全部审批通过，流程正式完成
@@ -59,7 +58,8 @@ public enum ReviewStatusEnum {
      * 审批被退回，需要发起人重新流转或直接修改
      * 引擎映射粗粒度状态：BACK (已退回)
      */
-    BACK(50, "已退回", BusinessStatusEnum.BACK.getStatus(), Lists.newArrayList()),
+    BACK(50, "已退回", BusinessStatusEnum.BACK.getStatus(),
+        Lists.newArrayList("editorial_review_applicant", "editorial_review_applicant_has_certificate", "admin")),
 
     /**
      * 彻底终止或作废，不再允许继续流转

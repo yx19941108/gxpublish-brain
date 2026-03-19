@@ -55,6 +55,7 @@ public enum EditorialRoleEnum {
     /**
      * 该角色所负责监管的精细待办业务状态码（review_status）
      * (若该角色并非通过某个特定的待办状态来驱动可见性，如发起人/管理员，则为 null)
+     * 使用字面量状态码，避免枚举静态初始化间的循环依赖。
      */
     private final Integer statusCode;
 

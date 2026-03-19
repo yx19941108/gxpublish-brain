@@ -5,11 +5,12 @@
         :buttonLoading="buttonLoading"
         :id="String(detail.id || '')"
         :status="detail.reviewStatus || detail.status"
-        :pageType="detail.shell.pageType"
+        :pageType="approvalButtonPageType"
         :mode="false"
         @approvalVerifyOpen="approvalVerifyOpen"
         @handleApprovalRecord="handleApprovalRecord"
       >
+        <el-button v-if="canCancelProcessApply" type="danger" link @click="handleCancelProcessApply">撤销</el-button>
         <el-button v-if="detail.canEdit && detail.shell.pageType !== 'approval'" type="primary" link @click="goToEdit">继续编辑</el-button>
       </approvalButton>
     </el-card>
@@ -76,18 +77,29 @@ import { useRoute, useRouter } from 'vue-router';
 import type { ComponentInternalInstance } from 'vue';
 
 import { getReviewDetail } from '@/api/editorial/review';
+import { cancelProcessApply } from '@/api/workflow/instance';
 import ApprovalButton from '@/components/Process/approvalButton.vue';
 import ApprovalRecord from '@/components/Process/approvalRecord.vue';
 import SubmitVerify from '@/components/Process/submitVerify.vue';
+import { useUserStore } from '@/store/modules/user';
 
 import ReviewFormFields from './components/ReviewFormFields.vue';
 import DiffViewer from './components/DiffViewer.vue';
-import { createReviewFormLocation, getReviewProcessTypeMeta, getReviewStatusMeta, mapReviewDetailModel, resolveReviewRouteType } from './integration';
+import {
+  canCancelReviewProcess,
+  createReviewFormLocation,
+  getReviewProcessTypeMeta,
+  getReviewStatusMeta,
+  mapReviewDetailModel,
+  resolveReviewApprovalButtonPageType,
+  resolveReviewRouteType
+} from './integration';
 import { createEmptyReviewForm } from './model';
 
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
 const route = useRoute();
 const router = useRouter();
+const userStore = useUserStore();
 
 const submitVerifyRef = ref<InstanceType<typeof SubmitVerify>>();
 const approvalRecordRef = ref<InstanceType<typeof ApprovalRecord>>();
@@ -125,6 +137,20 @@ const shellTypeLabel = computed(() => {
   const baseLabel = detail.shell.pageType === 'approval' ? '审批壳' : '详情壳';
   return detail.shell.fallback ? `${baseLabel} / 旧页fallback` : baseLabel;
 });
+const canCancelProcessApply = computed(() =>
+  canCancelReviewProcess({
+    pageType: detail.shell.pageType,
+    reviewStatus: detail.reviewStatus || detail.status,
+    applicantUserId: detail.user.id,
+    currentUserId: userStore.userId
+  })
+);
+const approvalButtonPageType = computed(() =>
+  resolveReviewApprovalButtonPageType({
+    pageType: detail.shell.pageType,
+    canApprove: detail.shell.canApprove
+  })
+);
 
 const loadDetail = async () => {
   const id = routeQuery.value.id;
@@ -156,6 +182,25 @@ const handleApprovalRecord = () => {
     return;
   }
   approvalRecordRef.value?.init(detail.id);
+};
+
+const handleCancelProcessApply = async () => {
+  if (!detail.id) {
+    return;
+  }
+
+  await proxy?.$modal.confirm('是否确认撤销当前单据？');
+  buttonLoading.value = true;
+  try {
+    await cancelProcessApply({
+      businessId: detail.id,
+      message: '申请人撤销流程！'
+    });
+    proxy?.$modal.msgSuccess('撤销成功');
+    await loadDetail();
+  } finally {
+    buttonLoading.value = false;
+  }
 };
 
 const submitCallback = async () => {

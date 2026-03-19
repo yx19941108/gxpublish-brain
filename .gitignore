@@ -54,6 +54,7 @@ temp/
 /.agents/
 /.claude/
 /Brain/data/
+/Brain/brain-admin/data/
 /tmphome*/
 *.zip
 *.jar
