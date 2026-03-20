@@ -30,6 +30,7 @@ export interface ReviewLinkFormItem {
   id?: number | null;
   url: string;
   description: string;
+  readonly?: boolean;
 }
 
 export interface ReviewAttachmentFormItem {
@@ -43,6 +44,7 @@ export interface ReviewAttachmentFormItem {
   uploaderId?: number;
   uploaderName?: string;
   createTime?: string;
+  readonly?: boolean;
 }
 
 export interface ReviewHistoryItem {
@@ -81,6 +83,7 @@ export interface ReviewFormModel {
   userName?: string;
   deptName?: string;
   createTime?: string;
+  updateTime?: string;
 }
 
 export interface ReviewPageItem {
@@ -146,5 +149,6 @@ export const createEmptyReviewForm = (defaultDeptId?: number): ReviewFormModel =
   userId: undefined,
   userName: undefined,
   deptName: undefined,
-  createTime: undefined
+  createTime: undefined,
+  updateTime: undefined
 });

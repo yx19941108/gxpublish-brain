@@ -66,7 +66,7 @@
             "permissionFlag": "${editorialFirstLevelApprover}",
             "nodeRatio": "0.000",
             "coordinate": "420,160|420,160",
-            "ext": "[{\"code\":\"ButtonPermissionEnum\",\"value\":\"back,termination,transfer,file\"}]",
+            "ext": "[{\"code\":\"ButtonPermissionEnum\",\"value\":\"back,termination,file\"}]",
             "skipList": [
                 {
                     "skipType": "PASS",
@@ -84,7 +84,7 @@
             "permissionFlag": "${editorialSecondLevelApprover}",
             "nodeRatio": "0.000",
             "coordinate": "600,200|600,200",
-            "ext": "[{\"code\":\"ButtonPermissionEnum\",\"value\":\"back,termination,transfer,file\"}]",
+            "ext": "[{\"code\":\"ButtonPermissionEnum\",\"value\":\"back,termination,file\"}]",
             "skipList": [
                 {
                     "skipType": "PASS",
@@ -102,7 +102,7 @@
             "permissionFlag": "${editorialThirdLevelApprover}",
             "nodeRatio": "0.000",
             "coordinate": "780,200|780,200",
-            "ext": "[{\"code\":\"ButtonPermissionEnum\",\"value\":\"back,termination,transfer,file\"}]",
+            "ext": "[{\"code\":\"ButtonPermissionEnum\",\"value\":\"back,termination,file\"}]",
             "skipList": [
                 {
                     "skipType": "PASS",

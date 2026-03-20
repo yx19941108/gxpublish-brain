@@ -25,7 +25,9 @@ public class EditorialHistoryVo implements Serializable {
     private Long reviewId;
     private Long operatorId;
     private String operatorName;
+    private String operatorRoleName;
     private Date operateTime;
+    private String eventType;
     private String operateType;
     private Map<String, Object> fieldDiff;
 

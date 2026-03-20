@@ -15,7 +15,7 @@ import java.util.Map;
  * @author gxpublish
  */
 @Data
-@TableName("brain_editorial_history")
+@TableName(value = "brain_editorial_history", autoResultMap = true)
 public class EditorialHistory implements Serializable {
 
     @Serial
@@ -43,13 +43,23 @@ public class EditorialHistory implements Serializable {
     private String operatorName;
 
     /**
+     * 操作人角色名
+     */
+    private String operatorRoleName;
+
+    /**
      * 操作时间
      */
     @TableField(fill = FieldFill.INSERT)
     private Date operateTime;
 
     /**
-     * 操作类型: SUBMIT, APPROVE, REJECT, MODIFY
+     * 事件类型: CREATE, MODIFY, APPROVAL
+     */
+    private String eventType;
+
+    /**
+     * 操作展示文案
      */
     private String operateType;
 

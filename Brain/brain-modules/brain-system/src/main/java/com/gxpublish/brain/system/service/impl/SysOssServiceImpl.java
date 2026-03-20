@@ -21,6 +21,7 @@ import com.gxpublish.brain.common.json.utils.JsonUtils;
 import com.gxpublish.brain.common.mybatis.core.page.PageQuery;
 import com.gxpublish.brain.common.mybatis.core.page.TableDataInfo;
 import com.gxpublish.brain.common.oss.core.OssClient;
+import com.gxpublish.brain.common.oss.constant.OssConstant;
 import com.gxpublish.brain.common.oss.entity.UploadResult;
 import com.gxpublish.brain.common.oss.enums.AccessPolicyType;
 import com.gxpublish.brain.common.oss.factory.OssFactory;
@@ -268,17 +269,35 @@ public class SysOssServiceImpl implements ISysOssService, OssService {
     }
 
     /**
-     * 桶类型为 private 的URL 修改为临时URL时长为120s
+     * 将 OSS 对象转换为当前前端可直接打开的访问地址。
+     * <p>
+     * 当前本地 MinIO 运行时存在一个已确认漂移：数据库配置默认标记为 public，
+     * 但对象实际读取策略仍可能返回 403 AccessDenied。为了保持前端现有
+     * {@code window.open(fileUrl)} 合同，在 self-hosted S3 / MinIO 场景下
+     * 默认返回短时签名 URL；云厂商 public bucket 仍保留直链。
      *
      * @param oss OSS对象
      * @return oss 匹配Url的OSS对象
      */
     private SysOssVo matchingUrl(SysOssVo oss) {
         OssClient storage = OssFactory.instance(oss.getService());
-        // 仅修改桶类型为 private 的URL，临时URL时长为120s
-        if (AccessPolicyType.PRIVATE == storage.getAccessPolicy()) {
-            oss.setUrl(storage.createPresignedGetUrl(oss.getFileName(), Duration.ofSeconds(120)));
-        }
+        oss.setUrl(resolveAccessibleUrl(oss, storage));
         return oss;
+    }
+
+    String resolveAccessibleUrl(SysOssVo oss, OssClient storage) {
+        if (!shouldUsePresignedUrl(storage)) {
+            return oss.getUrl();
+        }
+        return storage.createPresignedGetUrl(oss.getFileName(), Duration.ofSeconds(120));
+    }
+
+    boolean shouldUsePresignedUrl(OssClient storage) {
+        if (AccessPolicyType.PRIVATE == storage.getAccessPolicy()) {
+            return true;
+        }
+        String endpoint = storage.getEndpoint();
+        return StringUtils.isNotBlank(endpoint)
+            && !StringUtils.containsAnyIgnoreCase(endpoint, OssConstant.CLOUD_SERVICE);
     }
 }

@@ -38,9 +38,7 @@
         <el-button v-if="task.flowStatus === 'waiting' && buttonObj.trust" :disabled="buttonDisabled" type="primary" @click="openDelegateTask">
           委托
         </el-button>
-        <el-button v-if="task.flowStatus === 'waiting' && buttonObj.transfer" :disabled="buttonDisabled" type="primary" @click="openTransferTask">
-          转办
-        </el-button>
+        <el-button v-if="transferButtonVisible" :disabled="buttonDisabled" type="primary" @click="openTransferTask"> 转办 </el-button>
         <el-button
           v-if="task.flowStatus === 'waiting' && Number(task.nodeRatio) > 0 && buttonObj.addSign"
           :disabled="buttonDisabled"
@@ -139,7 +137,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { ComponentInternalInstance } from 'vue';
 import { ElForm } from 'element-plus';
 import {
@@ -153,6 +151,7 @@ import {
   getNextNodeList
 } from '@/api/workflow/task';
 import UserSelect from '@/components/UserSelect';
+import { shouldHideTransferButtonForReviewTask } from '@/views/editorial/review/integration';
 
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
 import { FlowCopyVo, FlowTaskVO, TaskOperationBo } from '@/api/workflow/task/types';
@@ -202,6 +201,9 @@ const buttonObj = ref<any>({
   subSign: false,
   termination: false,
   back: false
+});
+const transferButtonVisible = computed(() => {
+  return task.value.flowStatus === 'waiting' && buttonObj.value.transfer && !shouldHideTransferButtonForReviewTask(task.value);
 });
 //下一节点列表
 const nestNodeList = ref([]);

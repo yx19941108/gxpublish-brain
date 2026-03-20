@@ -433,13 +433,13 @@ VALUES
  NULL, NULL, NULL, 'N', NULL, @flow_version, @now_time, @flow_operator, @now_time, @flow_operator, '[]', '0', @target_tenant),
 (@first_node_id, 1, @new_definition_id, 'first-review-node', '一级审批', CONCAT('role:', @first_role_id), '0.000', '420,160|420,160',
  NULL, NULL, NULL, 'N', @target_form_path, @flow_version, @now_time, @flow_operator, @now_time, @flow_operator,
- '[{"code":"ButtonPermissionEnum","value":"back,termination,transfer,file"}]', '0', @target_tenant),
+ '[{"code":"ButtonPermissionEnum","value":"back,termination,file"}]', '0', @target_tenant),
 (@second_node_id, 1, @new_definition_id, 'second-review-node', '二级审批', CONCAT('role:', @second_role_id), '0.000', '600,200|600,200',
  NULL, NULL, NULL, 'N', @target_form_path, @flow_version, @now_time, @flow_operator, @now_time, @flow_operator,
- '[{"code":"ButtonPermissionEnum","value":"back,termination,transfer,file"}]', '0', @target_tenant),
+ '[{"code":"ButtonPermissionEnum","value":"back,termination,file"}]', '0', @target_tenant),
 (@final_node_id, 1, @new_definition_id, 'final-review-node', '终审', CONCAT('role:', @third_role_id), '0.000', '780,200|780,200',
  NULL, NULL, NULL, 'N', @target_form_path, @flow_version, @now_time, @flow_operator, @now_time, @flow_operator,
- '[{"code":"ButtonPermissionEnum","value":"back,termination,transfer,file"}]', '0', @target_tenant),
+ '[{"code":"ButtonPermissionEnum","value":"back,termination,file"}]', '0', @target_tenant),
 (@end_node_id, 2, @new_definition_id, 'end-node', '结束', NULL, '0.000', '960,200|960,200',
  NULL, NULL, NULL, 'N', NULL, @flow_version, @now_time, @flow_operator, @now_time, @flow_operator, NULL, '0', @target_tenant);
 

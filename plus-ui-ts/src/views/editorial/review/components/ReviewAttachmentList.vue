@@ -20,20 +20,40 @@
     </template>
 
     <template v-else>
-      <div v-if="attachments.length > 0" class="space-y-3">
-        <div v-for="(attachment, index) in attachments" :key="attachment.id ?? attachment.ossId ?? index" class="attachment-edit-row">
-          <TusUpload
-            :model-value="attachment.ossId"
-            :file-name="attachment.fileName"
-            :file-url="attachment.fileUrl"
-            :file-size="attachment.fileSize ?? undefined"
-            :version="attachment.version"
-            @update:modelValue="updateAttachment(index, 'ossId', $event)"
-            @update:fileName="updateAttachment(index, 'fileName', $event)"
-            @update:fileUrl="updateAttachment(index, 'fileUrl', $event)"
-            @update:fileSize="updateAttachment(index, 'fileSize', $event)"
-          />
-          <el-button type="danger" plain @click="removeAttachment(index)">移除</el-button>
+      <div v-if="attachmentEntries.length > 0" class="space-y-3">
+        <div
+          v-for="entry in attachmentEntries"
+          :key="entry.attachment.id ?? entry.attachment.ossId ?? entry.index"
+          :class="entry.attachment.readonly ? 'attachment-card' : 'attachment-edit-row'"
+        >
+          <template v-if="entry.attachment.readonly">
+            <div class="attachment-card__meta">
+              <div class="font-medium">{{ entry.attachment.fileName || '未命名文件' }}</div>
+              <div class="text-xs text-[var(--el-text-color-secondary)]">
+                <span class="mr-2">既有附件</span>
+                <span v-if="entry.attachment.version">v{{ entry.attachment.version }}</span>
+                <span v-if="entry.attachment.createTime" class="ml-2">{{ entry.attachment.createTime }}</span>
+              </div>
+            </div>
+            <div class="attachment-card__actions">
+              <el-button link type="primary" @click="handlePreview(entry.attachment)">预览</el-button>
+              <el-button link type="success" @click="handleDownload(entry.attachment)">下载</el-button>
+            </div>
+          </template>
+          <template v-else>
+            <TusUpload
+              :model-value="entry.attachment.ossId"
+              :file-name="entry.attachment.fileName"
+              :file-url="entry.attachment.fileUrl"
+              :file-size="entry.attachment.fileSize ?? undefined"
+              :version="entry.attachment.version"
+              @update:modelValue="updateAttachment(entry.index, 'ossId', $event)"
+              @update:fileName="updateAttachment(entry.index, 'fileName', $event)"
+              @update:fileUrl="updateAttachment(entry.index, 'fileUrl', $event)"
+              @update:fileSize="updateAttachment(entry.index, 'fileSize', $event)"
+            />
+            <el-button type="danger" plain @click="removeAttachment(entry.index)">移除</el-button>
+          </template>
         </div>
       </div>
       <div v-else class="text-sm text-[var(--el-text-color-secondary)]">暂无附件，可按需添加多个附件</div>
@@ -89,6 +109,7 @@ const previewKind = ref<AttachmentPreviewKind>('other');
 let previewObjectUrl: string | null = null;
 
 const attachments = computed(() => props.modelValue ?? []);
+const attachmentEntries = computed(() => attachments.value.map((attachment, index) => ({ attachment, index })));
 
 const emitAttachments = (nextAttachments: ReviewAttachmentFormItem[]) => {
   emit('update:modelValue', nextAttachments);
@@ -103,7 +124,8 @@ const addAttachment = () => {
       fileName: '',
       fileUrl: '',
       fileSize: null,
-      version: 0
+      version: 0,
+      readonly: false
     }
   ]);
 };
@@ -122,7 +144,8 @@ const updateAttachment = (index: number, field: keyof ReviewAttachmentFormItem, 
     fileName: '',
     fileUrl: '',
     fileSize: null,
-    version: 0
+    version: 0,
+    readonly: false
   };
 
   nextAttachments[index] = {

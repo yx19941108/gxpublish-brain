@@ -17,11 +17,9 @@
 
     <el-card shadow="never" class="mt-2">
       <el-form ref="reviewFormRef" v-loading="loading" :model="form" :rules="rules" label-width="100px">
-        <ReviewFormFields :form="form" :dept-options="deptOptions" />
+        <ReviewFormFields :form="form" :dept-options="deptOptions" :page-type="buttonPageType" />
       </el-form>
     </el-card>
-
-    <submitVerify ref="submitVerifyRef" :task-variables="taskVariables" @submit-callback="submitCallback" />
     <approvalRecord ref="approvalRecordRef" />
   </div>
 </template>
@@ -38,11 +36,16 @@ import type { DeptVO } from '@/api/system/dept/types';
 import { createReviewDraft, getReviewDetail, resubmitReviewAction, submitReviewAction, updateReviewDraft } from '@/api/editorial/review';
 import ApprovalButton from '@/components/Process/approvalButton.vue';
 import ApprovalRecord from '@/components/Process/approvalRecord.vue';
-import SubmitVerify from '@/components/Process/submitVerify.vue';
 import { useUserStore } from '@/store/modules/user';
 
 import ReviewFormFields from './components/ReviewFormFields.vue';
-import { getReviewSubmitLabel, mapReviewFormModel, resolveReviewFormPageType, resolveReviewRouteType, toReviewActionPayload } from './integration';
+import {
+  mapReviewFormModel,
+  resolveReviewFormPageType,
+  resolveReviewFormSubmitLabel,
+  resolveReviewRouteType,
+  toReviewActionPayload
+} from './integration';
 import { createEmptyReviewForm } from './model';
 
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
@@ -52,12 +55,10 @@ const userStore = useUserStore();
 
 const reviewFormRef = ref<FormInstance>();
 const approvalRecordRef = ref<InstanceType<typeof ApprovalRecord>>();
-const submitVerifyRef = ref<InstanceType<typeof SubmitVerify>>();
 
 const loading = ref(true);
 const buttonLoading = ref(false);
 const deptOptions = ref<DeptVO[]>([]);
-const taskVariables = ref<Record<string, any>>({});
 const form = reactive(createEmptyReviewForm(userStore.deptId));
 
 const routeQuery = computed(() => route.query as Record<string, unknown>);
@@ -66,14 +67,18 @@ const buttonPageType = computed(() =>
   resolveReviewFormPageType({
     routeType: routeType.value,
     reviewStatus: form.reviewStatus,
-    taskId: form.taskId,
-    canApprove: form.canApprove
+    taskId: form.taskId
   })
 );
-const isApprovalEdit = computed(() => buttonPageType.value === 'approval');
-const shouldUseResubmit = computed(() => Boolean(form.id) && form.reviewStatus === 'BACK');
-const canFormSubmit = computed(() => buttonPageType.value === 'add' || buttonPageType.value === 'update' || buttonPageType.value === 'approval');
-const submitLabel = computed(() => (isApprovalEdit.value ? '保存并审批' : getReviewSubmitLabel(form.reviewStatus)));
+const isUpdateMode = computed(() => routeType.value === 'update');
+const shouldUseResubmit = computed(() => !isUpdateMode.value && Boolean(form.id) && form.reviewStatus === 'BACK');
+const canFormSubmit = computed(() => buttonPageType.value === 'add' || buttonPageType.value === 'update');
+const submitLabel = computed(() =>
+  resolveReviewFormSubmitLabel({
+    routeType: routeType.value,
+    reviewStatus: form.reviewStatus
+  })
+);
 
 const rules = reactive<FormRules>({
   title: [{ required: true, message: '请输入标题', trigger: 'blur' }],
@@ -125,14 +130,6 @@ const validateAttachmentOrLink = () => {
   return true;
 };
 
-const openApprovalDialogAfterSave = () => {
-  if (!form.taskId) {
-    proxy?.$modal.msgWarning('当前缺少 taskId，无法继续审批');
-    return;
-  }
-  submitVerifyRef.value?.openDialog(form.taskId);
-};
-
 const doSubmit = async (action: 'draft' | 'submit') => {
   const payload = toReviewActionPayload(form);
 
@@ -144,15 +141,15 @@ const doSubmit = async (action: 'draft' | 'submit') => {
     return;
   }
 
-  if (!validateAttachmentOrLink()) {
+  if (isUpdateMode.value) {
+    const response = await updateReviewDraft(payload);
+    Object.assign(form, mapReviewFormModel(response.data, routeQuery.value));
+    ElMessage.success('保存成功');
+    await close();
     return;
   }
 
-  if (isApprovalEdit.value) {
-    const response = await updateReviewDraft(payload);
-    Object.assign(form, mapReviewFormModel(response.data, routeQuery.value));
-    ElMessage.success('修改已保存，准备进入审批');
-    openApprovalDialogAfterSave();
+  if (!validateAttachmentOrLink()) {
     return;
   }
 
@@ -189,10 +186,6 @@ const handleApprovalRecord = () => {
     return;
   }
   approvalRecordRef.value?.init(form.id);
-};
-
-const submitCallback = async () => {
-  await close();
 };
 
 onMounted(() => {

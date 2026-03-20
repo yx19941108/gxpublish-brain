@@ -4,6 +4,7 @@ import com.gxpublish.brain.common.core.validate.AddGroup;
 import com.gxpublish.brain.common.core.validate.EditGroup;
 import com.gxpublish.brain.common.mybatis.core.domain.BaseEntity;
 import com.gxpublish.brain.editorial.domain.EditorialReview;
+import com.gxpublish.brain.editorial.domain.annotation.EditorialDiffField;
 import io.github.linpeilie.annotations.AutoMapper;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -31,18 +32,21 @@ public class EditorialReviewBo extends BaseEntity {
     /**
      * 申请标题
      */
+    @EditorialDiffField("申请标题")
     @NotBlank(message = "申请标题不能为空", groups = { AddGroup.class, EditGroup.class })
     private String title;
 
     /**
      * 申请内容
      */
+    @EditorialDiffField("申请内容")
     @NotBlank(message = "申请内容不能为空", groups = { AddGroup.class, EditGroup.class })
     private String content;
 
     /**
      * 部门ID
      */
+    @EditorialDiffField("部门")
     private Long deptId;
 
     /**

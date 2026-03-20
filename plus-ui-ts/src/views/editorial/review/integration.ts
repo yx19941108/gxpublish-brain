@@ -6,6 +6,7 @@ import type {
   ReviewHistoryResp,
   ReviewPageItemResp
 } from '@/api/editorial/review';
+import type { FlowTaskVO } from '@/api/workflow/task/types';
 
 import {
   REVIEW_DETAIL_ROUTE,
@@ -60,6 +61,17 @@ const REVIEW_PROCESS_TYPE_META: Record<string, { label: string; type: 'primary' 
   PROOFREAD: { label: '校验流程', type: 'success' }
 };
 
+const REVIEW_HISTORY_OPERATE_LABEL: Record<string, string> = {
+  create: '创建',
+  update: '修改',
+  submit: '提交',
+  resubmit: '再次提交',
+  approve: '审批通过',
+  back: '退回',
+  cancel: '撤销',
+  termination: '终止'
+};
+
 const FORM_ROUTE_TYPES = new Set(['add', 'update']);
 const DETAIL_ROUTE_TYPES = new Set(['view', 'approval']);
 const EDITABLE_STATUSES = new Set(['DRAFT', 'BACK']);
@@ -93,7 +105,8 @@ const toAttachmentFormItem = (attachment?: ReviewAttachmentResp | null): ReviewA
     version: attachment.version,
     uploaderId: attachment.uploaderId,
     uploaderName: attachment.uploaderName,
-    createTime: attachment.createTime
+    createTime: attachment.createTime,
+    readonly: true
   };
 };
 
@@ -230,6 +243,26 @@ const mapHistoryItem = (item: ReviewHistoryResp): ReviewHistoryItem => ({
   fieldDiff: item.fieldDiff ?? {}
 });
 
+export const getReviewHistoryOperateLabel = (operateType?: string) => {
+  const normalized = String(operateType ?? '')
+    .trim()
+    .toLowerCase();
+  if (!normalized) {
+    return '-';
+  }
+  return REVIEW_HISTORY_OPERATE_LABEL[normalized] ?? operateType ?? '-';
+};
+
+export const getReviewHistoryDisplayText = (history?: Pick<ReviewHistoryItem, 'operateType'> | null) =>
+  getReviewHistoryOperateLabel(history?.operateType);
+
+export const sortReviewHistoryItems = (historyList: ReviewHistoryItem[] = []) =>
+  [...historyList].sort((left, right) => {
+    const leftTime = new Date(left.operateTime || '').getTime();
+    const rightTime = new Date(right.operateTime || '').getTime();
+    return rightTime - leftTime;
+  });
+
 export const mapReviewPageItem = (item: ReviewPageItemResp): ReviewPageItem => {
   const reviewStatus = normalizeReviewStatus(item.reviewStatus ?? item.status);
 
@@ -283,7 +316,8 @@ export const mapReviewFormModel = (detail: ReviewDetailResp, routeQuery: Record<
     linkList: (detail.linkList ?? []).map((link) => ({
       id: link.id ?? null,
       url: link.url,
-      description: link.description
+      description: link.description,
+      readonly: true
     })),
     flowCode: REVIEW_FLOW_CODE,
     processType: detail.processType,
@@ -291,7 +325,8 @@ export const mapReviewFormModel = (detail: ReviewDetailResp, routeQuery: Record<
     userId: toOptionalNumber(detail.user?.id),
     userName: detail.user?.name,
     deptName: detail.dept?.name,
-    createTime: detail.createTime
+    createTime: detail.createTime,
+    updateTime: detail.updateTime
   };
 };
 
@@ -310,7 +345,7 @@ export const mapReviewDetailModel = (detail: ReviewDetailResp, pageType: string,
       id: detail.dept?.id,
       name: detail.dept?.name
     },
-    history: (detail.historyList ?? []).map(mapHistoryItem),
+    history: sortReviewHistoryItems((detail.historyList ?? []).map(mapHistoryItem)),
     shell: {
       pageType,
       taskId: approvalContext.taskId ?? sanitized.taskId,
@@ -324,26 +359,69 @@ export const mapReviewDetailModel = (detail: ReviewDetailResp, pageType: string,
 
 export const getReviewSubmitLabel = (status?: string) => (normalizeReviewStatus(status) === 'BACK' ? '再次提交' : '提交');
 
+export const resolveReviewFormSubmitLabel = ({ routeType, reviewStatus }: { routeType?: ReviewRouteType; reviewStatus?: string }) => {
+  if (routeType === 'update') {
+    return '保存';
+  }
+  return getReviewSubmitLabel(reviewStatus);
+};
+
 export const resolveReviewFormPageType = ({
   routeType,
   reviewStatus,
-  taskId,
-  canApprove
+  taskId
 }: {
   routeType?: ReviewRouteType;
   reviewStatus?: string;
   taskId?: string;
   canApprove?: boolean;
 }) => {
-  if (routeType === 'update' && isWaitingReviewStatus(reviewStatus) && taskId && canApprove) {
-    return 'approval';
-  }
   return routeType === 'update' ? 'update' : 'add';
+};
+
+export const resolveReviewWaitingTaskContext = ({
+  reviewId,
+  tasks
+}: {
+  reviewId?: string | number;
+  tasks?: Array<Pick<FlowTaskVO, 'id' | 'instanceId' | 'businessId'> | null | undefined>;
+}) => {
+  if (reviewId === undefined || reviewId === null || reviewId === '') {
+    return undefined;
+  }
+
+  const matchedTask = tasks?.find((task) => String(task?.businessId ?? '') === String(reviewId));
+  if (!matchedTask || matchedTask.id === undefined || matchedTask.id === null) {
+    return undefined;
+  }
+
+  return {
+    taskId: String(matchedTask.id),
+    instanceId: matchedTask.instanceId === undefined || matchedTask.instanceId === null ? undefined : String(matchedTask.instanceId)
+  };
+};
+
+export const shouldRequireReviewTaskContext = ({ action, reviewStatus }: { action: 'update' | 'approve'; reviewStatus?: string }) =>
+  action === 'approve' && isWaitingReviewStatus(reviewStatus);
+
+export const shouldHideTransferButtonForReviewTask = (task?: Pick<FlowTaskVO, 'flowCode' | 'businessCode' | 'formPath'> | null) => {
+  const flowCode = String(task?.flowCode ?? '')
+    .trim()
+    .toLowerCase();
+  const businessCode = String(task?.businessCode ?? '')
+    .trim()
+    .toLowerCase();
+  const formPath = String(task?.formPath ?? '')
+    .trim()
+    .toLowerCase();
+
+  return flowCode === REVIEW_FLOW_CODE.toLowerCase() || businessCode.includes('editorial') || formPath.includes('/editorial/review');
 };
 
 export const getReviewRowActions = (row: Pick<ReviewPageItem, 'reviewStatus' | 'canEdit' | 'canApprove'>) => {
   const reviewStatus = normalizeReviewStatus(row.reviewStatus);
   const isDraftOrBack = reviewStatus === 'DRAFT' || reviewStatus === 'BACK';
+  const isCurrentWaitingApprover = isWaitingReviewStatus(reviewStatus) && (row.canApprove || row.canEdit);
 
   if (isDraftOrBack && row.canEdit) {
     return {
@@ -354,11 +432,11 @@ export const getReviewRowActions = (row: Pick<ReviewPageItem, 'reviewStatus' | '
     };
   }
 
-  if (isWaitingReviewStatus(reviewStatus) && row.canApprove) {
+  if (isCurrentWaitingApprover) {
     return {
       showEdit: true,
       showApprove: true,
-      showDetail: false,
+      showDetail: true,
       showDelete: false
     };
   }
@@ -396,6 +474,42 @@ export const resolveReviewApprovalButtonPageType = ({ pageType, canApprove }: { 
     return pageType ?? 'view';
   }
   return canApprove === false ? 'view' : 'approval';
+};
+
+export const getReviewDetailSummaryItems = (
+  detail: Pick<ReviewDetailModel, 'reviewStatus' | 'status' | 'processType' | 'user' | 'dept' | 'createTime' | 'updateTime'>
+) => {
+  const statusMeta = getReviewStatusMeta(detail.reviewStatus ?? detail.status);
+  const processTypeMeta = getReviewProcessTypeMeta(detail.processType);
+
+  return [
+    {
+      label: '审核状态',
+      value: statusMeta.label,
+      tagType: statusMeta.type
+    },
+    {
+      label: '流程类型',
+      value: processTypeMeta.label,
+      tagType: processTypeMeta.type
+    },
+    {
+      label: '发起人',
+      value: detail.user?.name || '-'
+    },
+    {
+      label: '部门',
+      value: detail.dept?.name || '-'
+    },
+    {
+      label: '创建时间',
+      value: detail.createTime || '-'
+    },
+    {
+      label: '修改时间',
+      value: detail.updateTime || '-'
+    }
+  ];
 };
 
 export const toReviewActionPayload = (form: ReviewFormModel): ReviewActionPayload => {

@@ -183,7 +183,7 @@ INSERT INTO `flow_node`
 SELECT @node_seed_base := @node_seed_base + 1, 1, @editorial_definition_id, 'first-review-node', '一级审批',
        '${editorialFirstLevelApprover}', '0.000', '420,160|420,160', NULL, NULL, NULL, 'N',
        '/editorial/review/detail', '1', @now_time, '1', @now_time, '1',
-       '[{"code":"ButtonPermissionEnum","value":"back,termination,transfer,file"}]', '0', '000000'
+       '[{"code":"ButtonPermissionEnum","value":"back,termination,file"}]', '0', '000000'
 FROM dual
 WHERE NOT EXISTS (
     SELECT 1 FROM `flow_node` WHERE `definition_id` = @editorial_definition_id AND `node_code` = 'first-review-node'
@@ -196,7 +196,7 @@ INSERT INTO `flow_node`
 SELECT @node_seed_base := @node_seed_base + 1, 1, @editorial_definition_id, 'second-review-node', '二级审批',
        '${editorialSecondLevelApprover}', '0.000', '600,200|600,200', NULL, NULL, NULL, 'N',
        '/editorial/review/detail', '1', @now_time, '1', @now_time, '1',
-       '[{"code":"ButtonPermissionEnum","value":"back,termination,transfer,file"}]', '0', '000000'
+       '[{"code":"ButtonPermissionEnum","value":"back,termination,file"}]', '0', '000000'
 FROM dual
 WHERE NOT EXISTS (
     SELECT 1 FROM `flow_node` WHERE `definition_id` = @editorial_definition_id AND `node_code` = 'second-review-node'
@@ -209,7 +209,7 @@ INSERT INTO `flow_node`
 SELECT @node_seed_base := @node_seed_base + 1, 1, @editorial_definition_id, 'final-review-node', '终审',
        '${editorialThirdLevelApprover}', '0.000', '780,200|780,200', NULL, NULL, NULL, 'N',
        '/editorial/review/detail', '1', @now_time, '1', @now_time, '1',
-       '[{"code":"ButtonPermissionEnum","value":"back,termination,transfer,file"}]', '0', '000000'
+       '[{"code":"ButtonPermissionEnum","value":"back,termination,file"}]', '0', '000000'
 FROM dual
 WHERE NOT EXISTS (
     SELECT 1 FROM `flow_node` WHERE `definition_id` = @editorial_definition_id AND `node_code` = 'final-review-node'
@@ -263,7 +263,7 @@ SET `node_name` = '一级审批',
     `version` = '1',
     `update_time` = @now_time,
     `update_by` = '1',
-    `ext` = '[{"code":"ButtonPermissionEnum","value":"back,termination,transfer,file"}]',
+    `ext` = '[{"code":"ButtonPermissionEnum","value":"back,termination,file"}]',
     `del_flag` = '0'
 WHERE `definition_id` = @editorial_definition_id AND `node_code` = 'first-review-node';
 
@@ -277,7 +277,7 @@ SET `node_name` = '二级审批',
     `version` = '1',
     `update_time` = @now_time,
     `update_by` = '1',
-    `ext` = '[{"code":"ButtonPermissionEnum","value":"back,termination,transfer,file"}]',
+    `ext` = '[{"code":"ButtonPermissionEnum","value":"back,termination,file"}]',
     `del_flag` = '0'
 WHERE `definition_id` = @editorial_definition_id AND `node_code` = 'second-review-node';
 
@@ -291,7 +291,7 @@ SET `node_name` = '终审',
     `version` = '1',
     `update_time` = @now_time,
     `update_by` = '1',
-    `ext` = '[{"code":"ButtonPermissionEnum","value":"back,termination,transfer,file"}]',
+    `ext` = '[{"code":"ButtonPermissionEnum","value":"back,termination,file"}]',
     `del_flag` = '0'
 WHERE `definition_id` = @editorial_definition_id AND `node_code` = 'final-review-node';
 

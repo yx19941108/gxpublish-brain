@@ -3,6 +3,9 @@ import { describe, expect, it } from 'vitest';
 import {
   canCancelReviewProcess,
   createLegacyReviewFallbackLocation,
+  getReviewDetailSummaryItems,
+  getReviewHistoryDisplayText,
+  getReviewHistoryOperateLabel,
   getReviewRowActions,
   getReviewStatusMeta,
   isEditableReviewStatus,
@@ -11,8 +14,12 @@ import {
   mapReviewFormModel,
   mapReviewPageItem,
   normalizeReviewStatus,
+  resolveReviewFormSubmitLabel,
   resolveReviewFormPageType,
   resolveReviewApprovalButtonPageType,
+  resolveReviewWaitingTaskContext,
+  shouldHideTransferButtonForReviewTask,
+  shouldRequireReviewTaskContext,
   toReviewActionPayload
 } from './integration';
 
@@ -78,7 +85,7 @@ describe('editorial review integration', () => {
     ).toEqual({
       showEdit: true,
       showApprove: true,
-      showDetail: false,
+      showDetail: true,
       showDelete: false
     });
 
@@ -91,6 +98,21 @@ describe('editorial review integration', () => {
     ).toEqual({
       showEdit: false,
       showApprove: false,
+      showDetail: true,
+      showDelete: false
+    });
+  });
+
+  it('treats waiting rows with canEdit=true as approvable even when list contract omits canApprove', () => {
+    expect(
+      getReviewRowActions({
+        reviewStatus: 'WAITING_FIRST',
+        canEdit: true,
+        canApprove: false
+      } as any)
+    ).toEqual({
+      showEdit: true,
+      showApprove: true,
       showDetail: true,
       showDelete: false
     });
@@ -112,6 +134,7 @@ describe('editorial review integration', () => {
         canEdit: false,
         processType: 'PROOFREAD',
         createTime: '2026-03-17 15:20:00',
+        updateTime: '2026-03-17 15:23:00',
         user: {
           id: 7,
           name: '申请人'
@@ -130,6 +153,17 @@ describe('editorial review integration', () => {
         },
         linkList: [],
         historyList: [
+          {
+            id: 87,
+            reviewId: 12,
+            operatorId: 7,
+            operatorName: '申请人',
+            operateTime: '2026-03-17 15:19:00',
+            operateType: 'update',
+            fieldDiff: {
+              title: ['旧标题', '新标题']
+            }
+          },
           {
             id: 88,
             reviewId: 12,
@@ -157,15 +191,20 @@ describe('editorial review integration', () => {
       }
     );
 
-    expect(detail.history).toHaveLength(1);
+    expect(detail.history).toHaveLength(2);
     expect(detail.shell.taskId).toBe('task-1');
     expect(detail.shell.instanceId).toBe('instance-1');
     expect(detail.shell.canApprove).toBe(true);
     expect(detail.shell.fallback).toBe(true);
     expect(detail.processType).toBe('PROOFREAD');
+    expect(detail.updateTime).toBe('2026-03-17 15:23:00');
+    expect(detail.history.map((item) => item.id)).toEqual([88, 87]);
+    expect(detail.history[0].fieldDiff).toEqual({
+      reviewStatus: ['WAITING_SECOND', 'WAITING_FINAL']
+    });
   });
 
-  it('maps multi-attachment detail data and preserves latest legacy attachment fields', () => {
+  it('maps multi-attachment detail data and preserves attachment/link/dept/update-time readback', () => {
     const form = mapReviewFormModel({
       id: 13,
       title: '多附件合同',
@@ -174,6 +213,7 @@ describe('editorial review integration', () => {
       canEdit: true,
       processType: 'AUDIT',
       createTime: '2026-03-19 12:10:00',
+      updateTime: '2026-03-19 12:15:00',
       user: {
         id: 7,
         name: '申请人'
@@ -202,16 +242,29 @@ describe('editorial review integration', () => {
           fileSize: 200
         }
       ],
-      linkList: []
+      linkList: [
+        {
+          id: 9,
+          reviewId: 13,
+          url: 'https://example.com/existing',
+          description: '既有链接'
+        }
+      ]
     } as any);
 
     expect(form.attachmentList).toHaveLength(2);
     expect(form.attachmentList[0].fileName).toBe('first.pdf');
+    expect(form.attachmentList[0].readonly).toBe(true);
     expect(form.attachmentOssId).toBe('oss-second');
     expect(form.attachmentFileName).toBe('second.mp4');
+    expect(form.linkList[0].url).toBe('https://example.com/existing');
+    expect(form.linkList[0].readonly).toBe(true);
+    expect(form.deptId).toBe(2);
+    expect(form.deptName).toBe('编辑部');
+    expect(form.updateTime).toBe('2026-03-19 12:15:00');
   });
 
-  it('writes multi-attachment payload and keeps latest attachment legacy fallback fields', () => {
+  it('writes payload without dropping readonly existing attachments and links', () => {
     const payload = toReviewActionPayload({
       id: 13,
       title: '多附件写回',
@@ -223,11 +276,13 @@ describe('editorial review integration', () => {
       remark: 'payload remark',
       attachmentList: [
         {
+          id: 1,
           ossId: 'oss-first',
           fileName: 'first.pdf',
           fileUrl: 'https://example.com/first.pdf',
           fileSize: 100,
-          version: 1
+          version: 1,
+          readonly: true
         },
         {
           ossId: 'oss-second',
@@ -237,14 +292,39 @@ describe('editorial review integration', () => {
           version: 2
         }
       ],
-      linkList: [],
+      linkList: [
+        {
+          id: 9,
+          url: 'https://example.com/existing',
+          description: '既有链接',
+          readonly: true
+        },
+        {
+          url: 'https://example.com/new',
+          description: '新增链接',
+          readonly: false
+        }
+      ],
       flowCode: 'editorial_review_flow',
       processType: 'AUDIT'
     } as any);
 
     expect(payload.attachmentList).toHaveLength(2);
+    expect(payload.attachmentList?.[0].id).toBe(1);
     expect(payload.attachmentOssId).toBe('oss-second');
     expect(payload.attachmentFileName).toBe('second.mp4');
+    expect(payload.linkList).toEqual([
+      {
+        id: 9,
+        url: 'https://example.com/existing',
+        description: '既有链接'
+      },
+      {
+        id: null,
+        url: 'https://example.com/new',
+        description: '新增链接'
+      }
+    ]);
   });
 
   it('redirects legacy reviewEdit entry to the new shell route with fallback marker', () => {
@@ -280,7 +360,7 @@ describe('editorial review integration', () => {
     expect(isEditableReviewStatus('CANCELED')).toBe(false);
   });
 
-  it('treats update route with active approval task as approval-edit page type', () => {
+  it('keeps update route as modify page even when waiting task context exists', () => {
     expect(
       resolveReviewFormPageType({
         routeType: 'update',
@@ -288,7 +368,7 @@ describe('editorial review integration', () => {
         taskId: 'task-200',
         canApprove: true
       })
-    ).toBe('approval');
+    ).toBe('update');
 
     expect(
       resolveReviewFormPageType({
@@ -298,6 +378,61 @@ describe('editorial review integration', () => {
         canApprove: false
       })
     ).toBe('update');
+  });
+
+  it('uses save label for modify page and submit label for add/back page', () => {
+    expect(
+      resolveReviewFormSubmitLabel({
+        routeType: 'update',
+        reviewStatus: 'WAITING_FIRST'
+      })
+    ).toBe('保存');
+
+    expect(
+      resolveReviewFormSubmitLabel({
+        routeType: 'add',
+        reviewStatus: 'BACK'
+      })
+    ).toBe('再次提交');
+  });
+
+  it('resolves waiting task context by matching review id to workflow businessId', () => {
+    expect(
+      resolveReviewWaitingTaskContext({
+        reviewId: 510,
+        tasks: [
+          {
+            id: 'task-a',
+            instanceId: 'instance-a',
+            businessId: '509'
+          },
+          {
+            id: 'task-b',
+            instanceId: 'instance-b',
+            businessId: '510'
+          }
+        ] as any
+      })
+    ).toEqual({
+      taskId: 'task-b',
+      instanceId: 'instance-b'
+    });
+  });
+
+  it('requires task context for approve but never blocks update entry for waiting rows', () => {
+    expect(
+      shouldRequireReviewTaskContext({
+        action: 'update',
+        reviewStatus: 'WAITING_SECOND'
+      })
+    ).toBe(false);
+
+    expect(
+      shouldRequireReviewTaskContext({
+        action: 'approve',
+        reviewStatus: 'WAITING_SECOND'
+      })
+    ).toBe(true);
   });
 
   it('allows only applicant waiting-shell detail to cancel process', () => {
@@ -358,5 +493,74 @@ describe('editorial review integration', () => {
         pageType: 'approval'
       })
     ).toBe('approval');
+  });
+
+  it('builds detail summary items without shell/task debug fields and with status/create/update time', () => {
+    const summaryItems = getReviewDetailSummaryItems({
+      reviewStatus: 'WAITING_FINAL',
+      processType: 'PROOFREAD',
+      user: {
+        name: '申请人'
+      },
+      dept: {
+        name: '校对室'
+      },
+      createTime: '2026-03-17 15:20:00',
+      updateTime: '2026-03-17 15:23:00',
+      shell: {
+        pageType: 'approval',
+        taskId: 'task-1',
+        instanceId: 'instance-1',
+        canApprove: true,
+        canEdit: false,
+        fallback: false
+      }
+    } as any);
+
+    expect(summaryItems.map((item) => item.label)).toEqual(['审核状态', '流程类型', '发起人', '部门', '创建时间', '修改时间']);
+    expect(summaryItems.find((item) => item.label === '审核状态')?.value).toBe('待终审');
+    expect(summaryItems.find((item) => item.label === '修改时间')?.value).toBe('2026-03-17 15:23:00');
+    expect(summaryItems.some((item) => item.label === 'taskId')).toBe(false);
+    expect(summaryItems.some((item) => item.label === '当前入口')).toBe(false);
+  });
+
+  it('maps history operation labels from operateType without inventing debug labels', () => {
+    expect(getReviewHistoryOperateLabel('approve')).toBe('审批通过');
+    expect(getReviewHistoryOperateLabel('update')).toBe('修改');
+    expect(getReviewHistoryOperateLabel('unknown_custom_type')).toBe('unknown_custom_type');
+  });
+
+  it('renders history business copy without prepending operator name', () => {
+    expect(
+      getReviewHistoryDisplayText({
+        operatorName: 'zhangsan',
+        operateType: '三审三校发起人创建申请qa-fresh-history-1773998938538'
+      } as any)
+    ).toBe('三审三校发起人创建申请qa-fresh-history-1773998938538');
+
+    expect(
+      getReviewHistoryDisplayText({
+        operatorName: '终审人',
+        operateType: 'approve'
+      } as any)
+    ).toBe('审批通过');
+  });
+
+  it('hides transfer entry for editorial review flow only', () => {
+    expect(
+      shouldHideTransferButtonForReviewTask({
+        flowCode: 'editorial_review_flow',
+        businessCode: 'editorial_review',
+        formPath: '/editorial/review/detail'
+      } as any)
+    ).toBe(true);
+
+    expect(
+      shouldHideTransferButtonForReviewTask({
+        flowCode: 'leave_flow',
+        businessCode: 'leave_apply',
+        formPath: '/workflow/leave/detail'
+      } as any)
+    ).toBe(false);
   });
 });

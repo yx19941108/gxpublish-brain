@@ -1,6 +1,6 @@
 <template>
   <el-form-item label="流程类型" prop="processType">
-    <el-radio-group v-if="!readonly" v-model="form.processType" :disabled="Boolean(form.id)">
+    <el-radio-group v-if="!readonly && !isUpdatePage" v-model="form.processType" :disabled="Boolean(form.id)">
       <el-radio label="AUDIT">审核流程</el-radio>
       <el-radio label="PROOFREAD">校验流程</el-radio>
     </el-radio-group>
@@ -38,13 +38,13 @@
     <div class="w-full">
       <template v-if="form.linkList && form.linkList.length > 0">
         <div v-for="(link, index) in form.linkList" :key="link.id ?? index" class="mb-2 flex items-center">
-          <el-input v-if="!readonly" v-model="link.description" placeholder="描述" class="mr-2 w-1/3" />
+          <el-input v-if="!isLinkReadonly(link)" v-model="link.description" placeholder="描述" class="mr-2 w-1/3" />
           <div v-else class="mr-2 w-1/3 text-sm text-[var(--el-text-color-primary)]">{{ link.description || '-' }}</div>
 
-          <el-input v-if="!readonly" v-model="link.url" placeholder="URL地址 (https://...)" class="mr-2 w-1/2" />
+          <el-input v-if="!isLinkReadonly(link)" v-model="link.url" placeholder="URL地址 (https://...)" class="mr-2 w-1/2" />
           <div v-else class="mr-2 w-1/2 truncate text-sm text-[var(--el-text-color-primary)]">{{ link.url || '-' }}</div>
 
-          <el-button v-if="!readonly" type="danger" icon="Delete" circle @click="removeLink(index)" />
+          <el-button v-if="!isLinkReadonly(link)" type="danger" icon="Delete" circle @click="removeLink(index)" />
           <el-link v-else type="primary" :href="link.url" target="_blank" :underline="false">打开</el-link>
         </div>
       </template>
@@ -55,7 +55,7 @@
   </el-form-item>
 
   <el-form-item label="备注">
-    <el-input v-if="!readonly" v-model="form.remark" type="textarea" placeholder="请输入备注" />
+    <el-input v-if="!readonly && !isUpdatePage" v-model="form.remark" type="textarea" placeholder="请输入备注" />
     <div v-else class="whitespace-pre-wrap text-sm leading-6 text-[var(--el-text-color-primary)]">{{ form.remark || '-' }}</div>
   </el-form-item>
 </template>
@@ -81,12 +81,18 @@ const props = defineProps({
   deptOptions: {
     type: Array as PropType<DeptVO[]>,
     default: () => []
+  },
+  pageType: {
+    type: String,
+    default: 'add'
   }
 });
 
 const form = props.form;
 
 const processTypeMeta = computed(() => getReviewProcessTypeMeta(form.processType));
+const isUpdatePage = computed(() => props.pageType === 'update');
+const isLinkReadonly = (link: ReviewFormModel['linkList'][number]) => props.readonly || Boolean(link?.readonly);
 
 const addLink = () => {
   if (!form.linkList) {
@@ -95,7 +101,8 @@ const addLink = () => {
   form.linkList.push({
     id: null,
     url: '',
-    description: ''
+    description: '',
+    readonly: false
   });
 };
 

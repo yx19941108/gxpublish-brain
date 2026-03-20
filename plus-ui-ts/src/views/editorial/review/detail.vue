@@ -25,16 +25,13 @@
 
         <el-card shadow="never" class="mt-2">
           <template #header>
-            <div class="flex items-center justify-between">
-              <span>历史记录</span>
-              <span class="text-xs text-[var(--el-text-color-secondary)]">detail/approval shell</span>
-            </div>
+            <span>审批 / 修改历史</span>
           </template>
 
           <el-timeline v-if="detail.history.length > 0">
             <el-timeline-item v-for="history in detail.history" :key="history.id" :timestamp="parseTime(history.operateTime)" placement="top">
               <el-card shadow="hover">
-                <div class="mb-2 text-sm font-medium">{{ history.operatorName }} 执行了 {{ history.operateType }}</div>
+                <div class="mb-2 text-sm font-medium">{{ getReviewHistoryDisplayText(history) }}</div>
                 <DiffViewer v-if="history.fieldDiff" :diffData="history.fieldDiff" />
               </el-card>
             </el-timeline-item>
@@ -46,21 +43,13 @@
       <el-col :span="8">
         <el-card shadow="never">
           <template #header>
-            <span>审批壳上下文</span>
+            <span>单据信息</span>
           </template>
           <el-descriptions :column="1" border>
-            <el-descriptions-item label="当前入口">{{ shellTypeLabel }}</el-descriptions-item>
-            <el-descriptions-item label="审校状态">
-              <el-tag :type="statusMeta.type">{{ statusMeta.label }}</el-tag>
+            <el-descriptions-item v-for="item in detailSummaryItems" :key="item.label" :label="item.label">
+              <el-tag v-if="item.tagType" :type="item.tagType">{{ item.value }}</el-tag>
+              <span v-else>{{ isTimeSummaryLabel(item.label) ? parseTime(item.value) || '-' : item.value }}</span>
             </el-descriptions-item>
-            <el-descriptions-item label="流程类型">
-              <el-tag :type="processTypeMeta.type">{{ processTypeMeta.label }}</el-tag>
-            </el-descriptions-item>
-            <el-descriptions-item label="发起人">{{ detail.user.name || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="部门">{{ detail.dept.name || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="创建时间">{{ parseTime(detail.createTime) || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="taskId">{{ detail.shell.taskId || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="可编辑">{{ detail.canEdit ? '是' : '否' }}</el-descriptions-item>
           </el-descriptions>
         </el-card>
       </el-col>
@@ -88,8 +77,8 @@ import DiffViewer from './components/DiffViewer.vue';
 import {
   canCancelReviewProcess,
   createReviewFormLocation,
-  getReviewProcessTypeMeta,
-  getReviewStatusMeta,
+  getReviewDetailSummaryItems,
+  getReviewHistoryDisplayText,
   mapReviewDetailModel,
   resolveReviewApprovalButtonPageType,
   resolveReviewRouteType
@@ -131,12 +120,7 @@ const detail = reactive({
 const taskVariables = ref<Record<string, any>>({});
 const routeQuery = computed(() => route.query as Record<string, unknown>);
 const routeType = computed(() => resolveReviewRouteType(routeQuery.value));
-const statusMeta = computed(() => getReviewStatusMeta(detail.reviewStatus || detail.status));
-const processTypeMeta = computed(() => getReviewProcessTypeMeta(detail.processType));
-const shellTypeLabel = computed(() => {
-  const baseLabel = detail.shell.pageType === 'approval' ? '审批壳' : '详情壳';
-  return detail.shell.fallback ? `${baseLabel} / 旧页fallback` : baseLabel;
-});
+const detailSummaryItems = computed(() => getReviewDetailSummaryItems(detail));
 const canCancelProcessApply = computed(() =>
   canCancelReviewProcess({
     pageType: detail.shell.pageType,
@@ -151,6 +135,7 @@ const approvalButtonPageType = computed(() =>
     canApprove: detail.shell.canApprove
   })
 );
+const isTimeSummaryLabel = (label: string) => label === '创建时间' || label === '修改时间';
 
 const loadDetail = async () => {
   const id = routeQuery.value.id;

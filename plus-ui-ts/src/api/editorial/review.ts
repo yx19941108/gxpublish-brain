@@ -71,6 +71,7 @@ export interface ReviewDetailResp {
   canEdit: boolean;
   processType: string;
   createTime: string;
+  updateTime?: string;
   user: ReviewUserResp;
   dept: ReviewDeptResp;
   content?: string;

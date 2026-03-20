@@ -120,6 +120,7 @@ import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 
 import { deleteReview, listReviewPage, type ReviewPageQuery } from '@/api/editorial/review';
+import { pageByTaskWait } from '@/api/workflow/task';
 
 import {
   createReviewDetailLocation,
@@ -127,9 +128,12 @@ import {
   getReviewProcessTypeMeta,
   getReviewRowActions,
   getReviewStatusMeta,
-  mapReviewPageItem
+  isWaitingReviewStatus,
+  mapReviewPageItem,
+  resolveReviewWaitingTaskContext,
+  shouldRequireReviewTaskContext
 } from './integration';
-import type { ReviewPageItem } from './model';
+import { REVIEW_FLOW_CODE, type ReviewPageItem } from './model';
 
 const router = useRouter();
 
@@ -180,6 +184,51 @@ const handleAdd = () => {
   router.push(createReviewFormLocation({ type: 'add' }));
 };
 
+const resolveWaitingTaskContext = async (row: ReviewPageItem) => {
+  if (!isWaitingReviewStatus(row.reviewStatus)) {
+    return {
+      taskId: row.taskId,
+      instanceId: row.instanceId
+    };
+  }
+
+  if (row.taskId) {
+    return {
+      taskId: row.taskId,
+      instanceId: row.instanceId
+    };
+  }
+
+  const response = await pageByTaskWait({
+    pageNum: 1,
+    pageSize: 1000,
+    flowCode: REVIEW_FLOW_CODE
+  });
+  const taskContext = resolveReviewWaitingTaskContext({
+    reviewId: row.id,
+    tasks: response.rows
+  });
+
+  if (taskContext?.taskId) {
+    row.taskId = taskContext.taskId;
+    row.instanceId = taskContext.instanceId;
+  }
+
+  return taskContext;
+};
+
+const ensureApprovalRouteContext = async (row: ReviewPageItem) => {
+  const taskContext = await resolveWaitingTaskContext(row);
+  if (!isWaitingReviewStatus(row.reviewStatus)) {
+    return taskContext;
+  }
+  if (!taskContext?.taskId) {
+    ElMessage.warning('当前待办缺少 taskId，无法进入审批处理页');
+    return undefined;
+  }
+  return taskContext;
+};
+
 const handleUpdate = (row: ReviewPageItem) => {
   router.push(
     createReviewFormLocation({
@@ -191,13 +240,25 @@ const handleUpdate = (row: ReviewPageItem) => {
   );
 };
 
-const handleApprove = (row: ReviewPageItem) => {
+const handleApprove = async (row: ReviewPageItem) => {
+  const taskContext = shouldRequireReviewTaskContext({
+    action: 'approve',
+    reviewStatus: row.reviewStatus
+  })
+    ? await ensureApprovalRouteContext(row)
+    : {
+        taskId: row.taskId,
+        instanceId: row.instanceId
+      };
+  if (!taskContext?.taskId) {
+    return;
+  }
   router.push(
     createReviewDetailLocation({
       id: String(row.id),
       type: 'approval',
-      taskId: row.taskId,
-      instanceId: row.instanceId
+      taskId: taskContext.taskId,
+      instanceId: taskContext.instanceId
     })
   );
 };
