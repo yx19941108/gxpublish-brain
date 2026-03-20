@@ -75,16 +75,35 @@
       </el-table-column>
       <el-table-column label="操作" align="center" class-name="small-padding fixed-width" width="260">
         <template #default="{ row }">
-          <el-button link type="primary" icon="Edit" @click="handleUpdate(row)" v-if="getRowActions(row).showEdit" v-hasPermi="['editorial:review:edit']">
+          <el-button
+            link
+            type="primary"
+            icon="Edit"
+            @click="handleUpdate(row)"
+            v-if="getRowActions(row).showEdit"
+            v-hasPermi="['editorial:review:edit']"
+          >
             修改
           </el-button>
-          <el-button link type="primary" icon="Select" @click="handleApprove(row)" v-if="getRowActions(row).showApprove" v-hasPermi="['editorial:review:edit']">
+          <el-button
+            link
+            type="primary"
+            icon="Select"
+            @click="handleApprove(row)"
+            v-if="getRowActions(row).showApprove"
+            v-hasPermi="['editorial:review:edit']"
+          >
             审批
           </el-button>
-          <el-button link type="primary" icon="View" @click="handleView(row)" v-if="getRowActions(row).showDetail">
-            详情
-          </el-button>
-          <el-button link type="primary" icon="Delete" @click="handleDelete(row)" v-if="getRowActions(row).showDelete" v-hasPermi="['editorial:review:remove']">
+          <el-button link type="primary" icon="View" @click="handleView(row)" v-if="getRowActions(row).showDetail"> 详情 </el-button>
+          <el-button
+            link
+            type="primary"
+            icon="Delete"
+            @click="handleDelete(row)"
+            v-if="getRowActions(row).showDelete"
+            v-hasPermi="['editorial:review:remove']"
+          >
             删除
           </el-button>
         </template>

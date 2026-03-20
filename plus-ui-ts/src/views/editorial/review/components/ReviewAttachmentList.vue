@@ -46,9 +46,7 @@
         <img v-if="previewKind === 'image'" :src="previewSource" class="mx-auto max-h-[70vh] max-w-full object-contain" />
         <iframe v-else-if="previewKind === 'pdf'" :src="previewSource" class="h-[70vh] w-full border-0" />
         <video v-else-if="previewKind === 'video'" :src="previewSource" controls class="mx-auto max-h-[70vh] max-w-full" />
-        <div v-else class="py-6 text-center">
-          当前文件类型暂不支持页内预览，请使用下载或新窗口打开。
-        </div>
+        <div v-else class="py-6 text-center">当前文件类型暂不支持页内预览，请使用下载或新窗口打开。</div>
       </template>
       <template #footer>
         <el-button @click="previewVisible = false">关闭</el-button>
@@ -62,7 +60,13 @@ import { ElMessage } from 'element-plus';
 import { computed, ref, watch, type PropType } from 'vue';
 
 import type { ReviewAttachmentFormItem } from '../model';
-import { fallbackPreviewUrl, fetchAttachmentBlob, openBlobDownload, resolveAttachmentPreviewKind, type AttachmentPreviewKind } from './attachmentUtils';
+import {
+  fallbackPreviewUrl,
+  fetchAttachmentBlob,
+  openBlobDownload,
+  resolveAttachmentPreviewKind,
+  type AttachmentPreviewKind
+} from './attachmentUtils';
 import TusUpload from './TusUpload.vue';
 
 const props = defineProps({

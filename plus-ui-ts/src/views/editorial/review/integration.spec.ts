@@ -12,8 +12,7 @@ import {
   mapReviewPageItem,
   normalizeReviewStatus,
   resolveReviewFormPageType,
-  resolveReviewApprovalButtonPageType
-  ,
+  resolveReviewApprovalButtonPageType,
   toReviewActionPayload
 } from './integration';
 

@@ -6,7 +6,11 @@
         <div class="old-val w-1/2 p-2 bg-red-50 text-red-700 rounded mr-2 break-all">
           <span class="tag">变更前：</span>
           <template v-if="isAttachmentCollection(diff.old)">
-            <div v-for="(attachment, index) in normalizeAttachmentCollection(diff.old)" :key="attachment.ossId ?? attachment.fileUrl ?? index" class="mb-2">
+            <div
+              v-for="(attachment, index) in normalizeAttachmentCollection(diff.old)"
+              :key="attachment.ossId ?? attachment.fileUrl ?? index"
+              class="mb-2"
+            >
               <div>{{ attachment.fileName || '(空)' }}</div>
               <el-button link type="primary" class="px-0" @click="handleDownload(attachment)">下载</el-button>
             </div>
@@ -18,7 +22,11 @@
         <div class="new-val w-1/2 p-2 bg-green-50 text-green-700 rounded break-all">
           <span class="tag">变更后：</span>
           <template v-if="isAttachmentCollection(diff.new)">
-            <div v-for="(attachment, index) in normalizeAttachmentCollection(diff.new)" :key="attachment.ossId ?? attachment.fileUrl ?? index" class="mb-2">
+            <div
+              v-for="(attachment, index) in normalizeAttachmentCollection(diff.new)"
+              :key="attachment.ossId ?? attachment.fileUrl ?? index"
+              class="mb-2"
+            >
               <div>{{ attachment.fileName || '(空)' }}</div>
               <el-button link type="primary" class="px-0" @click="handleDownload(attachment)">下载</el-button>
             </div>
@@ -74,7 +82,11 @@ const normalizeAttachmentCollection = (value: unknown) => {
   if (Array.isArray(value)) {
     return value as Array<Record<string, any>>;
   }
-  if (value && typeof value === 'object' && ('ossId' in (value as Record<string, any>) || 'fileName' in (value as Record<string, any>) || 'fileUrl' in (value as Record<string, any>))) {
+  if (
+    value &&
+    typeof value === 'object' &&
+    ('ossId' in (value as Record<string, any>) || 'fileName' in (value as Record<string, any>) || 'fileUrl' in (value as Record<string, any>))
+  ) {
     return [value as Record<string, any>];
   }
   return [];

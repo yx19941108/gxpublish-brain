@@ -1,4 +1,11 @@
-import type { ReviewActionPayload, ReviewApprovalContextResp, ReviewAttachmentResp, ReviewDetailResp, ReviewHistoryResp, ReviewPageItemResp } from '@/api/editorial/review';
+import type {
+  ReviewActionPayload,
+  ReviewApprovalContextResp,
+  ReviewAttachmentResp,
+  ReviewDetailResp,
+  ReviewHistoryResp,
+  ReviewPageItemResp
+} from '@/api/editorial/review';
 
 import {
   REVIEW_DETAIL_ROUTE,
@@ -384,13 +391,7 @@ export const canCancelReviewProcess = ({
   return String(applicantUserId) === String(currentUserId);
 };
 
-export const resolveReviewApprovalButtonPageType = ({
-  pageType,
-  canApprove
-}: {
-  pageType?: string;
-  canApprove?: boolean;
-}) => {
+export const resolveReviewApprovalButtonPageType = ({ pageType, canApprove }: { pageType?: string; canApprove?: boolean }) => {
   if (pageType !== 'approval') {
     return pageType ?? 'view';
   }
