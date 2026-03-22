@@ -90,6 +90,32 @@ export const constantRoutes: RouteRecordRaw[] = [
     ]
   },
   {
+    path: '/manuscript',
+    component: Layout,
+    hidden: true,
+    redirect: 'noredirect',
+    children: [
+      {
+        path: 'review',
+        component: () => import('@/views/manuscript-review/index.vue'),
+        name: 'ManuscriptReviewLedger',
+        meta: { title: '审校台账', activeMenu: '/manuscript/review' }
+      },
+      {
+        path: 'review/form',
+        component: () => import('@/views/manuscript-review/form.vue'),
+        name: 'ManuscriptReviewForm',
+        meta: { title: '审校表单', activeMenu: '/manuscript/review' }
+      },
+      {
+        path: 'review/detail',
+        component: () => import('@/views/manuscript-review/detail.vue'),
+        name: 'ManuscriptReviewDetail',
+        meta: { title: '审校详情', activeMenu: '/manuscript/review' }
+      }
+    ]
+  },
+  {
     path: '/editorial',
     component: Layout,
     hidden: true,

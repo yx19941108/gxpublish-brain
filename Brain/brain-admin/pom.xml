@@ -93,6 +93,12 @@
             <artifactId>brain-workflow</artifactId>
         </dependency>
 
+        <!-- 稿件审校模块 -->
+        <dependency>
+            <groupId>com.gxpublish</groupId>
+            <artifactId>brain-manuscript-review</artifactId>
+        </dependency>
+
         <!-- 编辑部审校模块 -->
         <dependency>
             <groupId>com.gxpublish</groupId>

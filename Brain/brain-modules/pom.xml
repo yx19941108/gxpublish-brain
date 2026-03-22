@@ -13,6 +13,7 @@
         <module>brain-demo</module>
         <module>brain-generator</module>
         <module>brain-job</module>
+        <module>brain-manuscript-review</module>
         <module>brain-system</module>
         <module>brain-workflow</module>
         <module>brain-editorial</module>
@@ -26,4 +27,3 @@
     </description>
 
 </project>
-
