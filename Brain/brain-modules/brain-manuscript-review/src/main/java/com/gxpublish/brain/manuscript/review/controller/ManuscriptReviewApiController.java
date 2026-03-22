@@ -1,6 +1,7 @@
 package com.gxpublish.brain.manuscript.review.controller;
 
 import org.springframework.validation.annotation.Validated;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -14,6 +15,7 @@ import com.gxpublish.brain.manuscript.review.service.ManuscriptReviewService;
 
 @Validated
 @RestController
+@ConditionalOnBean(ManuscriptReviewService.class)
 @RequestMapping("/manuscript-review")
 public class ManuscriptReviewApiController {
 
