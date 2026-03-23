@@ -36,11 +36,7 @@
         </div>
       </template>
       <template v-else>
-        <div
-          v-for="item in summaryItems"
-          :key="item.label"
-          class="manuscript-review-detail-shell__summary-row"
-        >
+        <div v-for="item in summaryItems" :key="item.label" class="manuscript-review-detail-shell__summary-row">
           <dt>{{ item.label }}</dt>
           <dd>{{ item.value }}</dd>
         </div>
@@ -53,9 +49,7 @@
       </header>
       <div class="manuscript-review-detail-shell__section-body">
         <p v-if="loading" class="manuscript-review-detail-shell__section-hint">正在加载历史数据…</p>
-        <p v-else-if="historyItems.length === 0" class="manuscript-review-detail-shell__section-hint">
-          暂无可展示历史数据。
-        </p>
+        <p v-else-if="historyItems.length === 0" class="manuscript-review-detail-shell__section-hint">暂无可展示历史数据。</p>
         <ol v-else class="manuscript-review-detail-shell__timeline" aria-label="流程历史时间线">
           <li v-for="item in historyItems" :key="item.id" class="manuscript-review-detail-shell__timeline-item">
             <div class="manuscript-review-detail-shell__timeline-main">
@@ -64,9 +58,7 @@
             </div>
             <div class="manuscript-review-detail-shell__timeline-sub">
               <span class="manuscript-review-detail-shell__timeline-time">{{ item.timeLabel }}</span>
-              <span v-if="item.remark" class="manuscript-review-detail-shell__timeline-remark">{{
-                item.remark
-              }}</span>
+              <span v-if="item.remark" class="manuscript-review-detail-shell__timeline-remark">{{ item.remark }}</span>
             </div>
           </li>
         </ol>
@@ -79,9 +71,7 @@
       </header>
       <div class="manuscript-review-detail-shell__section-body">
         <p v-if="loading" class="manuscript-review-detail-shell__section-hint">正在加载资源数据…</p>
-        <p v-else-if="resourceItems.length === 0" class="manuscript-review-detail-shell__section-hint">
-          暂无可展示资源数据。
-        </p>
+        <p v-else-if="resourceItems.length === 0" class="manuscript-review-detail-shell__section-hint">暂无可展示资源数据。</p>
         <ul v-else class="manuscript-review-detail-shell__resource-list" aria-label="资源列表">
           <li v-for="item in resourceItems" :key="item.id" class="manuscript-review-detail-shell__resource-item">
             <div class="manuscript-review-detail-shell__resource-main">
@@ -89,9 +79,7 @@
               <span class="manuscript-review-detail-shell__resource-name">{{ item.name }}</span>
             </div>
             <div class="manuscript-review-detail-shell__resource-sub">
-              <span v-if="item.statusLabel" class="manuscript-review-detail-shell__resource-status">{{
-                item.statusLabel
-              }}</span>
+              <span v-if="item.statusLabel" class="manuscript-review-detail-shell__resource-status">{{ item.statusLabel }}</span>
               <span v-if="item.note" class="manuscript-review-detail-shell__resource-note">{{ item.note }}</span>
             </div>
           </li>
@@ -105,7 +93,9 @@
 import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
+import { flowHisTaskList, getInfo } from '@/api/workflow/instance';
 import request from '@/utils/request';
+import { resolveManuscriptApproveAction, type ManuscriptReviewApproveActionResult } from '@/types/manuscript-review/detail';
 
 import {
   buildDetailActionBar,
@@ -129,9 +119,7 @@ const errorMessage = ref('');
 const viewModel = ref<ManuscriptReviewDetailReadableViewModel | null>(null);
 
 const actionBar = computed(() => buildDetailActionBar(viewModel.value?.actionRole ?? 'HISTORY_PARTICIPANT'));
-const summaryItems = computed(() =>
-  viewModel.value ? buildReadableSummary(viewModel.value.detail) : []
-);
+const summaryItems = computed(() => (viewModel.value ? buildReadableSummary(viewModel.value.detail) : []));
 const historyItems = computed<ManuscriptReviewHistoryItem[]>(() => viewModel.value?.historyItems ?? []);
 const resourceItems = computed<ManuscriptReviewResourceItem[]>(() => viewModel.value?.resourceItems ?? []);
 
@@ -158,7 +146,7 @@ const fetchDetail = async () => {
   }
 };
 
-const onAction = (key: string) => {
+const onAction = async (key: string) => {
   if (key === 'back') {
     router.back();
     return;
@@ -170,7 +158,24 @@ const onAction = (key: string) => {
   }
 
   if (key === 'approve') {
-    errorMessage.value = '请从待办入口进入办理。';
+    try {
+      const [instanceResponse, taskResponse] = await Promise.all([getInfo(reviewId.value), flowHisTaskList(reviewId.value)]);
+      const outcome: ManuscriptReviewApproveActionResult = resolveManuscriptApproveAction(reviewId.value, instanceResponse?.data, taskResponse?.data);
+
+      if (outcome.kind === 'jump') {
+        const approvalQuery = new URLSearchParams({
+          id: outcome.location.query.id,
+          type: outcome.location.query.type,
+          taskId: String(outcome.location.query.taskId)
+        });
+        await router.push(`${outcome.location.path}?${approvalQuery.toString()}`);
+        return;
+      }
+
+      errorMessage.value = outcome.message;
+    } catch {
+      errorMessage.value = '去审批入口加载失败，请稍后重试。';
+    }
     return;
   }
 

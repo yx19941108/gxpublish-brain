@@ -29,6 +29,18 @@ export const pageByFinish = (query: FlowInstanceQuery): AxiosPromise<FlowInstanc
 };
 
 /**
+ * 根据业务id查询流程实例详情
+ * @param businessId
+ * @returns {*}
+ */
+export const getInfo = (businessId: string | number): AxiosPromise<FlowInstanceVO> => {
+  return request({
+    url: `/workflow/instance/getInfo/${businessId}`,
+    method: 'get'
+  });
+};
+
+/**
  * 通过业务id获取历史流程图
  */
 export const flowHisTaskList = (businessId: string | number) => {
