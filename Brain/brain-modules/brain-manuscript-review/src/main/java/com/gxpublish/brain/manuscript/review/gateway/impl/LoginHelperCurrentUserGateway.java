@@ -12,4 +12,19 @@ public class LoginHelperCurrentUserGateway implements ManuscriptReviewCurrentUse
     public Long getCurrentUserId() {
         return LoginHelper.getUserId();
     }
+
+    @Override
+    public String getCurrentTenantId() {
+        return LoginHelper.getTenantId();
+    }
+
+    @Override
+    public Long getCurrentDeptId() {
+        return LoginHelper.getDeptId();
+    }
+
+    @Override
+    public String getCurrentUsername() {
+        return LoginHelper.getUsername();
+    }
 }

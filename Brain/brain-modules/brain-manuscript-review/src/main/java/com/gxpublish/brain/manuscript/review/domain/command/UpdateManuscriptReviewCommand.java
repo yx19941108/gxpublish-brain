@@ -2,8 +2,9 @@ package com.gxpublish.brain.manuscript.review.domain.command;
 
 import com.gxpublish.brain.manuscript.review.domain.enums.ManuscriptReviewProcessType;
 
-public class CreateManuscriptReviewCommand {
+public class UpdateManuscriptReviewCommand {
 
+    private final Long id;
     private final ManuscriptReviewProcessType processType;
     private final String externalManuscriptCode;
     private final String title;
@@ -13,7 +14,8 @@ public class CreateManuscriptReviewCommand {
     private final String remark;
     private final String contentBody;
 
-    private CreateManuscriptReviewCommand(Builder builder) {
+    private UpdateManuscriptReviewCommand(Builder builder) {
+        this.id = builder.id;
         this.processType = builder.processType;
         this.externalManuscriptCode = builder.externalManuscriptCode;
         this.title = builder.title;
@@ -26,6 +28,10 @@ public class CreateManuscriptReviewCommand {
 
     public static Builder builder() {
         return new Builder();
+    }
+
+    public Long getId() {
+        return id;
     }
 
     public ManuscriptReviewProcessType getProcessType() {
@@ -62,6 +68,7 @@ public class CreateManuscriptReviewCommand {
 
     public static final class Builder {
 
+        private Long id;
         private ManuscriptReviewProcessType processType;
         private String externalManuscriptCode;
         private String title;
@@ -72,6 +79,11 @@ public class CreateManuscriptReviewCommand {
         private String contentBody;
 
         private Builder() {
+        }
+
+        public Builder id(Long id) {
+            this.id = id;
+            return this;
         }
 
         public Builder processType(ManuscriptReviewProcessType processType) {
@@ -114,8 +126,8 @@ public class CreateManuscriptReviewCommand {
             return this;
         }
 
-        public CreateManuscriptReviewCommand build() {
-            return new CreateManuscriptReviewCommand(this);
+        public UpdateManuscriptReviewCommand build() {
+            return new UpdateManuscriptReviewCommand(this);
         }
     }
 }

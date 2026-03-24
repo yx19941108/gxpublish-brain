@@ -22,6 +22,13 @@ public class ManuscriptReviewRecordEntity {
     private String manuscriptCode;
     private String externalManuscriptCode;
     private String title;
+    private String mediaChannel;
+    private String submitDepartment;
+    private String authorName;
+    private String remarkText;
+    private String contentBody;
+    private Date firstSubmitTime;
+    private Date latestSubmitTime;
     private String content;
     private String note;
     private Long mediaChannelDictCode;

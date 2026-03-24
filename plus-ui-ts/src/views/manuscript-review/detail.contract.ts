@@ -1,4 +1,10 @@
 import type {
+  ManuscriptReviewDetailVO,
+  ManuscriptReviewPermissionMatrixVO,
+  ManuscriptReviewTimelineItemVO,
+  ManuscriptReviewVideoMarkItemVO
+} from '@/api/manuscript-review/types';
+import type {
   ManuscriptReviewDetailAction,
   ManuscriptReviewDetailReadableSource,
   ManuscriptReviewDetailViewRole,
@@ -25,34 +31,34 @@ const SUMMARY_FIELDS: Array<{
   label: string;
   pick: (detail: ManuscriptReviewDetailReadableSource) => string | undefined;
 }> = [
-  { label: '流程状态', pick: (detail) => detail.flowStatusLabel },
+  { label: '流程状态', pick: (detail) => detail.businessStatusLabel },
   { label: '当前节点', pick: (detail) => detail.currentNodeLabel },
   { label: '发起人', pick: (detail) => detail.initiatorName },
-  { label: '最近更新时间', pick: (detail) => detail.latestUpdatedAt },
+  { label: '最近更新时间', pick: (detail) => detail.updateTime },
   { label: '流程类型', pick: (detail) => detail.processTypeLabel },
   { label: '系统稿件号', pick: (detail) => detail.manuscriptCode },
   { label: '外部稿件编号', pick: (detail) => detail.externalManuscriptCode },
   { label: '标题', pick: (detail) => detail.title },
-  { label: '所属媒体/栏目', pick: (detail) => detail.mediaChannelLabel },
-  { label: '报送部门', pick: (detail) => detail.submitterDeptName },
-  { label: '作者', pick: (detail) => detail.authorNames },
-  { label: '说明', pick: (detail) => detail.note },
-  { label: '正文摘要', pick: (detail) => detail.contentPreview }
+  { label: '所属媒体/栏目', pick: (detail) => detail.mediaChannel },
+  { label: '报送部门', pick: (detail) => detail.submitDepartment },
+  { label: '作者', pick: (detail) => detail.authorName },
+  { label: '说明', pick: (detail) => detail.remark },
+  { label: '正文摘要', pick: (detail) => detail.contentSummary }
 ];
 
 const EMPTY_TEXT = '--';
 const SUCCESS_CODES = new Set([0, '0', 200, '200']);
 
 export interface ManuscriptReviewLedgerRow {
-  reviewId: string;
+  id: string;
   manuscriptCode: string;
   title: string;
   processTypeLabel: string;
-  mediaChannelLabel: string;
-  flowStatusLabel: string;
+  mediaChannel: string;
+  businessStatusLabel: string;
   currentNodeLabel: string;
   initiatorName: string;
-  latestUpdatedAt: string;
+  updateTime: string;
 }
 
 export interface ManuscriptReviewHistoryItem {
@@ -125,9 +131,6 @@ const pickMaybeRecord = (source: UnknownRecord, keys: string[]): UnknownRecord |
   return undefined;
 };
 
-const pickRecord = (source: UnknownRecord, keys: string[]): UnknownRecord =>
-  pickMaybeRecord(source, keys) ?? {};
-
 const unwrapReadablePayload = (payload: unknown): unknown => {
   if (!isRecord(payload)) {
     return payload;
@@ -180,182 +183,141 @@ const extractRecord = (payload: unknown): UnknownRecord => {
   return isRecord(unwrapped) ? unwrapped : {};
 };
 
-const normalizeHistoryItems = (source: UnknownRecord): ManuscriptReviewHistoryItem[] =>
-  extractCollection(source, ['historyItems', 'historyList', 'history', 'timeline', 'records']).map(
-    (item, index) => {
-      const history = isRecord(item) ? item : {};
-      const normalized: ManuscriptReviewHistoryItem = {
-        id: pickText(history, ['historyId', 'id'], `history-${index + 1}`),
-        timeLabel: pickText(history, [
-          'timeLabel',
-          'actionTime',
-          'operateTime',
-          'createdAt',
-          'createTime',
-          'updateTime'
-        ]),
-        actionLabel: pickText(history, ['actionLabel', 'operationLabel', 'content', 'title', 'text']),
-        operatorName: pickMaybeText(history, ['operatorName', 'actorName', 'userName', 'displayName']) ?? ''
-      };
-      const remark = pickMaybeText(history, ['remark', 'description', 'note', 'opinion']);
-      if (remark) {
-        normalized.remark = remark;
-      }
-      return normalized;
-    }
-  );
+const normalizePermissionMatrix = (source: UnknownRecord): ManuscriptReviewPermissionMatrixVO | undefined => {
+  const permissionSource = pickMaybeRecord(source, ['permissionMatrix']);
+  if (!permissionSource) {
+    return undefined;
+  }
 
-const normalizeResourceCollection = (
-  entries: unknown[],
-  fallbackTypeLabel: string
-): ManuscriptReviewResourceItem[] =>
-  entries.map((item, index) => {
-    const resource = isRecord(item) ? item : {};
+  return {
+    isInitiator: pickBoolean(permissionSource, ['isInitiator']),
+    isCurrentApprover: pickBoolean(permissionSource, ['isCurrentApprover']),
+    isHistoryParticipant: pickBoolean(permissionSource, ['isHistoryParticipant']),
+    canView: pickBoolean(permissionSource, ['canView']),
+    canEdit: pickBoolean(permissionSource, ['canEdit']),
+    canResubmit: pickBoolean(permissionSource, ['canResubmit']),
+    canCancel: pickBoolean(permissionSource, ['canCancel']),
+    canGotoApproval: pickBoolean(permissionSource, ['canGotoApproval']),
+    buttonReason: pickMaybeText(permissionSource, ['buttonReason'])
+  };
+};
 
+const normalizeTimelinePayload = (source: UnknownRecord): ManuscriptReviewTimelineItemVO[] =>
+  extractCollection(source, ['timelineItems', 'timeline', 'historyItems', 'historyList', 'history']).map((item) => {
+    const timelineItem = isRecord(item) ? item : {};
     return {
-      id: pickText(resource, ['resourceId', 'id'], `${fallbackTypeLabel}-${index + 1}`),
-      typeLabel:
-        pickMaybeText(resource, ['resourceTypeLabel', 'typeLabel', 'categoryLabel', 'kindLabel']) ??
-        fallbackTypeLabel,
-      name: pickText(resource, ['resourceName', 'name', 'title', 'fileName', 'linkTitle', 'url']),
-      statusLabel: pickMaybeText(resource, ['statusLabel', 'lifecycleLabel', 'statusName']),
-      note: pickMaybeText(resource, ['note', 'remark', 'description', 'url', 'markerText'])
+      eventTime: pickText(timelineItem, ['eventTime', 'createTime', 'timeLabel']),
+      eventType: pickMaybeText(timelineItem, ['eventType']),
+      eventTypeLabel: pickMaybeText(timelineItem, ['eventTypeLabel', 'actionLabel']),
+      eventCode: pickMaybeText(timelineItem, ['eventCode']),
+      eventText: pickText(timelineItem, ['eventText', 'text', 'actionLabel']),
+      operatorName: pickMaybeText(timelineItem, ['operatorName']),
+      relatedNode: pickMaybeText(timelineItem, ['relatedNode']),
+      relatedResourceName: pickMaybeText(timelineItem, ['relatedResourceName']),
+      statusLabel: pickMaybeText(timelineItem, ['statusLabel']),
+      diffSummary: pickMaybeText(timelineItem, ['diffSummary', 'remark'])
     };
   });
 
-const normalizeResourceItems = (source: UnknownRecord): ManuscriptReviewResourceItem[] => [
-  ...normalizeResourceCollection(extractCollection(source, ['resourceItems', 'resourceList', 'resources']), '资源'),
-  ...normalizeResourceCollection(extractCollection(source, ['attachments', 'attachmentList']), '附件'),
-  ...normalizeResourceCollection(extractCollection(source, ['externalLinks', 'linkList', 'links']), '外链'),
-  ...normalizeResourceCollection(extractCollection(source, ['videos', 'videoList']), '视频'),
-  ...normalizeResourceCollection(extractCollection(source, ['videoMarkers', 'markerList']), '视频时间标注')
-];
+const normalizeVideoMarkList = (payload: unknown): ManuscriptReviewVideoMarkItemVO[] =>
+  extractCollection(payload, ['videoMarkList', 'videoMarkers', 'markerList']).map((item, index) => {
+    const marker = isRecord(item) ? item : {};
+    return {
+      id: pickText(marker, ['id', 'markerId'], `video-mark-${index + 1}`),
+      startTimeText: pickText(marker, ['startTimeText', 'startTime']),
+      endTimeText: pickMaybeText(marker, ['endTimeText', 'endTime']),
+      markContent: pickText(marker, ['markContent', 'markerNote', 'note'])
+    };
+  });
 
-const includesAny = (haystack: string[], needles: string[]): boolean =>
-  needles.some((needle) => haystack.includes(needle));
+const normalizeResourceList = (
+  payload: unknown,
+  keys: string[],
+  fallbackType: string
+) =>
+  extractCollection(payload, keys).map((item, index) => {
+    const resource = isRecord(item) ? item : {};
+    return {
+      id: pickText(resource, ['id', 'resourceId'], `${fallbackType}-${index + 1}`),
+      resourceType: pickMaybeText(resource, ['resourceType']) ?? fallbackType,
+      resourceTypeLabel: pickMaybeText(resource, ['resourceTypeLabel']) ?? fallbackType,
+      displayName: pickText(resource, ['displayName', 'fileName', 'linkTitle', 'name'], `${fallbackType}-${index + 1}`),
+      externalUrl: pickMaybeText(resource, ['externalUrl', 'linkUrl']),
+      createdTime: pickMaybeText(resource, ['createdTime', 'createTime']),
+      resourceUrl: pickMaybeText(resource, ['resourceUrl', 'fileUrl'])
+    };
+  });
 
-const resolveDetailViewRoleFromActions = (actions: unknown): ManuscriptReviewDetailViewRole | undefined => {
-  if (!Array.isArray(actions)) {
-    return undefined;
+const normalizeHistoryItems = (detail: ManuscriptReviewDetailReadableSource): ManuscriptReviewHistoryItem[] =>
+  (detail.timelineItems ?? []).map((item, index) => {
+    const timelineItem = item as ManuscriptReviewTimelineItemVO;
+    return {
+      id: `timeline-${index + 1}`,
+      timeLabel: timelineItem.eventTime,
+      actionLabel: timelineItem.eventText,
+      operatorName: timelineItem.operatorName ?? '',
+      remark: timelineItem.diffSummary
+    };
+  });
+
+const normalizeResourceItems = (detail: ManuscriptReviewDetailReadableSource): ManuscriptReviewResourceItem[] => {
+  const resources: ManuscriptReviewResourceItem[] = [];
+
+  for (const attachment of detail.attachmentList ?? []) {
+    resources.push({
+      id: String(attachment.id),
+      typeLabel: attachment.resourceTypeLabel ?? '附件',
+      name: attachment.displayName,
+      statusLabel: '当前有效',
+      note: attachment.resourceUrl
+    });
   }
-  const labels = actions.map((item) => String(item ?? '').trim()).filter(Boolean);
-  if (includesAny(labels, ['去审批'])) {
-    return 'CURRENT_APPROVER';
+
+  for (const link of detail.externalLinkList ?? []) {
+    resources.push({
+      id: String(link.id),
+      typeLabel: link.resourceTypeLabel ?? '外链',
+      name: link.displayName,
+      statusLabel: '当前有效',
+      note: link.externalUrl
+    });
   }
-  if (includesAny(labels, ['再次提交'])) {
-    return 'RETURNED_INITIATOR';
+
+  for (const video of detail.videoList ?? []) {
+    resources.push({
+      id: String(video.id),
+      typeLabel: video.resourceTypeLabel ?? '视频',
+      name: video.displayName,
+      statusLabel: '当前有效',
+      note: video.resourceUrl
+    });
   }
-  if (includesAny(labels, ['返回'])) {
-    return 'HISTORY_PARTICIPANT';
+
+  for (const marker of detail.videoMarkList ?? []) {
+    resources.push({
+      id: String(marker.id),
+      typeLabel: '视频时间标注',
+      name: marker.startTimeText,
+      statusLabel: '当前有效',
+      note: marker.markContent
+    });
   }
-  return undefined;
+
+  return resources;
 };
 
-const resolveDetailViewRole = (source: UnknownRecord): ManuscriptReviewDetailViewRole => {
-  const explicitRole = pickMaybeText(source, ['viewRole', 'actionRole', 'detailViewRole', 'viewerRole']);
-  if (
-    explicitRole === 'CURRENT_APPROVER' ||
-    explicitRole === 'RETURNED_INITIATOR' ||
-    explicitRole === 'HISTORY_PARTICIPANT'
-  ) {
-    return explicitRole;
-  }
-
-  const nestedActionBar = pickMaybeRecord(source, ['actionBar']);
-  const nestedRole = resolveDetailViewRoleFromActions(nestedActionBar?.actions);
-  if (nestedRole) {
-    return nestedRole;
-  }
-
-  if (pickBoolean(source, ['canApprove', 'showApproveAction', 'approverView'])) {
+const resolveDetailViewRole = (
+  permissionMatrix?: ManuscriptReviewPermissionMatrixVO
+): ManuscriptReviewDetailViewRole => {
+  if (permissionMatrix?.canGotoApproval || permissionMatrix?.isCurrentApprover) {
     return 'CURRENT_APPROVER';
   }
 
-  if (pickBoolean(source, ['canResubmit', 'showResubmitAction', 'returnedInitiatorView'])) {
+  if (permissionMatrix?.canResubmit) {
     return 'RETURNED_INITIATOR';
   }
 
   return 'HISTORY_PARTICIPANT';
-};
-
-const normalizeNestedResourceItems = (resources: UnknownRecord): ManuscriptReviewResourceItem[] => {
-  const currentAttachments = extractCollection(resources, ['currentAttachments']).map((item, index) => {
-    const resource = isRecord(item) ? item : {};
-    return {
-      id: `当前附件-${index + 1}`,
-      typeLabel: '当前附件',
-      name: pickText(resource, ['fileName', 'name'], `附件-${index + 1}`),
-      statusLabel: '当前有效',
-      note: pickMaybeText(resource, ['fileUrl', 'url'])
-    };
-  });
-
-  const currentExternalLinks = extractCollection(resources, ['currentExternalLinks']).map((item, index) => {
-    const resource = isRecord(item) ? item : {};
-    return {
-      id: `当前外链-${index + 1}`,
-      typeLabel: '当前外链',
-      name: pickText(resource, ['linkTitle', 'title', 'name'], `外链-${index + 1}`),
-      statusLabel: '当前有效',
-      note: pickMaybeText(resource, ['linkUrl', 'url'])
-    };
-  });
-
-  const currentVideos = extractCollection(resources, ['currentVideos']).map((item, index) => {
-    const resource = isRecord(item) ? item : {};
-    const duration = pickMaybeText(resource, ['duration']);
-    return {
-      id: `当前视频-${index + 1}`,
-      typeLabel: '当前视频',
-      name: pickText(resource, ['fileName', 'name'], `视频-${index + 1}`),
-      statusLabel: '当前有效',
-      note: duration ? `时长：${duration}` : undefined
-    };
-  });
-
-  const historyAttachments = extractCollection(resources, ['historyAttachments']).map((item, index) => {
-    const resource = isRecord(item) ? item : {};
-    const disabledTime = pickMaybeText(resource, ['disabledTime']);
-    return {
-      id: `历史附件-${index + 1}`,
-      typeLabel: '历史附件',
-      name: pickText(resource, ['fileName', 'name'], `附件-${index + 1}`),
-      statusLabel: '已停用',
-      note: disabledTime ? `停用时间：${disabledTime}` : undefined
-    };
-  });
-
-  const historyExternalLinks = extractCollection(resources, ['historyExternalLinks']).map((item, index) => {
-    const resource = isRecord(item) ? item : {};
-    const disabledTime = pickMaybeText(resource, ['disabledTime']);
-    return {
-      id: `历史外链-${index + 1}`,
-      typeLabel: '历史外链',
-      name: pickText(resource, ['linkTitle', 'title', 'name'], `外链-${index + 1}`),
-      statusLabel: '已停用',
-      note: disabledTime ? `停用时间：${disabledTime}` : undefined
-    };
-  });
-
-  const historyVideoMarkers = extractCollection(resources, ['historyVideoMarkers']).map((item, index) => {
-    const resource = isRecord(item) ? item : {};
-    return {
-      id: `历史视频时间标注-${index + 1}`,
-      typeLabel: '历史视频时间标注',
-      name: pickText(resource, ['startTime', 'name'], `标注-${index + 1}`),
-      statusLabel: '已停用',
-      note: pickMaybeText(resource, ['markerNote', 'note'])
-    };
-  });
-
-  return [
-    ...currentAttachments,
-    ...currentExternalLinks,
-    ...currentVideos,
-    ...historyAttachments,
-    ...historyExternalLinks,
-    ...historyVideoMarkers
-  ];
 };
 
 export const buildDetailActionBar = (
@@ -376,54 +338,56 @@ export const normalizeLedgerRows = (payload: unknown): ManuscriptReviewLedgerRow
     const row = isRecord(item) ? item : {};
 
     return {
-      reviewId: pickText(row, ['reviewId', 'id', 'review_id'], `review-${index + 1}`),
+      id: pickText(row, ['id', 'reviewId', 'review_id'], `review-${index + 1}`),
       manuscriptCode: pickText(row, ['manuscriptCode', 'manuscript_code', 'manuscriptNo']),
       title: pickText(row, ['title']),
       processTypeLabel: pickText(row, ['processTypeLabel', 'processTypeName', 'reviewTypeLabel']),
-      mediaChannelLabel: pickText(row, ['mediaChannelLabel', 'mediaChannelName', 'mediaColumnLabel']),
-      flowStatusLabel: pickText(row, ['flowStatusLabel', 'statusLabel']),
+      mediaChannel: pickText(row, ['mediaChannel', 'mediaChannelLabel', 'mediaChannelName', 'mediaColumnLabel']),
+      businessStatusLabel: pickText(row, ['businessStatusLabel', 'flowStatusLabel', 'statusLabel']),
       currentNodeLabel: pickText(row, ['currentNodeLabel', 'currentTaskName', 'currentNodeName']),
       initiatorName: pickText(row, ['initiatorName', 'submitterName', 'creatorName']),
-      latestUpdatedAt: pickText(row, ['latestUpdatedAt', 'updateTime', 'updatedAt'])
+      updateTime: pickText(row, ['updateTime', 'latestUpdatedAt', 'updatedAt'])
     };
   });
 
 export const normalizeDetailViewModel = (payload: unknown): ManuscriptReviewDetailReadableViewModel => {
   const source = extractRecord(payload);
-  const summaryCard = pickRecord(source, ['summaryCard']);
-  const manuscriptCard = pickRecord(source, ['manuscriptCard']);
-  const nestedResources = pickMaybeRecord(source, ['resources']);
+  const permissionMatrix = normalizePermissionMatrix(source);
+
+  const detail: ManuscriptReviewDetailVO = {
+    id: pickText(source, ['id', 'reviewId', 'review_id']),
+    processType: pickMaybeText(source, ['processType']),
+    processTypeLabel: pickText(source, ['processTypeLabel', 'processTypeName', 'reviewTypeLabel']),
+    manuscriptCode: pickText(source, ['manuscriptCode', 'manuscript_code', 'manuscriptNo']),
+    externalManuscriptCode:
+      pickMaybeText(source, ['externalManuscriptCode', 'externalCode', 'externalManuscriptNo']),
+    title: pickText(source, ['title']),
+    mediaChannel: pickText(source, ['mediaChannel', 'mediaChannelLabel', 'mediaChannelName', 'mediaColumnLabel']),
+    submitDepartment: pickText(source, ['submitDepartment', 'submitterDeptName', 'submitDeptName', 'departmentName']),
+    authorName: pickMaybeText(source, ['authorName', 'authorNames', 'authors']),
+    remark: pickMaybeText(source, ['remark', 'note', 'description']),
+    contentBody: pickMaybeText(source, ['contentBody', 'content']),
+    contentSummary: pickMaybeText(source, ['contentSummary', 'contentPreview', 'content', 'contentBody']),
+    businessStatus: pickMaybeText(source, ['businessStatus']),
+    businessStatusLabel: pickText(source, ['businessStatusLabel', 'flowStatusLabel', 'statusLabel']),
+    currentNodeCode: pickMaybeText(source, ['currentNodeCode']),
+    currentNodeLabel: pickText(source, ['currentNodeLabel', 'currentTaskName', 'currentNodeName']),
+    initiatorName: pickText(source, ['initiatorName', 'submitterName', 'creatorName']),
+    firstSubmitTime: pickMaybeText(source, ['firstSubmitTime']),
+    latestSubmitTime: pickMaybeText(source, ['latestSubmitTime']),
+    updateTime: pickText(source, ['updateTime', 'latestUpdatedAt', 'updatedAt']),
+    attachmentList: normalizeResourceList(source, ['attachmentList', 'attachments'], 'ATTACHMENT'),
+    externalLinkList: normalizeResourceList(source, ['externalLinkList', 'externalLinks', 'linkList', 'links'], 'EXTERNAL_LINK'),
+    videoList: normalizeResourceList(source, ['videoList', 'videos'], 'VIDEO'),
+    videoMarkList: normalizeVideoMarkList(source),
+    timelineItems: normalizeTimelinePayload(source),
+    permissionMatrix
+  };
 
   return {
-    actionRole: resolveDetailViewRole(source),
-    detail: {
-      flowStatusLabel: pickText(summaryCard, ['flowStatusLabel'], pickText(source, ['flowStatusLabel', 'statusLabel', 'flowStatusName'])),
-      currentNodeLabel: pickText(summaryCard, ['currentNodeLabel'], pickText(source, ['currentNodeLabel', 'currentTaskName', 'currentNodeName'])),
-      initiatorName: pickText(summaryCard, ['initiatorName'], pickText(source, ['initiatorName', 'submitterName', 'creatorName'])),
-      latestUpdatedAt: pickText(summaryCard, ['latestUpdatedAt', 'updateTime', 'updatedAt'], pickText(source, ['latestUpdatedAt', 'updateTime', 'updatedAt'])),
-      processTypeLabel: pickText(manuscriptCard, ['processTypeLabel'], pickText(source, ['processTypeLabel', 'processTypeName', 'reviewTypeLabel'])),
-      manuscriptCode: pickText(manuscriptCard, ['manuscriptCode', 'manuscript_code', 'manuscriptNo'], pickText(source, ['manuscriptCode', 'manuscript_code', 'manuscriptNo'])),
-      externalManuscriptCode: pickMaybeText(manuscriptCard, [
-        'externalManuscriptCode',
-        'externalCode',
-        'externalManuscriptNo'
-      ]) ?? pickMaybeText(source, [
-        'externalManuscriptCode',
-        'externalCode',
-        'externalManuscriptNo'
-      ]),
-      title: pickText(manuscriptCard, ['title'], pickText(source, ['title'])),
-      mediaChannelLabel: pickText(manuscriptCard, ['mediaChannelLabel', 'mediaChannelName', 'mediaColumnLabel'], pickText(source, ['mediaChannelLabel', 'mediaChannelName', 'mediaColumnLabel'])),
-      submitterDeptName: pickMaybeText(manuscriptCard, ['submitterDeptName', 'submitDeptName', 'departmentName'])
-        ?? pickMaybeText(source, ['submitterDeptName', 'submitDeptName', 'departmentName']),
-      authorNames: pickMaybeText(manuscriptCard, ['authorNames', 'authors', 'authorName'])
-        ?? pickMaybeText(source, ['authorNames', 'authors', 'authorName']),
-      note: pickMaybeText(manuscriptCard, ['note', 'remark', 'description'])
-        ?? pickMaybeText(source, ['note', 'remark', 'description']),
-      contentPreview: pickMaybeText(manuscriptCard, ['contentPreview', 'content', 'contentText', 'plainTextContent'])
-        ?? pickMaybeText(source, ['contentPreview', 'content', 'contentText', 'plainTextContent'])
-    },
-    historyItems: normalizeHistoryItems(pickMaybeRecord(source, ['timeline']) ? source : source),
-    resourceItems: nestedResources ? normalizeNestedResourceItems(nestedResources) : normalizeResourceItems(source)
+    actionRole: resolveDetailViewRole(permissionMatrix),
+    detail,
+    historyItems: normalizeHistoryItems(detail),
+    resourceItems: normalizeResourceItems(detail)
   };
 };

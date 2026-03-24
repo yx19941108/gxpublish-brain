@@ -2,124 +2,108 @@ package com.gxpublish.brain.manuscript.review.controller.response;
 
 import java.util.List;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import com.fasterxml.jackson.annotation.JsonInclude;
 
-@Data
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+@Getter
+@Setter
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class ManuscriptReviewDetailResponse {
 
-    private Long reviewId;
-    private SummaryCard summaryCard;
-    private ManuscriptCard manuscriptCard;
-    private ActionBar actionBar;
-    private List<TimelineItem> timeline;
-    private ResourceSection resources;
+    private Long id;
+    private String processType;
+    private String processTypeLabel;
+    private String manuscriptCode;
+    private String externalManuscriptCode;
+    private String title;
+    private String mediaChannel;
+    private String submitDepartment;
+    private String authorName;
+    private String remark;
+    private String contentBody;
+    private String contentSummary;
+    private String businessStatus;
+    private String businessStatusLabel;
+    private String currentNodeCode;
+    private String currentNodeLabel;
+    private String initiatorName;
+    private String firstSubmitTime;
+    private String latestSubmitTime;
+    private String updateTime;
+    private List<ResourceItemVO> attachmentList;
+    private List<ResourceItemVO> externalLinkList;
+    private List<ResourceItemVO> videoList;
+    private List<VideoMarkItemVO> videoMarkList;
+    private List<TimelineItemVO> timelineItems;
+    private PermissionMatrixVO permissionMatrix;
 
-    @Data
+    @Getter
+    @Setter
     @NoArgsConstructor
     @AllArgsConstructor
-    public static class SummaryCard {
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class PermissionMatrixVO {
 
-        private String flowStatusLabel;
-        private String currentNodeLabel;
-        private String initiatorName;
-        private String updateTime;
+        private boolean isInitiator;
+        private boolean isCurrentApprover;
+        private boolean isHistoryParticipant;
+        private boolean canView;
+        private boolean canEdit;
+        private boolean canResubmit;
+        private boolean canCancel;
+        private boolean canGotoApproval;
+        private String buttonReason;
     }
 
-    @Data
+    @Getter
+    @Setter
     @NoArgsConstructor
     @AllArgsConstructor
-    public static class ManuscriptCard {
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class TimelineItemVO {
 
-        private String processTypeLabel;
-        private String manuscriptCode;
-        private String externalManuscriptCode;
-        private String title;
-        private String mediaChannelLabel;
-        private String submitterDeptName;
-        private String authorNames;
-        private String note;
-        private String content;
+        private String eventTime;
+        private String eventType;
+        private String eventTypeLabel;
+        private String eventCode;
+        private String eventText;
+        private String operatorName;
+        private String relatedNode;
+        private String relatedResourceName;
+        private String statusLabel;
+        private String diffSummary;
     }
 
-    @Data
+    @Getter
+    @Setter
     @NoArgsConstructor
     @AllArgsConstructor
-    public static class ActionBar {
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class ResourceItemVO {
 
-        private boolean canModify;
-        private List<String> actions;
+        private Long id;
+        private String resourceType;
+        private String resourceTypeLabel;
+        private String displayName;
+        private String externalUrl;
+        private String createdTime;
+        private String resourceUrl;
     }
 
-    @Data
+    @Getter
+    @Setter
     @NoArgsConstructor
     @AllArgsConstructor
-    public static class TimelineItem {
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class VideoMarkItemVO {
 
-        private String createTime;
-        private String text;
-    }
-
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class ResourceSection {
-
-        private List<AttachmentItem> currentAttachments;
-        private List<ExternalLinkItem> currentExternalLinks;
-        private List<VideoItem> currentVideos;
-        private List<AttachmentItem> historyAttachments;
-        private List<ExternalLinkItem> historyExternalLinks;
-        private List<VideoMarkerItem> historyVideoMarkers;
-    }
-
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class AttachmentItem {
-
-        private String fileName;
-        private String fileUrl;
-        private Long fileSize;
-        private String mimeType;
-        private String disabledTime;
-        private String remark;
-    }
-
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class ExternalLinkItem {
-
-        private String linkTitle;
-        private String linkUrl;
-        private String disabledTime;
-        private String remark;
-    }
-
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class VideoItem {
-
-        private String fileName;
-        private String fileUrl;
-        private Long fileSize;
-        private String mimeType;
-        private String duration;
-        private List<VideoMarkerItem> markers;
-    }
-
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class VideoMarkerItem {
-
-        private String startTime;
-        private String endTime;
-        private String markerNote;
-        private String createTime;
-        private String disabledTime;
+        private Long id;
+        private String startTimeText;
+        private String endTimeText;
+        private String markContent;
     }
 }

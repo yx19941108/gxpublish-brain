@@ -1,59 +1,75 @@
-import { describe, expect, it } from 'vitest';
-import { readFile } from 'node:fs/promises';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { buildDetailActionBar, buildReadableSummary, normalizeDetailViewModel } from './detail.contract';
 
+const { requestInvoker } = vi.hoisted(() => ({
+  requestInvoker: vi.fn(async (config: unknown) => config)
+}));
+
+vi.mock('@/utils/request', () => ({
+  default: requestInvoker
+}));
+
 describe('T07_Frontend_DetailActions_AndReadableDisplaySpec', () => {
-  const baseDetail = {
-    flowStatusLabel: '审批中',
-    currentNodeLabel: '待二级审批',
-    initiatorName: '张三',
-    latestUpdatedAt: '2026-03-21 09:30:00',
-    processTypeLabel: '审核流程',
-    manuscriptCode: 'SH20260321001',
-    externalManuscriptCode: 'WX-2026-001',
-    title: '广西春讯',
-    mediaChannelLabel: '广西日报 / 要闻',
-    submitterDeptName: '编委会',
-    authorNames: '张三、李四',
-    note: '需要核对视频字幕。',
-    contentPreview: '这里是正文摘要。',
-    technicalId: 'db-row-9001',
-    initiatorAccount: 'initiator.account',
-    flowStatusCode: 'STATUS_REVIEWING',
-    currentNodeCode: 'NODE_LEVEL_2',
-    processTypeCode: 'PROCESS_AUDIT',
-    roleKey: 'role:manuscript-review:l2'
-  };
-
-  it('detail view source keeps hidden reviewId anchor, reserves history/resources shells, and removes demo copy', async () => {
-    const detailSource = await readFile(new URL('./detail.vue', import.meta.url), 'utf-8');
-
-    expect(detailSource).toContain('审校详情');
-    expect(detailSource).toContain('/manuscript-review/readable/detail');
-    expect(detailSource).toContain("from '@/utils/request'");
-    expect(detailSource).not.toContain('fetch(');
-    expect(detailSource).toContain('data-testid="manuscript-review-hidden-reviewId"');
-    expect(detailSource).toContain('data-testid="manuscript-review-history-shell"');
-    expect(detailSource).toContain('data-testid="manuscript-review-resource-shell"');
-    expect(detailSource).not.toContain('后续再接入真实接口与历史、资源区域');
-
-    // reviewId is allowed for routing/API only, must not show as readable text.
-    expect(detailSource).not.toContain('{{ reviewId }}');
-    expect(detailSource).not.toContain('reviewId：');
+  beforeEach(() => {
+    requestInvoker.mockClear();
   });
 
-  it('ledger view source shows fixed column headers with flow status + current node, and no delete entry', async () => {
-    const ledgerSource = await readFile(new URL('./index.vue', import.meta.url), 'utf-8');
+  it('manuscript-review api uses only frozen workflow routes and split submit chain', async () => {
+    const api = await import('@/api/manuscript-review');
 
-    expect(ledgerSource).toContain('/manuscript-review/readable/ledger');
-    expect(ledgerSource).toContain("from '@/utils/request'");
-    expect(ledgerSource).not.toContain('fetch(');
-    expect(ledgerSource).toContain('data-testid="ledger-col-flowStatus"');
-    expect(ledgerSource).toContain('data-testid="ledger-col-currentNode"');
-    expect(ledgerSource).toContain('流程状态');
-    expect(ledgerSource).toContain('当前节点');
-    expect(ledgerSource).not.toContain('删除');
+    await api.listManuscriptReview({ keyword: '系统稿件号' });
+    await api.getManuscriptReviewDetail(9001);
+    await api.createManuscriptReview({
+      processType: 'AUDIT',
+      title: '审校稿件',
+      mediaChannel: '新华社/要闻',
+      submitDepartment: '总编室',
+      contentBody: '正文内容'
+    });
+    await api.updateManuscriptReview({
+      id: 9001,
+      processType: 'AUDIT',
+      title: '审校稿件',
+      mediaChannel: '新华社/要闻',
+      submitDepartment: '总编室',
+      contentBody: '正文内容'
+    });
+    await api.submitAndFlowStartManuscriptReview({ id: 9001 });
+    await api.resubmitManuscriptReview({ id: 9001 });
+    await api.cancelManuscriptReviewProcess({ id: 9001, reason: '发起人撤销' });
+    await api.addManuscriptReviewResource({
+      reviewId: 9001,
+      resourceType: 'ATTACHMENT',
+      displayName: '送审单.pdf',
+      ossId: 8001
+    });
+    await api.disableManuscriptReviewResource({
+      resourceId: 8001,
+      disabledReason: '停用附件'
+    });
+    await api.addManuscriptReviewVideoMark({
+      reviewId: 9001,
+      resourceId: 7001,
+      startTimeText: '00:00:05',
+      endTimeText: '00:00:10',
+      markContent: '第一处问题'
+    });
+
+    expect(
+      requestInvoker.mock.calls.map(([config]) => `${(config as { method: string }).method}:${(config as { url: string }).url}`)
+    ).toEqual([
+      'get:/workflow/manuscript-review/list',
+      'get:/workflow/manuscript-review/9001',
+      'post:/workflow/manuscript-review',
+      'put:/workflow/manuscript-review',
+      'post:/workflow/manuscript-review/submitAndFlowStart',
+      'post:/workflow/manuscript-review/resubmit',
+      'put:/workflow/manuscript-review/cancelProcessApply',
+      'post:/workflow/manuscript-review/resource',
+      'put:/workflow/manuscript-review/resource/disable',
+      'post:/workflow/manuscript-review/video-mark'
+    ]);
   });
 
   it('shows only modify, approve, and back for the current approver', () => {
@@ -70,133 +86,140 @@ describe('T07_Frontend_DetailActions_AndReadableDisplaySpec', () => {
     expect(labels).not.toEqual(expect.arrayContaining(['删除', '草稿', '保存草稿', '去审批']));
   });
 
-  it('shows only back for history participants and keeps summary free of technical leakage', () => {
-    const labels = buildDetailActionBar('HISTORY_PARTICIPANT').map((action) => action.label);
-    const summary = buildReadableSummary(baseDetail);
-    const summaryText = JSON.stringify(summary);
-
-    expect(labels).toEqual(['返回']);
-    expect(labels).not.toEqual(expect.arrayContaining(['删除', '草稿', '保存草稿', '修改', '去审批', '再次提交']));
-    expect(summary).toEqual(
-      expect.arrayContaining([
-        { label: '流程状态', value: '审批中' },
-        { label: '当前节点', value: '待二级审批' },
-        { label: '发起人', value: '张三' },
-        { label: '流程类型', value: '审核流程' },
-        { label: '系统稿件号', value: 'SH20260321001' },
-        { label: '标题', value: '广西春讯' }
-      ])
-    );
-    expect(summaryText).not.toContain('db-row-9001');
-    expect(summaryText).not.toContain('initiator.account');
-    expect(summaryText).not.toContain('STATUS_REVIEWING');
-    expect(summaryText).not.toContain('NODE_LEVEL_2');
-    expect(summaryText).not.toContain('PROCESS_AUDIT');
-    expect(summaryText).not.toContain('role:manuscript-review:l2');
-  });
-
-  it('normalizes nested readable payload without losing summary, history, resources, or action role', () => {
+  it('normalizes frozen detail payload without leaking technical fields into summary or permissions into ledger space', () => {
     const viewModel = normalizeDetailViewModel({
       code: 200,
       data: {
-        reviewId: 9002,
-        summaryCard: {
-          flowStatusLabel: '已退回',
-          currentNodeLabel: '待发起人处理',
-          initiatorName: '张三',
-          updateTime: '2026-03-23 11:22:33'
+        id: 9002,
+        processType: 'AUDIT',
+        processTypeLabel: '审核流程',
+        manuscriptCode: 'SH20260321002',
+        externalManuscriptCode: 'EXT-001',
+        title: '稿件标题',
+        mediaChannel: '新华社/要闻',
+        submitDepartment: '总编室',
+        authorName: '张三、李四',
+        remark: '补充说明',
+        contentSummary: '正文内容',
+        businessStatus: 'BACK',
+        businessStatusLabel: '已退回',
+        currentNodeCode: 'RETURN_TO_INITIATOR',
+        currentNodeLabel: '待发起人处理',
+        initiatorName: '张三',
+        updateTime: '2026-03-23 11:22:33',
+        permissionMatrix: {
+          isInitiator: true,
+          isCurrentApprover: false,
+          isHistoryParticipant: true,
+          canView: true,
+          canEdit: true,
+          canResubmit: true,
+          canCancel: false,
+          canGotoApproval: false
         },
-        manuscriptCard: {
-          processTypeLabel: '审核流程',
-          manuscriptCode: 'SH20260321002',
-          externalManuscriptCode: 'EXT-001',
-          title: '稿件标题',
-          mediaChannelLabel: '新华社/要闻',
-          submitterDeptName: '总编室',
-          authorNames: '张三、李四',
-          note: '补充说明',
-          content: '正文内容'
-        },
-        actionBar: {
-          canModify: true,
-          actions: ['修改', '去审批', '返回']
-        },
-        timeline: [{ createTime: '2026-03-23 11:20:00', text: '张三新增了流程。' }],
-        resources: {
-          currentAttachments: [{ fileName: '送审单.pdf', fileUrl: 'https://files.example/a.pdf' }],
-          currentExternalLinks: [{ linkTitle: '素材参考', linkUrl: 'https://example.com/ref' }],
-          currentVideos: [{ fileName: '样片.mp4', duration: '00:10:00' }],
-          historyAttachments: [{ fileName: '旧附件.pdf', disabledTime: '2026-03-23 11:00:00' }],
-          historyExternalLinks: [{ linkTitle: '旧链接', disabledTime: '2026-03-23 11:05:00' }],
-          historyVideoMarkers: [{ startTime: '00:00:15', markerNote: '停用标注', disabledTime: '2026-03-23 11:07:00' }]
-        }
+        attachmentList: [
+          {
+            id: 1,
+            resourceType: 'ATTACHMENT',
+            resourceTypeLabel: '附件',
+            displayName: '送审单.pdf',
+            resourceUrl: 'https://files.example/a.pdf'
+          }
+        ],
+        externalLinkList: [
+          {
+            id: 2,
+            resourceType: 'EXTERNAL_LINK',
+            resourceTypeLabel: '外链',
+            displayName: '素材参考',
+            externalUrl: 'https://example.com/ref'
+          }
+        ],
+        videoList: [
+          {
+            id: 3,
+            resourceType: 'VIDEO',
+            resourceTypeLabel: '视频',
+            displayName: '样片.mp4',
+            resourceUrl: 'https://files.example/video.mp4'
+          }
+        ],
+        videoMarkList: [
+          {
+            id: 4,
+            startTimeText: '00:00:05',
+            endTimeText: '00:00:10',
+            markContent: '第一处问题'
+          }
+        ],
+        timelineItems: [
+          {
+            eventTime: '2026-03-23 11:20:00',
+            eventText: '张三新增了流程。',
+            diffSummary: '标题由旧值改为新值'
+          }
+        ]
       }
     });
 
-    expect(viewModel.actionRole).toBe('CURRENT_APPROVER');
-    expect(viewModel.detail.flowStatusLabel).toBe('已退回');
-    expect(viewModel.detail.currentNodeLabel).toBe('待发起人处理');
-    expect(viewModel.detail.initiatorName).toBe('张三');
-    expect(viewModel.detail.processTypeLabel).toBe('审核流程');
-    expect(viewModel.detail.manuscriptCode).toBe('SH20260321002');
-    expect(viewModel.detail.externalManuscriptCode).toBe('EXT-001');
-    expect(viewModel.detail.title).toBe('稿件标题');
-    expect(viewModel.detail.mediaChannelLabel).toBe('新华社/要闻');
-    expect(viewModel.detail.submitterDeptName).toBe('总编室');
-    expect(viewModel.detail.authorNames).toBe('张三、李四');
-    expect(viewModel.detail.note).toBe('补充说明');
-    expect(viewModel.detail.contentPreview).toBe('正文内容');
+    const summary = buildReadableSummary(viewModel.detail);
+    const summaryText = JSON.stringify(summary);
+
+    expect(viewModel.actionRole).toBe('RETURNED_INITIATOR');
+    expect(viewModel.detail.submitDepartment).toBe('总编室');
+    expect(viewModel.detail.mediaChannel).toBe('新华社/要闻');
+    expect(viewModel.detail.permissionMatrix?.canResubmit).toBe(true);
     expect(viewModel.historyItems).toEqual([
       {
-        id: 'history-1',
+        id: 'timeline-1',
         timeLabel: '2026-03-23 11:20:00',
         actionLabel: '张三新增了流程。',
-        operatorName: ''
+        operatorName: '',
+        remark: '标题由旧值改为新值'
       }
     ]);
     expect(viewModel.resourceItems).toEqual([
       {
-        id: '当前附件-1',
-        typeLabel: '当前附件',
+        id: '1',
+        typeLabel: '附件',
         name: '送审单.pdf',
         statusLabel: '当前有效',
         note: 'https://files.example/a.pdf'
       },
       {
-        id: '当前外链-1',
-        typeLabel: '当前外链',
+        id: '2',
+        typeLabel: '外链',
         name: '素材参考',
         statusLabel: '当前有效',
         note: 'https://example.com/ref'
       },
       {
-        id: '当前视频-1',
-        typeLabel: '当前视频',
+        id: '3',
+        typeLabel: '视频',
         name: '样片.mp4',
         statusLabel: '当前有效',
-        note: '时长：00:10:00'
+        note: 'https://files.example/video.mp4'
       },
       {
-        id: '历史附件-1',
-        typeLabel: '历史附件',
-        name: '旧附件.pdf',
-        statusLabel: '已停用',
-        note: '停用时间：2026-03-23 11:00:00'
-      },
-      {
-        id: '历史外链-1',
-        typeLabel: '历史外链',
-        name: '旧链接',
-        statusLabel: '已停用',
-        note: '停用时间：2026-03-23 11:05:00'
-      },
-      {
-        id: '历史视频时间标注-1',
-        typeLabel: '历史视频时间标注',
-        name: '00:00:15',
-        statusLabel: '已停用',
-        note: '停用标注'
+        id: '4',
+        typeLabel: '视频时间标注',
+        name: '00:00:05',
+        statusLabel: '当前有效',
+        note: '第一处问题'
       }
     ]);
+    expect(summary).toEqual(
+      expect.arrayContaining([
+        { label: '流程状态', value: '已退回' },
+        { label: '当前节点', value: '待发起人处理' },
+        { label: '发起人', value: '张三' },
+        { label: '流程类型', value: '审核流程' },
+        { label: '系统稿件号', value: 'SH20260321002' },
+        { label: '报送部门', value: '总编室' }
+      ])
+    );
+    expect(summaryText).not.toContain('permissionMatrix');
+    expect(summaryText).not.toContain('tenantId');
+    expect(summaryText).not.toContain('roleKey');
   });
 });

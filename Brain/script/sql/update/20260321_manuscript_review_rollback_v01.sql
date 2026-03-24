@@ -29,6 +29,7 @@ rollback order
 1) 20260321_manuscript_review_rollback_v01.sql
 
 NOTE: 本轮仅起草，未 apply。若你已 apply，请在回滚前确认没有业务数据需要保留。
+This rollback still fully covers the WP6-B1 write-side columns because the affected manuscript_review tables are dropped as a whole.
 */
 
 /* NOTE: do not rely on session variables (MySQL MCP may use non-sticky connections). */

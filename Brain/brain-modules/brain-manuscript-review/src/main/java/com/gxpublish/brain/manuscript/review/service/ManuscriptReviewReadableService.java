@@ -1,6 +1,7 @@
 package com.gxpublish.brain.manuscript.review.service;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gxpublish.brain.common.core.exception.ServiceException;
+import com.gxpublish.brain.common.mybatis.core.page.TableDataInfo;
 import com.gxpublish.brain.manuscript.review.controller.request.ManuscriptReviewLedgerQueryRequest;
 import com.gxpublish.brain.manuscript.review.controller.response.ManuscriptReviewDetailResponse;
 import com.gxpublish.brain.manuscript.review.controller.response.ManuscriptReviewLedgerItemResponse;
@@ -51,18 +53,14 @@ public class ManuscriptReviewReadableService {
     private static final String ENABLED = "1";
     private static final String ACTIVE = "0";
     private static final String REVIEW_NOT_FOUND_MESSAGE = "稿件审校流程不存在";
+    private static final String CURRENT_USER_REQUIRED_MESSAGE = "当前登录用户不存在";
+    private static final String VIEW_PERMISSION_DENIED_MESSAGE = "当前用户无权查看该流程";
     private static final String DEFAULT_TENANT_ID = "000000";
     private static final String LEVEL_ONE_NODE = "待一级审批";
     private static final String LEVEL_TWO_NODE = "待二级审批";
     private static final String LEVEL_THREE_NODE = "待三级审批";
     private static final ZoneId BUSINESS_ZONE_ID = ZoneId.of("Asia/Shanghai");
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-    private static final List<ManuscriptReviewDetailAction> ACTION_ORDER = List.of(
-        ManuscriptReviewDetailAction.MODIFY,
-        ManuscriptReviewDetailAction.RESUBMIT,
-        ManuscriptReviewDetailAction.GO_APPROVE,
-        ManuscriptReviewDetailAction.BACK
-    );
 
     private final ManuscriptReviewRecordMapper recordMapper;
     private final ManuscriptReviewAttachmentMapper attachmentMapper;
@@ -98,32 +96,28 @@ public class ManuscriptReviewReadableService {
         this.currentUserGateway = currentUserGateway;
     }
 
-    public List<ManuscriptReviewLedgerItemResponse> listLedger(ManuscriptReviewLedgerQueryRequest request) {
-        QueryWrapper<ManuscriptReviewRecordEntity> wrapper = new QueryWrapper<>();
-        if (request != null) {
-            String keyword = trimToNull(request.getKeyword());
-            if (keyword != null) {
-                wrapper.and(query -> query.like("manuscript_code", keyword)
-                    .or().like("external_manuscript_code", keyword)
-                    .or().like("title", keyword));
-            }
-            String processTypeLabel = trimToNull(request.getProcessTypeLabel());
-            if (processTypeLabel != null) {
-                wrapper.eq("process_type", resolveProcessTypeCode(processTypeLabel));
-            }
-            String flowStatusLabel = trimToNull(request.getFlowStatusLabel());
-            if (flowStatusLabel != null) {
-                wrapper.eq("flow_status_label", flowStatusLabel);
-            }
-            String currentNodeLabel = trimToNull(request.getCurrentNodeLabel());
-            if (currentNodeLabel != null) {
-                wrapper.eq("current_node_label", currentNodeLabel);
-            }
-        }
-        wrapper.orderByDesc("update_time").orderByDesc("create_time").orderByDesc("id");
-        return recordMapper.selectList(wrapper).stream()
+    public TableDataInfo<ManuscriptReviewLedgerItemResponse> listLedger(ManuscriptReviewLedgerQueryRequest request) {
+        ManuscriptReviewLedgerQueryRequest safeRequest = request == null ? new ManuscriptReviewLedgerQueryRequest() : request;
+        List<ManuscriptReviewHistoryEntity> historyRecords = firstNonNull(
+            historyMapper.selectList(new QueryWrapper<ManuscriptReviewHistoryEntity>()),
+            List.of()
+        );
+        Map<Long, List<ManuscriptReviewHistoryEntity>> historiesByReviewId = historyRecords
+            .stream()
+            .filter(history -> history.getReviewId() != null)
+            .collect(Collectors.groupingBy(ManuscriptReviewHistoryEntity::getReviewId));
+        List<ManuscriptReviewLedgerItemResponse> rows = recordMapper.selectList(new QueryWrapper<ManuscriptReviewRecordEntity>())
+            .stream()
+            .filter(record -> matchesLedgerFilter(record, safeRequest))
+            .filter(record -> canViewRecord(record, historiesByReviewId.getOrDefault(record.getId(), List.of())))
+            .sorted(this::compareLedgerRecord)
             .map(this::toLedgerItem)
             .toList();
+        int pageNum = safePageNum(safeRequest.getPageNum());
+        int pageSize = safePageSize(safeRequest.getPageSize());
+        int fromIndex = Math.min((pageNum - 1) * pageSize, rows.size());
+        int toIndex = Math.min(fromIndex + pageSize, rows.size());
+        return new TableDataInfo<>(rows.subList(fromIndex, toIndex), rows.size());
     }
 
     public ManuscriptReviewDetailResponse getDetail(Long reviewId) {
@@ -132,196 +126,280 @@ public class ManuscriptReviewReadableService {
             throw new ServiceException(REVIEW_NOT_FOUND_MESSAGE);
         }
 
-        List<ManuscriptReviewAttachmentEntity> attachments = attachmentMapper.selectList(
-            new QueryWrapper<ManuscriptReviewAttachmentEntity>()
-                .eq("review_id", reviewId)
-                .orderByAsc("create_time")
-                .orderByAsc("id")
+        List<ManuscriptReviewAttachmentEntity> attachments = firstNonNull(
+            attachmentMapper.selectList(new QueryWrapper<ManuscriptReviewAttachmentEntity>().eq("review_id", reviewId)),
+            List.of()
         );
-        List<ManuscriptReviewExternalLinkEntity> externalLinks = externalLinkMapper.selectList(
-            new QueryWrapper<ManuscriptReviewExternalLinkEntity>()
-                .eq("review_id", reviewId)
-                .orderByAsc("create_time")
-                .orderByAsc("id")
+        List<ManuscriptReviewExternalLinkEntity> externalLinks = firstNonNull(
+            externalLinkMapper.selectList(new QueryWrapper<ManuscriptReviewExternalLinkEntity>().eq("review_id", reviewId)),
+            List.of()
         );
-        List<ManuscriptReviewHistoryEntity> histories = historyMapper.selectList(
-            new QueryWrapper<ManuscriptReviewHistoryEntity>()
-                .eq("review_id", reviewId)
-                .orderByAsc("create_time")
-                .orderByAsc("id")
+        List<ManuscriptReviewHistoryEntity> histories = firstNonNull(
+            historyMapper.selectList(new QueryWrapper<ManuscriptReviewHistoryEntity>().eq("review_id", reviewId)),
+            List.of()
         );
-        List<ManuscriptReviewVideoMarkerEntity> videoMarkers = videoMarkerMapper.selectList(
-            new QueryWrapper<ManuscriptReviewVideoMarkerEntity>()
-                .eq("review_id", reviewId)
-                .orderByAsc("create_time")
-                .orderByAsc("id")
+        List<ManuscriptReviewVideoMarkerEntity> videoMarkers = firstNonNull(
+            videoMarkerMapper.selectList(new QueryWrapper<ManuscriptReviewVideoMarkerEntity>().eq("review_id", reviewId)),
+            List.of()
         );
+        if (!canViewRecord(record, histories)) {
+            throw new ServiceException(VIEW_PERMISSION_DENIED_MESSAGE);
+        }
 
-        ManuscriptReviewDetailResponse detail = new ManuscriptReviewDetailResponse();
-        detail.setReviewId(record.getId());
-        detail.setSummaryCard(new ManuscriptReviewDetailResponse.SummaryCard(
-            record.getFlowStatusLabel(),
-            record.getCurrentNodeLabel(),
-            record.getInitiatorName(),
-            formatDate(firstNonNull(record.getUpdateTime(), record.getCreateTime()))
-        ));
-        detail.setManuscriptCard(new ManuscriptReviewDetailResponse.ManuscriptCard(
-            resolveProcessTypeLabel(record.getProcessType()),
-            record.getManuscriptCode(),
-            record.getExternalManuscriptCode(),
-            record.getTitle(),
-            record.getMediaChannelLabel(),
-            record.getSubmitterDeptName(),
-            record.getAuthorNames(),
-            record.getNote(),
-            record.getContent()
-        ));
-        detail.setActionBar(buildActionBar(record, histories));
-        detail.setTimeline(buildTimeline(histories));
-        detail.setResources(buildResources(attachments, externalLinks, videoMarkers));
-        return detail;
+        List<ManuscriptReviewAttachmentEntity> currentAttachments = attachments.stream()
+            .filter(attachment -> !Boolean.TRUE.equals(attachment.getIsVideo()))
+            .filter(this::isEnabled)
+            .sorted(Comparator.comparing(ManuscriptReviewAttachmentEntity::getCreateTime, Comparator.nullsLast(Date::compareTo)))
+            .toList();
+        List<ManuscriptReviewAttachmentEntity> currentVideos = attachments.stream()
+            .filter(attachment -> Boolean.TRUE.equals(attachment.getIsVideo()))
+            .filter(this::isEnabled)
+            .sorted(Comparator.comparing(ManuscriptReviewAttachmentEntity::getCreateTime, Comparator.nullsLast(Date::compareTo)))
+            .toList();
+        List<ManuscriptReviewExternalLinkEntity> currentExternalLinks = externalLinks.stream()
+            .filter(this::isEnabled)
+            .sorted(Comparator.comparing(ManuscriptReviewExternalLinkEntity::getCreateTime, Comparator.nullsLast(Date::compareTo)))
+            .toList();
+        List<ManuscriptReviewVideoMarkerEntity> currentVideoMarks = currentVideos.isEmpty()
+            ? List.of()
+            : videoMarkers.stream()
+                .filter(this::isEnabled)
+                .filter(marker -> Objects.equals(marker.getVideoAttachmentId(), currentVideos.get(0).getId()))
+                .sorted(Comparator.comparing(ManuscriptReviewVideoMarkerEntity::getStartSeconds, Comparator.nullsLast(Integer::compareTo)))
+                .toList();
+
+        ManuscriptReviewDetailResponse response = new ManuscriptReviewDetailResponse();
+        response.setId(record.getId());
+        response.setProcessType(record.getProcessType());
+        response.setProcessTypeLabel(resolveProcessTypeLabel(record.getProcessType()));
+        response.setManuscriptCode(record.getManuscriptCode());
+        response.setExternalManuscriptCode(record.getExternalManuscriptCode());
+        response.setTitle(record.getTitle());
+        response.setMediaChannel(record.getMediaChannel());
+        response.setSubmitDepartment(record.getSubmitDepartment());
+        response.setAuthorName(record.getAuthorName());
+        response.setRemark(record.getRemarkText());
+        response.setContentBody(record.getContentBody());
+        response.setContentSummary(summarizeContent(record.getContentBody()));
+        response.setBusinessStatus(mapBusinessStatusCode(record.getFlowStatusLabel()));
+        response.setBusinessStatusLabel(record.getFlowStatusLabel());
+        response.setCurrentNodeCode(mapCurrentNodeCode(record.getCurrentNodeLabel()));
+        response.setCurrentNodeLabel(record.getCurrentNodeLabel());
+        response.setInitiatorName(record.getInitiatorName());
+        response.setFirstSubmitTime(formatDate(record.getFirstSubmitTime()));
+        response.setLatestSubmitTime(formatDate(record.getLatestSubmitTime()));
+        response.setUpdateTime(formatDate(firstNonNull(record.getUpdateTime(), record.getCreateTime())));
+        response.setAttachmentList(currentAttachments.stream().map(this::toAttachmentItem).toList());
+        response.setExternalLinkList(currentExternalLinks.stream().map(this::toExternalLinkItem).toList());
+        response.setVideoList(currentVideos.stream().map(this::toVideoItem).toList());
+        response.setVideoMarkList(currentVideoMarks.stream().map(this::toVideoMarkItem).toList());
+        response.setTimelineItems(buildTimelineItems(histories));
+        response.setPermissionMatrix(buildPermissionMatrix(record, histories));
+        return response;
     }
 
-    private ManuscriptReviewLedgerItemResponse toLedgerItem(ManuscriptReviewRecordEntity entity) {
-        ManuscriptReviewLedgerItemResponse item = new ManuscriptReviewLedgerItemResponse();
-        item.setReviewId(entity.getId());
-        item.setManuscriptCode(entity.getManuscriptCode());
-        item.setTitle(entity.getTitle());
-        item.setProcessTypeLabel(resolveProcessTypeLabel(entity.getProcessType()));
-        item.setMediaChannelLabel(entity.getMediaChannelLabel());
-        item.setFlowStatusLabel(entity.getFlowStatusLabel());
-        item.setCurrentNodeLabel(entity.getCurrentNodeLabel());
-        item.setInitiatorName(entity.getInitiatorName());
-        item.setUpdateTime(formatDate(firstNonNull(entity.getUpdateTime(), entity.getCreateTime())));
-        return item;
+    public ManuscriptReviewDetailResponse.ResourceItemVO getResourceItem(Long reviewId, Long resourceId) {
+        ManuscriptReviewAttachmentEntity attachment = attachmentMapper.selectById(resourceId);
+        if (attachment != null && Objects.equals(attachment.getReviewId(), reviewId)) {
+            return Boolean.TRUE.equals(attachment.getIsVideo()) ? toVideoItem(attachment) : toAttachmentItem(attachment);
+        }
+        ManuscriptReviewExternalLinkEntity externalLink = externalLinkMapper.selectById(resourceId);
+        if (externalLink != null && Objects.equals(externalLink.getReviewId(), reviewId)) {
+            return toExternalLinkItem(externalLink);
+        }
+        throw new ServiceException("资源不存在");
     }
 
-    private ManuscriptReviewDetailResponse.ActionBar buildActionBar(ManuscriptReviewRecordEntity record,
-                                                                    List<ManuscriptReviewHistoryEntity> histories) {
+    public ManuscriptReviewDetailResponse.VideoMarkItemVO getVideoMarkItem(Long reviewId, Long markId) {
+        ManuscriptReviewVideoMarkerEntity videoMarker = videoMarkerMapper.selectById(markId);
+        if (videoMarker == null || !Objects.equals(videoMarker.getReviewId(), reviewId)) {
+            throw new ServiceException("视频标注不存在");
+        }
+        return toVideoMarkItem(videoMarker);
+    }
+
+    private boolean matchesLedgerFilter(ManuscriptReviewRecordEntity record, ManuscriptReviewLedgerQueryRequest request) {
+        if (!matchesKeyword(record, request.getKeyword())) {
+            return false;
+        }
+        if (!matchesExact(trimToNull(request.getProcessType()), trimToNull(record.getProcessType()))) {
+            return false;
+        }
+        if (!matchesExact(trimToNull(request.getMediaChannel()), trimToNull(record.getMediaChannel()))) {
+            return false;
+        }
+        if (!matchesExact(trimToNull(request.getBusinessStatus()), mapBusinessStatusCode(record.getFlowStatusLabel()))) {
+            return false;
+        }
+        if (!matchesExact(trimToNull(request.getCurrentNodeCode()), mapCurrentNodeCode(record.getCurrentNodeLabel()))) {
+            return false;
+        }
+        return matchesStartTimeRange(record, request.getStartTimeFrom(), request.getStartTimeTo());
+    }
+
+    private boolean matchesKeyword(ManuscriptReviewRecordEntity record, String keyword) {
+        String normalizedKeyword = trimToNull(keyword);
+        if (normalizedKeyword == null) {
+            return true;
+        }
+        return contains(record.getManuscriptCode(), normalizedKeyword)
+            || contains(record.getExternalManuscriptCode(), normalizedKeyword)
+            || contains(record.getTitle(), normalizedKeyword);
+    }
+
+    private boolean contains(String source, String keyword) {
+        return source != null && source.contains(keyword);
+    }
+
+    private boolean matchesExact(String expected, String actual) {
+        return expected == null || Objects.equals(expected, actual);
+    }
+
+    private boolean matchesStartTimeRange(ManuscriptReviewRecordEntity record, String startTimeFrom, String startTimeTo) {
+        Date startTime = firstNonNull(record.getFirstSubmitTime(), record.getCreateTime());
+        if (startTime == null) {
+            return trimToNull(startTimeFrom) == null && trimToNull(startTimeTo) == null;
+        }
+        LocalDateTime actual = toLocalDateTime(startTime);
+        LocalDateTime from = parseDateTime(startTimeFrom);
+        LocalDateTime to = parseDateTime(startTimeTo);
+        return (from == null || !actual.isBefore(from)) && (to == null || !actual.isAfter(to));
+    }
+
+    private int compareLedgerRecord(ManuscriptReviewRecordEntity left, ManuscriptReviewRecordEntity right) {
+        return Comparator
+            .comparing((ManuscriptReviewRecordEntity record) -> firstNonNull(record.getUpdateTime(), record.getCreateTime()),
+                Comparator.nullsLast(Date::compareTo))
+            .thenComparing(ManuscriptReviewRecordEntity::getCreateTime, Comparator.nullsLast(Date::compareTo))
+            .thenComparing(ManuscriptReviewRecordEntity::getId, Comparator.nullsLast(Long::compareTo))
+            .reversed()
+            .compare(left, right);
+    }
+
+    private ManuscriptReviewLedgerItemResponse toLedgerItem(ManuscriptReviewRecordEntity record) {
+        ManuscriptReviewLedgerItemResponse response = new ManuscriptReviewLedgerItemResponse();
+        response.setId(record.getId());
+        response.setProcessType(record.getProcessType());
+        response.setProcessTypeLabel(resolveProcessTypeLabel(record.getProcessType()));
+        response.setManuscriptCode(record.getManuscriptCode());
+        response.setTitle(record.getTitle());
+        response.setMediaChannel(record.getMediaChannel());
+        response.setBusinessStatus(mapBusinessStatusCode(record.getFlowStatusLabel()));
+        response.setBusinessStatusLabel(record.getFlowStatusLabel());
+        response.setCurrentNodeCode(mapCurrentNodeCode(record.getCurrentNodeLabel()));
+        response.setCurrentNodeLabel(record.getCurrentNodeLabel());
+        response.setInitiatorName(record.getInitiatorName());
+        response.setUpdateTime(formatDate(firstNonNull(record.getUpdateTime(), record.getCreateTime())));
+        return response;
+    }
+
+    private List<ManuscriptReviewDetailResponse.TimelineItemVO> buildTimelineItems(List<ManuscriptReviewHistoryEntity> histories) {
+        return histories.stream()
+            .sorted(Comparator.comparing(ManuscriptReviewHistoryEntity::getCreateTime, Comparator.nullsLast(Date::compareTo)))
+            .map(history -> new ManuscriptReviewDetailResponse.TimelineItemVO(
+                formatDate(history.getCreateTime()),
+                "WORKFLOW",
+                "流程",
+                trimToNull(history.getActionType()),
+                normalizeText(history.getActionText()),
+                trimToNull(history.getActorName()),
+                null,
+                null,
+                null,
+                null))
+            .toList();
+    }
+
+    private ManuscriptReviewDetailResponse.PermissionMatrixVO buildPermissionMatrix(ManuscriptReviewRecordEntity record,
+                                                                                    List<ManuscriptReviewHistoryEntity> histories) {
         Set<Long> historyParticipantUserIds = histories.stream()
             .map(ManuscriptReviewHistoryEntity::getActorUserId)
             .filter(Objects::nonNull)
             .collect(Collectors.toSet());
+        Long currentUserId = requireCurrentUserId();
         ManuscriptReviewDetailPermissionResult permissionResult = permissionPolicy.resolve(
             ManuscriptReviewDetailPermissionContext.builder()
-                .currentUserId(currentUserGateway.getCurrentUserId())
+                .currentUserId(currentUserId)
                 .initiatorUserId(record.getInitiatorUserId())
                 .currentApproverUserIds(resolveCurrentApproverUserIds(record))
                 .historyParticipantUserIds(historyParticipantUserIds)
                 .returnedToInitiator(isReturnedToInitiator(record))
                 .build()
         );
-        List<String> actions = ACTION_ORDER.stream()
-            .filter(permissionResult.getAllowedActions()::contains)
-            .map(this::toActionLabel)
-            .toList();
-        return new ManuscriptReviewDetailResponse.ActionBar(permissionResult.canModify(), actions);
+        boolean isInitiator = Objects.equals(currentUserId, record.getInitiatorUserId());
+        boolean isCurrentApprover = permissionResult.getAllowedActions().contains(ManuscriptReviewDetailAction.GO_APPROVE);
+        boolean isHistoryParticipant = historyParticipantUserIds.contains(currentUserId);
+        boolean canView = isInitiator || isCurrentApprover || isHistoryParticipant;
+        String businessStatus = mapBusinessStatusCode(record.getFlowStatusLabel());
+        boolean canGotoApproval = permissionResult.getAllowedActions().contains(ManuscriptReviewDetailAction.GO_APPROVE);
+        boolean canResubmit = permissionResult.getAllowedActions().contains(ManuscriptReviewDetailAction.RESUBMIT);
+        boolean canCancel = isInitiator && !isCurrentApprover && "WAITING".equals(businessStatus);
+        String buttonReason = resolveButtonReason(businessStatus, canView, isHistoryParticipant);
+        return new ManuscriptReviewDetailResponse.PermissionMatrixVO(
+            isInitiator,
+            isCurrentApprover,
+            isHistoryParticipant,
+            canView,
+            permissionResult.canModify(),
+            canResubmit,
+            canCancel,
+            canGotoApproval,
+            buttonReason);
     }
 
-    private List<ManuscriptReviewDetailResponse.TimelineItem> buildTimeline(List<ManuscriptReviewHistoryEntity> histories) {
+    private ManuscriptReviewDetailResponse.ResourceItemVO toAttachmentItem(ManuscriptReviewAttachmentEntity attachment) {
+        return new ManuscriptReviewDetailResponse.ResourceItemVO(
+            attachment.getId(),
+            "ATTACHMENT",
+            "附件",
+            attachment.getFileName(),
+            null,
+            formatDate(attachment.getCreateTime()),
+            attachment.getFileUrl());
+    }
+
+    private ManuscriptReviewDetailResponse.ResourceItemVO toVideoItem(ManuscriptReviewAttachmentEntity video) {
+        return new ManuscriptReviewDetailResponse.ResourceItemVO(
+            video.getId(),
+            "VIDEO",
+            "视频",
+            video.getFileName(),
+            null,
+            formatDate(video.getCreateTime()),
+            video.getFileUrl());
+    }
+
+    private ManuscriptReviewDetailResponse.ResourceItemVO toExternalLinkItem(ManuscriptReviewExternalLinkEntity externalLink) {
+        return new ManuscriptReviewDetailResponse.ResourceItemVO(
+            externalLink.getId(),
+            "EXTERNAL_LINK",
+            "外链",
+            externalLink.getLinkTitle(),
+            externalLink.getLinkUrl(),
+            formatDate(externalLink.getCreateTime()),
+            null);
+    }
+
+    private ManuscriptReviewDetailResponse.VideoMarkItemVO toVideoMarkItem(ManuscriptReviewVideoMarkerEntity marker) {
+        return new ManuscriptReviewDetailResponse.VideoMarkItemVO(
+            marker.getId(),
+            marker.getStartTime(),
+            marker.getEndTime(),
+            marker.getMarkerNote());
+    }
+
+    private boolean canViewRecord(ManuscriptReviewRecordEntity record, List<ManuscriptReviewHistoryEntity> histories) {
+        Long currentUserId = requireCurrentUserId();
+        if (Objects.equals(currentUserId, record.getInitiatorUserId())) {
+            return true;
+        }
+        if (resolveCurrentApproverUserIds(record).contains(currentUserId)) {
+            return true;
+        }
         return histories.stream()
-            .sorted(Comparator.comparing(ManuscriptReviewHistoryEntity::getCreateTime, Comparator.nullsLast(Date::compareTo)))
-            .map(history -> new ManuscriptReviewDetailResponse.TimelineItem(
-                formatDate(history.getCreateTime()),
-                normalizeText(history.getActionText())
-            ))
-            .toList();
-    }
-
-    private ManuscriptReviewDetailResponse.ResourceSection buildResources(List<ManuscriptReviewAttachmentEntity> attachments,
-                                                                          List<ManuscriptReviewExternalLinkEntity> externalLinks,
-                                                                          List<ManuscriptReviewVideoMarkerEntity> videoMarkers) {
-        Map<Long, List<ManuscriptReviewVideoMarkerEntity>> currentMarkersByVideo = videoMarkers.stream()
-            .filter(this::isEnabled)
-            .collect(Collectors.groupingBy(ManuscriptReviewVideoMarkerEntity::getVideoAttachmentId));
-
-        List<ManuscriptReviewDetailResponse.AttachmentItem> currentAttachments = attachments.stream()
-            .filter(attachment -> !Boolean.TRUE.equals(attachment.getIsVideo()))
-            .filter(this::isEnabled)
-            .map(attachment -> new ManuscriptReviewDetailResponse.AttachmentItem(
-                attachment.getFileName(),
-                attachment.getFileUrl(),
-                attachment.getFileSize(),
-                attachment.getMimeType(),
-                null,
-                attachment.getRemark()
-            ))
-            .toList();
-
-        List<ManuscriptReviewDetailResponse.VideoItem> currentVideos = attachments.stream()
-            .filter(attachment -> Boolean.TRUE.equals(attachment.getIsVideo()))
-            .filter(this::isEnabled)
-            .map(video -> new ManuscriptReviewDetailResponse.VideoItem(
-                video.getFileName(),
-                video.getFileUrl(),
-                video.getFileSize(),
-                video.getMimeType(),
-                formatDuration(video.getVideoDurationSeconds()),
-                currentMarkersByVideo.getOrDefault(video.getId(), Collections.emptyList()).stream()
-                    .sorted(Comparator.comparing(ManuscriptReviewVideoMarkerEntity::getCreateTime, Comparator.nullsLast(Date::compareTo)))
-                    .map(marker -> new ManuscriptReviewDetailResponse.VideoMarkerItem(
-                        marker.getStartTime(),
-                        marker.getEndTime(),
-                        marker.getMarkerNote(),
-                        formatDate(marker.getCreateTime()),
-                        null
-                    ))
-                    .toList()
-            ))
-            .toList();
-
-        List<ManuscriptReviewDetailResponse.AttachmentItem> historyAttachments = attachments.stream()
-            .filter(attachment -> !Boolean.TRUE.equals(attachment.getIsVideo()))
-            .filter(attachment -> !isEnabled(attachment))
-            .map(attachment -> new ManuscriptReviewDetailResponse.AttachmentItem(
-                attachment.getFileName(),
-                attachment.getFileUrl(),
-                attachment.getFileSize(),
-                attachment.getMimeType(),
-                formatDate(attachment.getDisabledTime()),
-                attachment.getRemark()
-            ))
-            .toList();
-
-        List<ManuscriptReviewDetailResponse.ExternalLinkItem> currentExternalLinks = externalLinks.stream()
-            .filter(this::isEnabled)
-            .map(link -> new ManuscriptReviewDetailResponse.ExternalLinkItem(
-                link.getLinkTitle(),
-                link.getLinkUrl(),
-                null,
-                link.getRemark()
-            ))
-            .toList();
-
-        List<ManuscriptReviewDetailResponse.ExternalLinkItem> historyExternalLinks = externalLinks.stream()
-            .filter(link -> !isEnabled(link))
-            .map(link -> new ManuscriptReviewDetailResponse.ExternalLinkItem(
-                link.getLinkTitle(),
-                link.getLinkUrl(),
-                formatDate(link.getDisabledTime()),
-                link.getRemark()
-            ))
-            .toList();
-
-        List<ManuscriptReviewDetailResponse.VideoMarkerItem> historyVideoMarkers = videoMarkers.stream()
-            .filter(marker -> !isEnabled(marker))
-            .map(marker -> new ManuscriptReviewDetailResponse.VideoMarkerItem(
-                marker.getStartTime(),
-                marker.getEndTime(),
-                marker.getMarkerNote(),
-                formatDate(marker.getCreateTime()),
-                formatDate(marker.getDisabledTime())
-            ))
-            .toList();
-
-        return new ManuscriptReviewDetailResponse.ResourceSection(
-            currentAttachments,
-            currentExternalLinks,
-            currentVideos,
-            historyAttachments,
-            historyExternalLinks,
-            historyVideoMarkers
-        );
+            .map(ManuscriptReviewHistoryEntity::getActorUserId)
+            .filter(Objects::nonNull)
+            .anyMatch(currentUserId::equals);
     }
 
     private boolean isReturnedToInitiator(ManuscriptReviewRecordEntity record) {
@@ -339,8 +417,7 @@ public class ManuscriptReviewReadableService {
                 .eq("tenant_id", tenantId)
                 .eq("role_key", roleKey)
                 .eq("status", ACTIVE)
-                .eq("del_flag", ACTIVE)
-        ).stream()
+                .eq("del_flag", ACTIVE)).stream()
             .map(ManuscriptReviewSystemRoleEntity::getRoleId)
             .filter(Objects::nonNull)
             .distinct()
@@ -348,11 +425,8 @@ public class ManuscriptReviewReadableService {
         if (roleIds.isEmpty()) {
             return Collections.emptySet();
         }
-
-        List<Long> userIds = userRoleMapper.selectList(
-            new QueryWrapper<ManuscriptReviewSystemUserRoleEntity>()
-                .in("role_id", roleIds)
-        ).stream()
+        List<Long> userIds = userRoleMapper.selectList(new QueryWrapper<ManuscriptReviewSystemUserRoleEntity>().in("role_id", roleIds))
+            .stream()
             .map(ManuscriptReviewSystemUserRoleEntity::getUserId)
             .filter(Objects::nonNull)
             .distinct()
@@ -360,14 +434,12 @@ public class ManuscriptReviewReadableService {
         if (userIds.isEmpty()) {
             return Collections.emptySet();
         }
-
         return userMapper.selectList(
             new QueryWrapper<ManuscriptReviewSystemUserEntity>()
                 .in("user_id", userIds)
                 .eq("tenant_id", tenantId)
                 .eq("status", ACTIVE)
-                .eq("del_flag", ACTIVE)
-        ).stream()
+                .eq("del_flag", ACTIVE)).stream()
             .map(ManuscriptReviewSystemUserEntity::getUserId)
             .filter(Objects::nonNull)
             .collect(Collectors.toSet());
@@ -384,8 +456,7 @@ public class ManuscriptReviewReadableService {
                 .eq("process_type", record.getProcessType())
                 .eq("status", ACTIVE)
                 .orderByDesc("id")
-                .last("limit 1")
-        );
+                .last("limit 1"));
         if (flowConfig == null) {
             return null;
         }
@@ -397,25 +468,61 @@ public class ManuscriptReviewReadableService {
         };
     }
 
-    private boolean isEnabled(ManuscriptReviewAttachmentEntity attachment) {
-        return ENABLED.equals(attachment.getEnabled());
-    }
-
-    private boolean isEnabled(ManuscriptReviewExternalLinkEntity externalLink) {
-        return ENABLED.equals(externalLink.getEnabled());
-    }
-
-    private boolean isEnabled(ManuscriptReviewVideoMarkerEntity videoMarker) {
-        return ENABLED.equals(videoMarker.getEnabled());
-    }
-
-    private String resolveProcessTypeCode(String processTypeLabel) {
-        for (ManuscriptReviewProcessType value : ManuscriptReviewProcessType.values()) {
-            if (value.getDisplayName().equals(processTypeLabel)) {
-                return value.name();
-            }
+    private String summarizeContent(String contentBody) {
+        String normalized = trimToNull(contentBody);
+        if (normalized == null) {
+            return null;
         }
-        return processTypeLabel;
+        return normalized.length() <= 200 ? normalized : normalized.substring(0, 200);
+    }
+
+    private String resolveButtonReason(String businessStatus, boolean canView, boolean isHistoryParticipant) {
+        if (!canView) {
+            return "当前用户无权查看该流程";
+        }
+        if ("REJECT".equals(businessStatus)) {
+            return "流程已驳回，不可继续操作";
+        }
+        if ("CANCEL".equals(businessStatus)) {
+            return "流程已取消，不可继续操作";
+        }
+        if ("FINISH".equals(businessStatus)) {
+            return "流程已完成，不可继续操作";
+        }
+        if (isHistoryParticipant) {
+            return "当前用户仅可查看历史参与记录";
+        }
+        return null;
+    }
+
+    private String mapBusinessStatusCode(String businessStatusLabel) {
+        if (businessStatusLabel == null) {
+            return null;
+        }
+        return switch (businessStatusLabel) {
+            case "审批中" -> "WAITING";
+            case "已退回" -> "BACK";
+            case "已完成", "流程完成" -> "FINISH";
+            case "已取消", "流程已取消" -> "CANCEL";
+            case "已驳回", "流程已驳回" -> "REJECT";
+            default -> null;
+        };
+    }
+
+    private String mapCurrentNodeCode(String currentNodeLabel) {
+        if (currentNodeLabel == null) {
+            return null;
+        }
+        return switch (currentNodeLabel) {
+            case "待一级审批" -> "LEVEL_1";
+            case "待二级审批" -> "LEVEL_2";
+            case "待三级审批" -> "LEVEL_3";
+            case "待发起人处理" -> "RETURN_TO_INITIATOR";
+            case "流程完成" -> "FLOW_FINISHED";
+            case "流程已取消" -> "FLOW_CANCELED";
+            case "流程已驳回" -> "FLOW_REJECTED";
+            default -> null;
+        };
     }
 
     private String resolveProcessTypeLabel(String processType) {
@@ -430,31 +537,40 @@ public class ManuscriptReviewReadableService {
         return processType;
     }
 
-    private String toActionLabel(ManuscriptReviewDetailAction action) {
-        Map<ManuscriptReviewDetailAction, String> labels = new EnumMap<>(ManuscriptReviewDetailAction.class);
-        labels.put(ManuscriptReviewDetailAction.MODIFY, "修改");
-        labels.put(ManuscriptReviewDetailAction.RESUBMIT, "再次提交");
-        labels.put(ManuscriptReviewDetailAction.GO_APPROVE, "去审批");
-        labels.put(ManuscriptReviewDetailAction.BACK, "返回");
-        return labels.get(action);
+    private int safePageNum(Integer pageNum) {
+        return pageNum == null || pageNum <= 0 ? 1 : pageNum;
+    }
+
+    private int safePageSize(Integer pageSize) {
+        return pageSize == null || pageSize <= 0 ? Integer.MAX_VALUE : pageSize;
+    }
+
+    private boolean isEnabled(ManuscriptReviewAttachmentEntity attachment) {
+        return ENABLED.equals(attachment.getEnabled());
+    }
+
+    private boolean isEnabled(ManuscriptReviewExternalLinkEntity externalLink) {
+        return ENABLED.equals(externalLink.getEnabled());
+    }
+
+    private boolean isEnabled(ManuscriptReviewVideoMarkerEntity videoMarker) {
+        return ENABLED.equals(videoMarker.getEnabled());
+    }
+
+    private LocalDateTime parseDateTime(String value) {
+        String normalized = trimToNull(value);
+        return normalized == null ? null : LocalDateTime.parse(normalized, TIME_FORMATTER);
+    }
+
+    private LocalDateTime toLocalDateTime(Date date) {
+        return Instant.ofEpochMilli(date.getTime()).atZone(BUSINESS_ZONE_ID).toLocalDateTime();
     }
 
     private String formatDate(Date date) {
         if (date == null) {
             return null;
         }
-        Instant instant = Instant.ofEpochMilli(date.getTime());
-        return TIME_FORMATTER.format(instant.atZone(BUSINESS_ZONE_ID));
-    }
-
-    private String formatDuration(Integer seconds) {
-        if (seconds == null || seconds < 0) {
-            return null;
-        }
-        int hour = seconds / 3600;
-        int minute = (seconds % 3600) / 60;
-        int second = seconds % 60;
-        return String.format("%02d:%02d:%02d", hour, minute, second);
+        return TIME_FORMATTER.format(Instant.ofEpochMilli(date.getTime()).atZone(BUSINESS_ZONE_ID));
     }
 
     private String normalizeText(String text) {
@@ -462,6 +578,11 @@ public class ManuscriptReviewReadableService {
             return null;
         }
         return text.replaceAll("\\s+", " ").trim();
+    }
+
+    private String normalizeTenantId(String tenantId) {
+        String normalized = trimToNull(tenantId);
+        return normalized == null ? DEFAULT_TENANT_ID : normalized;
     }
 
     private String trimToNull(String value) {
@@ -472,9 +593,12 @@ public class ManuscriptReviewReadableService {
         return trimmed.isEmpty() ? null : trimmed;
     }
 
-    private String normalizeTenantId(String tenantId) {
-        String normalized = trimToNull(tenantId);
-        return normalized == null ? DEFAULT_TENANT_ID : normalized;
+    private Long requireCurrentUserId() {
+        Long currentUserId = currentUserGateway.getCurrentUserId();
+        if (currentUserId == null) {
+            throw new ServiceException(CURRENT_USER_REQUIRED_MESSAGE);
+        }
+        return currentUserId;
     }
 
     @SafeVarargs

@@ -1,190 +1,161 @@
 package com.gxpublish.brain.manuscript.review.controller;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
-import java.time.Clock;
-import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.List;
 
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.springframework.web.bind.annotation.RequestMapping;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.gxpublish.brain.common.core.domain.R;
-import com.gxpublish.brain.common.core.exception.ServiceException;
 import com.gxpublish.brain.manuscript.review.controller.request.ManuscriptReviewLedgerQueryRequest;
 import com.gxpublish.brain.manuscript.review.controller.request.ManuscriptReviewSubmitRequest;
 import com.gxpublish.brain.manuscript.review.controller.response.ManuscriptReviewDetailResponse;
 import com.gxpublish.brain.manuscript.review.controller.response.ManuscriptReviewLedgerItemResponse;
-import com.gxpublish.brain.manuscript.review.controller.response.ManuscriptReviewSubmitResponse;
-import com.gxpublish.brain.manuscript.review.domain.enums.ManuscriptReviewProcessType;
-import com.gxpublish.brain.manuscript.review.gateway.ManuscriptReviewConfigGateway;
-import com.gxpublish.brain.manuscript.review.gateway.ManuscriptReviewCurrentUserGateway;
-import com.gxpublish.brain.manuscript.review.gateway.ManuscriptReviewResubmitGateway;
-import com.gxpublish.brain.manuscript.review.gateway.ManuscriptReviewSerialGateway;
-import com.gxpublish.brain.manuscript.review.gateway.ManuscriptReviewUserRoleGateway;
-import com.gxpublish.brain.manuscript.review.service.ManuscriptReviewReadableService;
-import com.gxpublish.brain.manuscript.review.service.ManuscriptReviewService;
 
 @Tag("dev")
 class ManuscriptReviewApiControllerTest {
 
-    private static final ZoneId BUSINESS_ZONE_ID = ZoneId.of("Asia/Shanghai");
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
-    void shouldExposeReadableSubmitContractWithoutApplicantUserId() throws Exception {
-        ManuscriptReviewConfigGateway configGateway = mock(ManuscriptReviewConfigGateway.class);
-        ManuscriptReviewSerialGateway serialGateway = mock(ManuscriptReviewSerialGateway.class);
-        ManuscriptReviewUserRoleGateway userRoleGateway = mock(ManuscriptReviewUserRoleGateway.class);
-        ManuscriptReviewResubmitGateway resubmitGateway = mock(ManuscriptReviewResubmitGateway.class);
-        ManuscriptReviewCurrentUserGateway currentUserGateway = mock(ManuscriptReviewCurrentUserGateway.class);
-        when(configGateway.hasCompleteApprovalChain(ManuscriptReviewProcessType.AUDIT)).thenReturn(true);
-        when(configGateway.hasActiveApproverMembers(ManuscriptReviewProcessType.AUDIT)).thenReturn(true);
-        when(serialGateway.nextSerial(ManuscriptReviewProcessType.AUDIT, "20260321")).thenReturn(1);
-        when(userRoleGateway.hasCertifiedApplicantRole(3001L)).thenReturn(false);
-        when(currentUserGateway.getCurrentUserId()).thenReturn(3001L);
+    void shouldExposeFrozenWorkflowRootMappings() {
+        RequestMapping apiMapping = ManuscriptReviewApiController.class.getAnnotation(RequestMapping.class);
+        RequestMapping readableMapping = ManuscriptReviewReadableApiController.class.getAnnotation(RequestMapping.class);
 
-        ManuscriptReviewService manuscriptReviewService = new ManuscriptReviewService(
-            configGateway,
-            serialGateway,
-            userRoleGateway,
-            resubmitGateway,
-            currentUserGateway,
-            Clock.fixed(LocalDate.of(2026, 3, 21).atStartOfDay(BUSINESS_ZONE_ID).toInstant(), BUSINESS_ZONE_ID)
-        );
-        ManuscriptReviewApiController controller = new ManuscriptReviewApiController(manuscriptReviewService);
-
-        ManuscriptReviewSubmitRequest request = new ManuscriptReviewSubmitRequest();
-        request.setProcessType(ManuscriptReviewProcessType.AUDIT);
-        request.setTitle("测试稿件");
-        request.setContent("正文");
-        request.setAttachmentCount(1);
-
-        R<ManuscriptReviewSubmitResponse> result = controller.submit(request);
-
-        assertEquals(R.SUCCESS, result.getCode());
-        assertEquals("SH20260321001", result.getData().getManuscriptCode());
-        assertEquals("审批中", result.getData().getFlowStatus());
-        assertEquals("待一级审批", result.getData().getCurrentNode());
-
-        ObjectMapper objectMapper = new ObjectMapper();
-        String requestJson = objectMapper.writeValueAsString(request);
-        String responseJson = objectMapper.writeValueAsString(result);
-        assertFalse(requestJson.contains("applicantUserId"));
-        assertFalse(responseJson.contains("applicantUserId"));
+        assertArrayEquals(new String[] {"/workflow/manuscript-review"}, apiMapping.value());
+        assertArrayEquals(new String[] {"/workflow/manuscript-review"}, readableMapping.value());
     }
 
     @Test
-    void shouldExposeReadableLedgerContractWithoutRawIdentifiersOrEnums() throws Exception {
-        ManuscriptReviewReadableService readableService = mock(ManuscriptReviewReadableService.class);
-        ManuscriptReviewReadableApiController controller = new ManuscriptReviewReadableApiController(readableService);
-
+    void shouldSerializeFrozenLedgerQueryContract() throws Exception {
         ManuscriptReviewLedgerQueryRequest request = new ManuscriptReviewLedgerQueryRequest();
         request.setKeyword("系统稿件号");
-        request.setProcessTypeLabel("审核流程");
-        request.setFlowStatusLabel("审批中");
-        request.setCurrentNodeLabel("待一级审批");
+        request.setProcessType("AUDIT");
+        request.setMediaChannel("新华社/要闻");
+        request.setBusinessStatus("WAITING");
+        request.setCurrentNodeCode("LEVEL_1");
+        request.setStartTimeFrom("2026-03-21 00:00:00");
+        request.setStartTimeTo("2026-03-21 23:59:59");
+        request.setPageNum(1);
+        request.setPageSize(20);
 
+        String requestJson = objectMapper.writeValueAsString(request);
+
+        assertTrue(requestJson.contains("\"processType\":\"AUDIT\""));
+        assertTrue(requestJson.contains("\"mediaChannel\":\"新华社/要闻\""));
+        assertTrue(requestJson.contains("\"businessStatus\":\"WAITING\""));
+        assertTrue(requestJson.contains("\"currentNodeCode\":\"LEVEL_1\""));
+        assertTrue(requestJson.contains("\"startTimeFrom\":\"2026-03-21 00:00:00\""));
+        assertTrue(requestJson.contains("\"startTimeTo\":\"2026-03-21 23:59:59\""));
+        assertTrue(requestJson.contains("\"pageNum\":1"));
+        assertTrue(requestJson.contains("\"pageSize\":20"));
+        assertFalse(requestJson.contains("processTypeLabel"));
+        assertFalse(requestJson.contains("flowStatusLabel"));
+        assertFalse(requestJson.contains("currentNodeLabel"));
+    }
+
+    @Test
+    void shouldSerializeFrozenSaveRequestWithReadonlySubmitDepartment() throws Exception {
+        ManuscriptReviewSubmitRequest request = new ManuscriptReviewSubmitRequest();
+        request.setId(9001L);
+        request.setProcessType("AUDIT");
+        request.setExternalManuscriptCode("EXT-001");
+        request.setTitle("审校稿件");
+        request.setMediaChannel("新华社/要闻");
+        request.setSubmitDepartment("总编室");
+        request.setAuthorName("张三、李四");
+        request.setRemark("补充说明");
+        request.setContentBody("正文内容");
+
+        String requestJson = objectMapper.writeValueAsString(request);
+
+        assertTrue(requestJson.contains("\"submitDepartment\":\"总编室\""));
+        assertTrue(requestJson.contains("\"mediaChannel\":\"新华社/要闻\""));
+        assertTrue(requestJson.contains("\"contentBody\":\"正文内容\""));
+        assertFalse(requestJson.contains("\"content\":"));
+        assertFalse(requestJson.contains("\"attachmentCount\":"));
+        assertFalse(requestJson.contains("\"externalLinkCount\":"));
+    }
+
+    @Test
+    void shouldSerializeFrozenLedgerItemWithoutPermissionLeakage() throws Exception {
         ManuscriptReviewLedgerItemResponse item = new ManuscriptReviewLedgerItemResponse();
-        item.setReviewId(9001L);
+        item.setId(9001L);
+        item.setProcessType("AUDIT");
+        item.setProcessTypeLabel("审核流程");
         item.setManuscriptCode("SH20260321001");
         item.setTitle("审校稿件");
-        item.setProcessTypeLabel("审核流程");
-        item.setMediaChannelLabel("新华社/要闻");
-        item.setFlowStatusLabel("审批中");
+        item.setMediaChannel("新华社/要闻");
+        item.setBusinessStatus("WAITING");
+        item.setBusinessStatusLabel("审批中");
+        item.setCurrentNodeCode("LEVEL_1");
         item.setCurrentNodeLabel("待一级审批");
         item.setInitiatorName("张三");
         item.setUpdateTime("2026-03-23 10:20:30");
-        when(readableService.listLedger(any(ManuscriptReviewLedgerQueryRequest.class))).thenReturn(List.of(item));
 
-        R<List<ManuscriptReviewLedgerItemResponse>> result = controller.ledger(request);
+        String responseJson = objectMapper.writeValueAsString(item);
 
-        assertEquals(R.SUCCESS, result.getCode());
-        assertEquals(1, result.getData().size());
-        assertEquals(9001L, result.getData().get(0).getReviewId());
-
-        ObjectMapper objectMapper = new ObjectMapper();
-        String requestJson = objectMapper.writeValueAsString(request);
-        String responseJson = objectMapper.writeValueAsString(result);
-        assertTrue(responseJson.contains("reviewId"));
-        assertFalse(requestJson.contains("AUDIT"));
-        assertFalse(responseJson.contains("AUDIT"));
-        assertFalse(responseJson.contains("initiatorUserId"));
-        assertFalse(responseJson.contains("userName"));
-        assertFalse(responseJson.contains("roleKey"));
-        assertFalse(responseJson.contains("permissionFlag"));
+        assertTrue(responseJson.contains("\"id\":9001"));
+        assertTrue(responseJson.contains("\"processType\":\"AUDIT\""));
+        assertTrue(responseJson.contains("\"businessStatus\":\"WAITING\""));
+        assertTrue(responseJson.contains("\"businessStatusLabel\":\"审批中\""));
+        assertTrue(responseJson.contains("\"mediaChannel\":\"新华社/要闻\""));
+        assertFalse(responseJson.contains("permissionMatrix"));
+        assertFalse(responseJson.contains("canEdit"));
     }
 
     @Test
-    void shouldReturnEmptyReadableLedgerWhenDatabaseHasNoRows() {
-        ManuscriptReviewReadableService readableService = mock(ManuscriptReviewReadableService.class);
-        ManuscriptReviewReadableApiController controller = new ManuscriptReviewReadableApiController(readableService);
-        when(readableService.listLedger(any(ManuscriptReviewLedgerQueryRequest.class))).thenReturn(List.of());
-
-        R<List<ManuscriptReviewLedgerItemResponse>> result = controller.ledger(new ManuscriptReviewLedgerQueryRequest());
-
-        assertEquals(R.SUCCESS, result.getCode());
-        assertTrue(result.getData().isEmpty());
-    }
-
-    @Test
-    void shouldRejectReadableDetailWhenReviewMissing() {
-        ManuscriptReviewReadableService readableService = mock(ManuscriptReviewReadableService.class);
-        ManuscriptReviewReadableApiController controller = new ManuscriptReviewReadableApiController(readableService);
-        when(readableService.getDetail(9009L)).thenThrow(new ServiceException("稿件审校流程不存在"));
-
-        ServiceException exception = assertThrows(ServiceException.class, () -> controller.detail(9009L));
-
-        assertEquals("稿件审校流程不存在", exception.getMessage());
-    }
-
-    @Test
-    void shouldExposeReadableDetailContractWithoutTechnicalIdentifiersInBusinessPayload() throws Exception {
-        ManuscriptReviewReadableService readableService = mock(ManuscriptReviewReadableService.class);
-        ManuscriptReviewReadableApiController controller = new ManuscriptReviewReadableApiController(readableService);
-
+    void shouldSerializeFrozenDetailContractWithResourceUrlAndPermissionMatrix() throws Exception {
         ManuscriptReviewDetailResponse detail = new ManuscriptReviewDetailResponse();
-        detail.setReviewId(9002L);
-        detail.setSummaryCard(new ManuscriptReviewDetailResponse.SummaryCard("已退回", "待发起人处理", "张三", "2026-03-23 11:22:33"));
-        detail.setManuscriptCard(new ManuscriptReviewDetailResponse.ManuscriptCard(
-            "审核流程", "SH20260321002", "EXT-001", "稿件标题", "新华社/要闻", "总编室", "张三、李四", "补充说明", "正文内容"
-        ));
-        detail.setActionBar(new ManuscriptReviewDetailResponse.ActionBar(true, List.of("修改", "再次提交", "返回")));
-        detail.setTimeline(List.of(new ManuscriptReviewDetailResponse.TimelineItem("2026-03-23 11:20:00", "张三新增了流程。")));
-        detail.setResources(new ManuscriptReviewDetailResponse.ResourceSection(
-            List.of(new ManuscriptReviewDetailResponse.AttachmentItem("送审单.pdf", "https://files.example/a.pdf", 123L, "application/pdf", null, null)),
-            List.of(new ManuscriptReviewDetailResponse.ExternalLinkItem("素材参考", "https://example.com/ref", null, null)),
-            List.of(new ManuscriptReviewDetailResponse.VideoItem(
-                "样片.mp4", "https://files.example/video.mp4", 1024L, "video/mp4", "00:10:00",
-                List.of(new ManuscriptReviewDetailResponse.VideoMarkerItem("00:00:05", "00:00:10", "第一处问题", "2026-03-23 11:21:00", null))
-            )),
-            List.of(new ManuscriptReviewDetailResponse.AttachmentItem("旧附件.pdf", "https://files.example/old.pdf", 111L, "application/pdf", "2026-03-23 11:00:00", null)),
-            List.of(new ManuscriptReviewDetailResponse.ExternalLinkItem("旧链接", "https://example.com/old", "2026-03-23 11:05:00", null)),
-            List.of(new ManuscriptReviewDetailResponse.VideoMarkerItem("00:00:15", null, "停用标注", "2026-03-23 11:06:00", "2026-03-23 11:07:00"))
-        ));
-        when(readableService.getDetail(9002L)).thenReturn(detail);
+        detail.setId(9002L);
+        detail.setProcessType("AUDIT");
+        detail.setProcessTypeLabel("审核流程");
+        detail.setManuscriptCode("SH20260321002");
+        detail.setExternalManuscriptCode("EXT-001");
+        detail.setTitle("稿件标题");
+        detail.setMediaChannel("新华社/要闻");
+        detail.setSubmitDepartment("总编室");
+        detail.setAuthorName("张三、李四");
+        detail.setRemark("补充说明");
+        detail.setContentBody("正文内容");
+        detail.setContentSummary("正文内容");
+        detail.setBusinessStatus("BACK");
+        detail.setBusinessStatusLabel("已退回");
+        detail.setCurrentNodeCode("RETURN_TO_INITIATOR");
+        detail.setCurrentNodeLabel("待发起人处理");
+        detail.setInitiatorName("张三");
+        detail.setFirstSubmitTime("2026-03-21 11:00:00");
+        detail.setLatestSubmitTime("2026-03-23 11:22:33");
+        detail.setUpdateTime("2026-03-23 11:22:33");
+        detail.setAttachmentList(List.of(new ManuscriptReviewDetailResponse.ResourceItemVO(
+            1L, "ATTACHMENT", "附件", "送审单.pdf", null, "2026-03-23 11:10:00", "https://files.example/a.pdf")));
+        detail.setExternalLinkList(List.of(new ManuscriptReviewDetailResponse.ResourceItemVO(
+            2L, "EXTERNAL_LINK", "外链", "素材参考", "https://example.com/ref", "2026-03-23 11:11:00", null)));
+        detail.setVideoList(List.of(new ManuscriptReviewDetailResponse.ResourceItemVO(
+            3L, "VIDEO", "视频", "样片.mp4", null, "2026-03-23 11:12:00", "https://files.example/video.mp4")));
+        detail.setVideoMarkList(List.of(new ManuscriptReviewDetailResponse.VideoMarkItemVO(
+            4L, "00:00:05", "00:00:10", "第一处问题")));
+        detail.setTimelineItems(List.of(new ManuscriptReviewDetailResponse.TimelineItemVO(
+            "2026-03-23 11:20:00", "WORKFLOW", "流程", "CREATE", "张三新增了流程。", "张三", null, null, null, null)));
+        detail.setPermissionMatrix(new ManuscriptReviewDetailResponse.PermissionMatrixVO(
+            true, false, false, true, true, true, false, false, null));
 
-        R<ManuscriptReviewDetailResponse> result = controller.detail(9002L);
+        String responseJson = objectMapper.writeValueAsString(detail);
 
-        assertEquals(R.SUCCESS, result.getCode());
-        assertEquals(9002L, result.getData().getReviewId());
-        assertEquals("已退回", result.getData().getSummaryCard().getFlowStatusLabel());
-        assertEquals("审核流程", result.getData().getManuscriptCard().getProcessTypeLabel());
-
-        ObjectMapper objectMapper = new ObjectMapper();
-        String responseJson = objectMapper.writeValueAsString(result);
-        assertTrue(responseJson.contains("reviewId"));
-        assertFalse(responseJson.contains("actionType"));
-        assertFalse(responseJson.contains("actorUserId"));
-        assertFalse(responseJson.contains("roleKey"));
-        assertFalse(responseJson.contains("permissionFlag"));
-        assertFalse(responseJson.contains("userName"));
+        assertTrue(responseJson.contains("\"id\":9002"));
+        assertTrue(responseJson.contains("\"submitDepartment\":\"总编室\""));
+        assertTrue(responseJson.contains("\"permissionMatrix\":"));
+        assertTrue(responseJson.contains("\"resourceUrl\":\"https://files.example/a.pdf\""));
+        assertTrue(responseJson.contains("\"resourceUrl\":\"https://files.example/video.mp4\""));
+        assertTrue(responseJson.contains("\"externalUrl\":\"https://example.com/ref\""));
+        assertFalse(responseJson.contains("\"summaryCard\":"));
+        assertFalse(responseJson.contains("\"manuscriptCard\":"));
+        assertFalse(responseJson.contains("\"actionBar\":"));
+        assertFalse(responseJson.contains("\"resources\":"));
+        assertFalse(responseJson.contains("\"fileUrl\":"));
     }
 }
