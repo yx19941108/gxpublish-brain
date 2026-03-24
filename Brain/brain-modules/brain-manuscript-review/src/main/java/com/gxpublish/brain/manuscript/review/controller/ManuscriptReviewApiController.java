@@ -17,6 +17,7 @@ import com.gxpublish.brain.manuscript.review.domain.command.AddManuscriptReviewR
 import com.gxpublish.brain.manuscript.review.domain.command.AddManuscriptReviewVideoMarkCommand;
 import com.gxpublish.brain.manuscript.review.domain.command.CreateManuscriptReviewCommand;
 import com.gxpublish.brain.manuscript.review.domain.command.DisableManuscriptReviewResourceCommand;
+import com.gxpublish.brain.manuscript.review.domain.command.DisableManuscriptReviewVideoMarkCommand;
 import com.gxpublish.brain.manuscript.review.domain.command.ResubmitManuscriptReviewCommand;
 import com.gxpublish.brain.manuscript.review.domain.command.UpdateManuscriptReviewCommand;
 import com.gxpublish.brain.manuscript.review.domain.enums.ManuscriptReviewProcessType;
@@ -131,6 +132,15 @@ public class ManuscriptReviewApiController {
         return R.ok(manuscriptReviewReadableService.getVideoMarkItem(reviewId, markId));
     }
 
+    @PutMapping("/video-mark/disable")
+    public R<Void> disableVideoMark(@RequestBody VideoMarkDisableRequest request) {
+        manuscriptReviewService.disableVideoMark(DisableManuscriptReviewVideoMarkCommand.builder()
+            .markId(request.getMarkId())
+            .disabledReason(request.getDisabledReason())
+            .build());
+        return R.ok();
+    }
+
     private ManuscriptReviewProcessType resolveProcessType(String processType) {
         if (processType == null || processType.trim().isEmpty()) {
             throw new ServiceException("流程类型不能为空");
@@ -192,5 +202,13 @@ public class ManuscriptReviewApiController {
         private String startTimeText;
         private String endTimeText;
         private String markContent;
+    }
+
+    @Getter
+    @Setter
+    public static class VideoMarkDisableRequest {
+
+        private Long markId;
+        private String disabledReason;
     }
 }

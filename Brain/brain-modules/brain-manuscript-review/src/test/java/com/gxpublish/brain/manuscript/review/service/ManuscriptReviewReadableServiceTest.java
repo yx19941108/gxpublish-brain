@@ -117,6 +117,28 @@ class ManuscriptReviewReadableServiceTest {
         assertEquals("WAITING", detail.getBusinessStatus());
     }
 
+    @Test
+    void shouldExposeNewHistoryActionTypesInTimelineItems() {
+        ReadableFixture fixture = new ReadableFixture(3003L);
+        when(fixture.recordMapper.selectById(9002L)).thenReturn(buildReviewRecord());
+        when(fixture.attachmentMapper.selectList(any())).thenReturn(List.of());
+        when(fixture.externalLinkMapper.selectList(any())).thenReturn(List.of());
+        when(fixture.videoMarkerMapper.selectList(any())).thenReturn(List.of());
+        when(fixture.historyMapper.selectList(any())).thenReturn(List.of(
+            buildUpdateHistory(),
+            buildResourceDisableHistory(),
+            buildVideoMarkDisableHistory()
+        ));
+
+        ManuscriptReviewDetailResponse detail = fixture.readableService.getDetail(9002L);
+
+        assertEquals(3, detail.getTimelineItems().size());
+        assertEquals("UPDATE", detail.getTimelineItems().get(0).getEventCode());
+        assertEquals("张三更新了审校流程单：标题由“旧标题”改为“新标题”。", detail.getTimelineItems().get(0).getEventText());
+        assertEquals("RESOURCE_DISABLE", detail.getTimelineItems().get(1).getEventCode());
+        assertEquals("VIDEO_MARK_DISABLE", detail.getTimelineItems().get(2).getEventCode());
+    }
+
     private static ManuscriptReviewRecordEntity buildReviewRecord() {
         ManuscriptReviewRecordEntity entity = new ManuscriptReviewRecordEntity();
         entity.setId(9002L);
@@ -222,6 +244,39 @@ class ManuscriptReviewReadableServiceTest {
         entity.setActorUserId(3004L);
         entity.setActorName("李四");
         entity.setCreateTime(new Date(1774236000000L));
+        return entity;
+    }
+
+    private static ManuscriptReviewHistoryEntity buildUpdateHistory() {
+        ManuscriptReviewHistoryEntity entity = new ManuscriptReviewHistoryEntity();
+        entity.setReviewId(9002L);
+        entity.setActionType("UPDATE");
+        entity.setActionText("张三更新了审校流程单：标题由“旧标题”改为“新标题”。");
+        entity.setActorUserId(3003L);
+        entity.setActorName("张三");
+        entity.setCreateTime(new Date(1774236060000L));
+        return entity;
+    }
+
+    private static ManuscriptReviewHistoryEntity buildResourceDisableHistory() {
+        ManuscriptReviewHistoryEntity entity = new ManuscriptReviewHistoryEntity();
+        entity.setReviewId(9002L);
+        entity.setActionType("RESOURCE_DISABLE");
+        entity.setActionText("张三停用了附件《旧附件.pdf》。");
+        entity.setActorUserId(3003L);
+        entity.setActorName("张三");
+        entity.setCreateTime(new Date(1774236120000L));
+        return entity;
+    }
+
+    private static ManuscriptReviewHistoryEntity buildVideoMarkDisableHistory() {
+        ManuscriptReviewHistoryEntity entity = new ManuscriptReviewHistoryEntity();
+        entity.setReviewId(9002L);
+        entity.setActionType("VIDEO_MARK_DISABLE");
+        entity.setActionText("张三停用了视频标注《停用标注》（00:00:15）。");
+        entity.setActorUserId(3003L);
+        entity.setActorName("张三");
+        entity.setCreateTime(new Date(1774236180000L));
         return entity;
     }
 

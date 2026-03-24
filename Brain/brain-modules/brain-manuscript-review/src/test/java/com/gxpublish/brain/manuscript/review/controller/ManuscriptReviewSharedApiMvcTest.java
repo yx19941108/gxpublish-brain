@@ -1,5 +1,7 @@
 package com.gxpublish.brain.manuscript.review.controller;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
@@ -211,7 +213,7 @@ class ManuscriptReviewSharedApiMvcTest {
                 ))))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.code").value(200))
-            .andExpect(jsonPath("$.data.id").value(9002L))
+            .andExpect(jsonPath("$.data.id").value(9003L))
             .andExpect(jsonPath("$.data.resourceType").value("EXTERNAL_LINK"));
 
         fixture.perform(post("/workflow/manuscript-review/submitAndFlowStart")
@@ -265,6 +267,32 @@ class ManuscriptReviewSharedApiMvcTest {
                 ))))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.code").value(200));
+    }
+
+    @Test
+    void shouldDisableVideoMarkViaApiAndAppendHistory() throws Exception {
+        SharedApiFixture fixture = new SharedApiFixture(3003L, "000000", 2001L, "张三");
+        fixture.storeRecord(buildLedgerRecord(9310L, "SH20260321010", "标注停用稿件", "新华社/要闻",
+            "已退回", "待发起人处理", "2026-03-21 08:00:00", "2026-03-21 08:30:00"));
+        fixture.storeAttachment(buildAttachment(9410L, 9310L, true, "样片.mp4", "https://files.example/video.mp4", "1",
+            "2026-03-21 08:10:00", null));
+        fixture.storeVideoMarker(buildVideoMark(9610L, 9310L, 9410L, "00:00:05", "00:00:10", "第一处问题", "1",
+            "2026-03-21 08:20:00", null));
+
+        fixture.perform(put("/workflow/manuscript-review/video-mark/disable")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(fixture.json(Map.of(
+                    "markId", 9610L,
+                    "disabledReason", "标注已废弃"
+                ))))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.code").value(200));
+
+        assertEquals("0", fixture.videoMarkers.get(9610L).getEnabled());
+        assertEquals("标注已废弃", fixture.videoMarkers.get(9610L).getRemark());
+        assertTrue(fixture.histories.stream().anyMatch(history ->
+            "VIDEO_MARK_DISABLE".equals(history.getActionType())
+                && "张三停用了视频标注《第一处问题》（00:00:05 - 00:00:10）。".equals(history.getActionText())));
     }
 
     private static ManuscriptReviewRecordEntity buildLedgerRecord(Long reviewId,
@@ -483,6 +511,19 @@ class ManuscriptReviewSharedApiMvcTest {
                 videoMarkers.put(entity.getId(), entity);
                 return 1;
             });
+            when(videoMarkerMapper.updateById(any(ManuscriptReviewVideoMarkerEntity.class))).thenAnswer(invocation -> {
+                ManuscriptReviewVideoMarkerEntity entity = invocation.getArgument(0, ManuscriptReviewVideoMarkerEntity.class);
+                ManuscriptReviewVideoMarkerEntity current = videoMarkers.get(entity.getId());
+                if (current != null) {
+                    mergeVideoMarker(current, entity);
+                }
+                return 1;
+            });
+            when(historyMapper.insert(any(ManuscriptReviewHistoryEntity.class))).thenAnswer(invocation -> {
+                ManuscriptReviewHistoryEntity entity = invocation.getArgument(0, ManuscriptReviewHistoryEntity.class);
+                histories.add(entity);
+                return 1;
+            });
 
             ManuscriptReviewService manuscriptReviewService = new ManuscriptReviewService(
                 recordMapper,
@@ -626,6 +667,27 @@ class ManuscriptReviewSharedApiMvcTest {
         }
 
         private static void mergeExternalLink(ManuscriptReviewExternalLinkEntity current, ManuscriptReviewExternalLinkEntity patch) {
+            if (patch.getEnabled() != null) {
+                current.setEnabled(patch.getEnabled());
+            }
+            if (patch.getDisabledBy() != null) {
+                current.setDisabledBy(patch.getDisabledBy());
+            }
+            if (patch.getDisabledTime() != null) {
+                current.setDisabledTime(patch.getDisabledTime());
+            }
+            if (patch.getRemark() != null) {
+                current.setRemark(patch.getRemark());
+            }
+            if (patch.getUpdateBy() != null) {
+                current.setUpdateBy(patch.getUpdateBy());
+            }
+            if (patch.getUpdateTime() != null) {
+                current.setUpdateTime(patch.getUpdateTime());
+            }
+        }
+
+        private static void mergeVideoMarker(ManuscriptReviewVideoMarkerEntity current, ManuscriptReviewVideoMarkerEntity patch) {
             if (patch.getEnabled() != null) {
                 current.setEnabled(patch.getEnabled());
             }

@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -26,10 +27,13 @@ import com.gxpublish.brain.manuscript.review.domain.command.AddManuscriptReviewR
 import com.gxpublish.brain.manuscript.review.domain.command.AddManuscriptReviewVideoMarkCommand;
 import com.gxpublish.brain.manuscript.review.domain.command.CreateManuscriptReviewCommand;
 import com.gxpublish.brain.manuscript.review.domain.command.DisableManuscriptReviewResourceCommand;
+import com.gxpublish.brain.manuscript.review.domain.command.DisableManuscriptReviewVideoMarkCommand;
 import com.gxpublish.brain.manuscript.review.domain.command.ResubmitManuscriptReviewCommand;
 import com.gxpublish.brain.manuscript.review.domain.command.UpdateManuscriptReviewCommand;
 import com.gxpublish.brain.manuscript.review.domain.entity.ManuscriptReviewAttachmentEntity;
+import com.gxpublish.brain.manuscript.review.domain.entity.ManuscriptReviewExternalLinkEntity;
 import com.gxpublish.brain.manuscript.review.domain.entity.ManuscriptReviewFlowConfigEntity;
+import com.gxpublish.brain.manuscript.review.domain.entity.ManuscriptReviewHistoryEntity;
 import com.gxpublish.brain.manuscript.review.domain.entity.ManuscriptReviewRecordEntity;
 import com.gxpublish.brain.manuscript.review.domain.entity.ManuscriptReviewSystemRoleEntity;
 import com.gxpublish.brain.manuscript.review.domain.entity.ManuscriptReviewSystemUserEntity;
@@ -97,6 +101,11 @@ class ManuscriptReviewServiceTest {
         assertNull(entity.getAuthorNames());
         assertNull(entity.getContent());
         assertNull(entity.getNote());
+
+        ArgumentCaptor<ManuscriptReviewHistoryEntity> historyCaptor = ArgumentCaptor.forClass(ManuscriptReviewHistoryEntity.class);
+        verify(fixture.historyMapper).insert(historyCaptor.capture());
+        assertEquals("CREATE", historyCaptor.getValue().getActionType());
+        assertEquals("张三新增了审校流程单《审校稿件》。", historyCaptor.getValue().getActionText());
     }
 
     @Test
@@ -121,6 +130,39 @@ class ManuscriptReviewServiceTest {
 
         assertEquals("报送部门不允许修改", exception.getMessage());
         verify(fixture.recordMapper, never()).updateById(any(ManuscriptReviewRecordEntity.class));
+    }
+
+    @Test
+    void shouldWriteUpdateHistoryWithReadableDiffSummary() {
+        ServiceFixture fixture = new ServiceFixture(1001L, "000000", 2001L, "张三");
+        ManuscriptReviewRecordEntity existing = buildRecord(9008L);
+        existing.setExternalManuscriptCode("EXT-OLD");
+        existing.setTitle("旧标题");
+        existing.setMediaChannel("旧栏目");
+        existing.setAuthorName("旧作者");
+        existing.setRemarkText("旧说明");
+        existing.setContentBody("旧正文");
+        when(fixture.recordMapper.selectById(9008L)).thenReturn(existing);
+        when(fixture.recordMapper.selectCount(any())).thenReturn(0L);
+
+        fixture.service.update(UpdateManuscriptReviewCommand.builder()
+            .id(9008L)
+            .processType(ManuscriptReviewProcessType.AUDIT)
+            .externalManuscriptCode("EXT-NEW")
+            .title("新标题")
+            .mediaChannel("新栏目")
+            .submitDepartment("总编室")
+            .authorName("新作者")
+            .remark("新说明")
+            .contentBody("新正文")
+            .build());
+
+        ArgumentCaptor<ManuscriptReviewHistoryEntity> historyCaptor = ArgumentCaptor.forClass(ManuscriptReviewHistoryEntity.class);
+        verify(fixture.historyMapper).insert(historyCaptor.capture());
+        assertEquals("UPDATE", historyCaptor.getValue().getActionType());
+        assertTrue(historyCaptor.getValue().getActionText().contains("标题由“旧标题”改为“新标题”"));
+        assertTrue(historyCaptor.getValue().getActionText().contains("媒体/栏目由“旧栏目”改为“新栏目”"));
+        assertTrue(historyCaptor.getValue().getActionText().contains("正文已更新"));
     }
 
     @Test
@@ -245,6 +287,30 @@ class ManuscriptReviewServiceTest {
         assertEquals("样片.mp4", entity.getFileName());
         assertEquals(Boolean.TRUE, entity.getIsVideo());
         assertEquals("1", entity.getEnabled());
+
+        ArgumentCaptor<ManuscriptReviewHistoryEntity> historyCaptor = ArgumentCaptor.forClass(ManuscriptReviewHistoryEntity.class);
+        verify(fixture.historyMapper).insert(historyCaptor.capture());
+        assertEquals("RESOURCE_ADD", historyCaptor.getValue().getActionType());
+        assertEquals("张三上传了视频《样片.mp4》。", historyCaptor.getValue().getActionText());
+    }
+
+    @Test
+    void shouldWriteExternalLinkHistoryWhenAddingResource() {
+        ServiceFixture fixture = new ServiceFixture(1012L, "000000", 2001L, "张三");
+        when(fixture.recordMapper.selectById(9010L)).thenReturn(buildRecord(9010L));
+        when(fixture.externalLinkMapper.selectCount(any())).thenReturn(0L);
+
+        fixture.service.addResource(AddManuscriptReviewResourceCommand.builder()
+            .reviewId(9010L)
+            .resourceType("EXTERNAL_LINK")
+            .displayName("素材参考")
+            .externalUrl("https://example.com/ref")
+            .build());
+
+        ArgumentCaptor<ManuscriptReviewHistoryEntity> historyCaptor = ArgumentCaptor.forClass(ManuscriptReviewHistoryEntity.class);
+        verify(fixture.historyMapper).insert(historyCaptor.capture());
+        assertEquals("RESOURCE_ADD", historyCaptor.getValue().getActionType());
+        assertEquals("张三新增了外链《素材参考》。", historyCaptor.getValue().getActionText());
     }
 
     @Test
@@ -266,6 +332,29 @@ class ManuscriptReviewServiceTest {
         assertEquals(1009L, updated.getDisabledBy());
         assertNotNull(updated.getDisabledTime());
         assertEquals("替换新版本附件", updated.getRemark());
+
+        ArgumentCaptor<ManuscriptReviewHistoryEntity> historyCaptor = ArgumentCaptor.forClass(ManuscriptReviewHistoryEntity.class);
+        verify(fixture.historyMapper).insert(historyCaptor.capture());
+        assertEquals("RESOURCE_DISABLE", historyCaptor.getValue().getActionType());
+        assertEquals("张三停用了附件《附件.pdf》。", historyCaptor.getValue().getActionText());
+    }
+
+    @Test
+    void shouldWriteExternalLinkDisableHistory() {
+        ServiceFixture fixture = new ServiceFixture(1013L, "000000", 2001L, "张三");
+        ManuscriptReviewExternalLinkEntity externalLink = buildExternalLink(7101L);
+        when(fixture.attachmentMapper.selectById(7101L)).thenReturn(null);
+        when(fixture.externalLinkMapper.selectById(7101L)).thenReturn(externalLink);
+
+        fixture.service.disableResource(DisableManuscriptReviewResourceCommand.builder()
+            .resourceId(7101L)
+            .disabledReason("来源失效")
+            .build());
+
+        ArgumentCaptor<ManuscriptReviewHistoryEntity> historyCaptor = ArgumentCaptor.forClass(ManuscriptReviewHistoryEntity.class);
+        verify(fixture.historyMapper).insert(historyCaptor.capture());
+        assertEquals("RESOURCE_DISABLE", historyCaptor.getValue().getActionType());
+        assertEquals("张三停用了外链《素材参考》。", historyCaptor.getValue().getActionText());
     }
 
     @Test
@@ -291,6 +380,11 @@ class ManuscriptReviewServiceTest {
         assertEquals(5, entity.getStartSeconds());
         assertEquals(70, entity.getEndSeconds());
         assertEquals("第一处问题", entity.getMarkerNote());
+
+        ArgumentCaptor<ManuscriptReviewHistoryEntity> historyCaptor = ArgumentCaptor.forClass(ManuscriptReviewHistoryEntity.class);
+        verify(fixture.historyMapper).insert(historyCaptor.capture());
+        assertEquals("VIDEO_MARK_ADD", historyCaptor.getValue().getActionType());
+        assertEquals("张三新增了视频标注《第一处问题》（00:00:05 - 00:01:10）。", historyCaptor.getValue().getActionText());
     }
 
     @Test
@@ -308,6 +402,30 @@ class ManuscriptReviewServiceTest {
             .build()));
 
         assertEquals("视频总时长未识别", exception.getMessage());
+    }
+
+    @Test
+    void shouldDisableVideoMarkAndWriteHistory() {
+        ServiceFixture fixture = new ServiceFixture(1014L, "000000", 2001L, "张三");
+        ManuscriptReviewVideoMarkerEntity marker = buildVideoMarker(7201L);
+        when(fixture.videoMarkerMapper.selectById(7201L)).thenReturn(marker);
+
+        fixture.service.disableVideoMark(DisableManuscriptReviewVideoMarkCommand.builder()
+            .markId(7201L)
+            .disabledReason("标注已废弃")
+            .build());
+
+        ArgumentCaptor<ManuscriptReviewVideoMarkerEntity> markerCaptor = ArgumentCaptor.forClass(ManuscriptReviewVideoMarkerEntity.class);
+        verify(fixture.videoMarkerMapper).updateById(markerCaptor.capture());
+        assertEquals("0", markerCaptor.getValue().getEnabled());
+        assertEquals(1014L, markerCaptor.getValue().getDisabledBy());
+        assertNotNull(markerCaptor.getValue().getDisabledTime());
+        assertEquals("标注已废弃", markerCaptor.getValue().getRemark());
+
+        ArgumentCaptor<ManuscriptReviewHistoryEntity> historyCaptor = ArgumentCaptor.forClass(ManuscriptReviewHistoryEntity.class);
+        verify(fixture.historyMapper).insert(historyCaptor.capture());
+        assertEquals("VIDEO_MARK_DISABLE", historyCaptor.getValue().getActionType());
+        assertEquals("张三停用了视频标注《第一处问题》（00:00:05 - 00:01:10）。", historyCaptor.getValue().getActionText());
     }
 
     private static ManuscriptReviewRecordEntity buildRecord(Long reviewId) {
@@ -345,6 +463,28 @@ class ManuscriptReviewServiceTest {
         entity.setEnabled(enabled ? "1" : "0");
         entity.setIsVideo(true);
         entity.setVideoDurationSeconds(durationSeconds);
+        return entity;
+    }
+
+    private static ManuscriptReviewExternalLinkEntity buildExternalLink(Long resourceId) {
+        ManuscriptReviewExternalLinkEntity entity = new ManuscriptReviewExternalLinkEntity();
+        entity.setId(resourceId);
+        entity.setReviewId(9010L);
+        entity.setLinkTitle("素材参考");
+        entity.setLinkUrl("https://example.com/ref");
+        entity.setEnabled("1");
+        return entity;
+    }
+
+    private static ManuscriptReviewVideoMarkerEntity buildVideoMarker(Long markerId) {
+        ManuscriptReviewVideoMarkerEntity entity = new ManuscriptReviewVideoMarkerEntity();
+        entity.setId(markerId);
+        entity.setReviewId(9006L);
+        entity.setVideoAttachmentId(7004L);
+        entity.setStartTime("00:00:05");
+        entity.setEndTime("00:01:10");
+        entity.setMarkerNote("第一处问题");
+        entity.setEnabled("1");
         return entity;
     }
 

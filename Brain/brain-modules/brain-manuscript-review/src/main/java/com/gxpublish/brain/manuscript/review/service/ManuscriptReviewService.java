@@ -4,6 +4,7 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -20,6 +21,7 @@ import com.gxpublish.brain.manuscript.review.domain.command.AddManuscriptReviewR
 import com.gxpublish.brain.manuscript.review.domain.command.AddManuscriptReviewVideoMarkCommand;
 import com.gxpublish.brain.manuscript.review.domain.command.CreateManuscriptReviewCommand;
 import com.gxpublish.brain.manuscript.review.domain.command.DisableManuscriptReviewResourceCommand;
+import com.gxpublish.brain.manuscript.review.domain.command.DisableManuscriptReviewVideoMarkCommand;
 import com.gxpublish.brain.manuscript.review.domain.command.ResubmitManuscriptReviewCommand;
 import com.gxpublish.brain.manuscript.review.domain.command.UpdateManuscriptReviewCommand;
 import com.gxpublish.brain.manuscript.review.domain.entity.ManuscriptReviewAttachmentEntity;
@@ -54,6 +56,7 @@ public class ManuscriptReviewService {
     private static final String REVIEW_NOT_FOUND_MESSAGE = "稿件审校流程不存在";
     private static final String RESOURCE_REQUIRED_MESSAGE = "稿件至少需要一种有效资源";
     private static final String RESOURCE_NOT_FOUND_MESSAGE = "资源不存在";
+    private static final String VIDEO_MARK_NOT_FOUND_MESSAGE = "视频标注不存在";
     private static final String VIDEO_RESOURCE_INVALID_MESSAGE = "视频资源不存在或已停用";
     private static final String VIDEO_DURATION_MISSING_MESSAGE = "视频总时长未识别";
     private static final String TIME_RANGE_INVALID_MESSAGE = "标注结束时间不能早于开始时间";
@@ -156,6 +159,7 @@ public class ManuscriptReviewService {
             command.getContentBody(), null);
         fillCreateAuditFields(entity);
         recordMapper.insert(entity);
+        insertActorHistory(entity.getId(), "CREATE", currentUsername() + "新增了审校流程单《" + entity.getTitle() + "》。");
         return entity.getId();
     }
 
@@ -172,6 +176,7 @@ public class ManuscriptReviewService {
             command.getContentBody(), reviewId);
         fillUpdateAuditFields(entity);
         recordMapper.updateById(entity);
+        insertActorHistory(reviewId, "UPDATE", buildUpdateHistoryText(existing, entity));
     }
 
     public String submitAndFlowStart(Long reviewId) {
@@ -301,7 +306,28 @@ public class ManuscriptReviewService {
         entity.setEnabled(ENABLED);
         fillCreateAuditFields(entity);
         videoMarkerMapper.insert(entity);
+        insertActorHistory(reviewId, "VIDEO_MARK_ADD", buildVideoMarkAddHistoryText(entity));
         return entity.getId();
+    }
+
+    public void disableVideoMark(DisableManuscriptReviewVideoMarkCommand command) {
+        Long markId = command.getMarkId();
+        if (markId == null) {
+            throw new ServiceException(VIDEO_MARK_NOT_FOUND_MESSAGE);
+        }
+        ManuscriptReviewVideoMarkerEntity marker = videoMarkerMapper.selectById(markId);
+        if (marker == null) {
+            throw new ServiceException(VIDEO_MARK_NOT_FOUND_MESSAGE);
+        }
+        ManuscriptReviewVideoMarkerEntity entity = new ManuscriptReviewVideoMarkerEntity();
+        entity.setId(marker.getId());
+        entity.setEnabled(DISABLED);
+        entity.setDisabledBy(requireCurrentUserId());
+        entity.setDisabledTime(now());
+        entity.setRemark(trimToNull(command.getDisabledReason()));
+        fillUpdateAuditFields(entity);
+        videoMarkerMapper.updateById(entity);
+        insertActorHistory(marker.getReviewId(), "VIDEO_MARK_DISABLE", buildVideoMarkDisableHistoryText(marker));
     }
 
     private void applyWriteFields(ManuscriptReviewRecordEntity entity,
@@ -338,6 +364,7 @@ public class ManuscriptReviewService {
         entity.setEnabled(ENABLED);
         fillCreateAuditFields(entity);
         attachmentMapper.insert(entity);
+        insertActorHistory(reviewId, "RESOURCE_ADD", buildAttachmentAddHistoryText(entity));
         return entity.getId();
     }
 
@@ -363,6 +390,7 @@ public class ManuscriptReviewService {
         entity.setEnabled(ENABLED);
         fillCreateAuditFields(entity);
         externalLinkMapper.insert(entity);
+        insertActorHistory(reviewId, "RESOURCE_ADD", currentUsername() + "新增了外链《" + entity.getLinkTitle() + "》。");
         return entity.getId();
     }
 
@@ -375,6 +403,7 @@ public class ManuscriptReviewService {
         entity.setRemark(trimToNull(reason));
         fillUpdateAuditFields(entity);
         attachmentMapper.updateById(entity);
+        insertActorHistory(attachment.getReviewId(), "RESOURCE_DISABLE", buildAttachmentDisableHistoryText(attachment));
     }
 
     private void disableExternalLink(ManuscriptReviewExternalLinkEntity externalLink, String reason) {
@@ -386,6 +415,8 @@ public class ManuscriptReviewService {
         entity.setRemark(trimToNull(reason));
         fillUpdateAuditFields(entity);
         externalLinkMapper.updateById(entity);
+        insertActorHistory(externalLink.getReviewId(), "RESOURCE_DISABLE",
+            currentUsername() + "停用了外链《" + externalLink.getLinkTitle() + "》。");
     }
 
     private void ensureCanModify(ManuscriptReviewRecordEntity existing) {
@@ -795,6 +826,81 @@ public class ManuscriptReviewService {
     private void fillUpdateAuditFields(ManuscriptReviewExternalLinkEntity entity) {
         entity.setUpdateBy(requireCurrentUserId());
         entity.setUpdateTime(now());
+    }
+
+    private void fillUpdateAuditFields(ManuscriptReviewVideoMarkerEntity entity) {
+        entity.setUpdateBy(requireCurrentUserId());
+        entity.setUpdateTime(now());
+    }
+
+    private String buildUpdateHistoryText(ManuscriptReviewRecordEntity existing, ManuscriptReviewRecordEntity incoming) {
+        List<String> diffItems = new ArrayList<>();
+        appendTextDiff(diffItems, "外部稿件编号", existing.getExternalManuscriptCode(), incoming.getExternalManuscriptCode());
+        appendTextDiff(diffItems, "标题", existing.getTitle(), incoming.getTitle());
+        appendTextDiff(diffItems, "媒体/栏目", existing.getMediaChannel(), incoming.getMediaChannel());
+        appendTextDiff(diffItems, "作者", existing.getAuthorName(), incoming.getAuthorName());
+        appendOptionalTextDiff(diffItems, "说明", existing.getRemarkText(), incoming.getRemarkText());
+        if (!Objects.equals(trimToNull(existing.getContentBody()), trimToNull(incoming.getContentBody()))) {
+            diffItems.add("正文已更新");
+        }
+        if (diffItems.isEmpty()) {
+            diffItems.add("未识别到字段差异，已重新保存《" + incoming.getTitle() + "》");
+        }
+        return currentUsername() + "更新了审校流程单：" + String.join("；", diffItems) + "。";
+    }
+
+    private void appendTextDiff(List<String> diffItems, String fieldLabel, String oldValue, String newValue) {
+        String normalizedOld = trimToNull(oldValue);
+        String normalizedNew = trimToNull(newValue);
+        if (!Objects.equals(normalizedOld, normalizedNew)) {
+            diffItems.add(fieldLabel + "由“" + nullToPlaceholder(normalizedOld) + "”改为“" + nullToPlaceholder(normalizedNew) + "”");
+        }
+    }
+
+    private void appendOptionalTextDiff(List<String> diffItems, String fieldLabel, String oldValue, String newValue) {
+        String normalizedOld = trimToNull(oldValue);
+        String normalizedNew = trimToNull(newValue);
+        if (!Objects.equals(normalizedOld, normalizedNew)) {
+            if (normalizedOld == null) {
+                diffItems.add(fieldLabel + "补充为“" + normalizedNew + "”");
+                return;
+            }
+            if (normalizedNew == null) {
+                diffItems.add(fieldLabel + "已清空");
+                return;
+            }
+            diffItems.add(fieldLabel + "由“" + normalizedOld + "”改为“" + normalizedNew + "”");
+        }
+    }
+
+    private String buildAttachmentAddHistoryText(ManuscriptReviewAttachmentEntity entity) {
+        return currentUsername() + (Boolean.TRUE.equals(entity.getIsVideo()) ? "上传了视频《" : "上传了附件《")
+            + entity.getFileName() + "》。";
+    }
+
+    private String buildAttachmentDisableHistoryText(ManuscriptReviewAttachmentEntity entity) {
+        return currentUsername() + (Boolean.TRUE.equals(entity.getIsVideo()) ? "停用了视频《" : "停用了附件《")
+            + entity.getFileName() + "》。";
+    }
+
+    private String buildVideoMarkAddHistoryText(ManuscriptReviewVideoMarkerEntity entity) {
+        return currentUsername() + "新增了视频标注《" + nullToPlaceholder(trimToNull(entity.getMarkerNote()))
+            + "》（" + formatVideoMarkRange(entity.getStartTime(), entity.getEndTime()) + "）。";
+    }
+
+    private String buildVideoMarkDisableHistoryText(ManuscriptReviewVideoMarkerEntity entity) {
+        return currentUsername() + "停用了视频标注《" + nullToPlaceholder(trimToNull(entity.getMarkerNote()))
+            + "》（" + formatVideoMarkRange(entity.getStartTime(), entity.getEndTime()) + "）。";
+    }
+
+    private String formatVideoMarkRange(String startTime, String endTime) {
+        String normalizedStart = nullToPlaceholder(trimToNull(startTime));
+        String normalizedEnd = trimToNull(endTime);
+        return normalizedEnd == null ? normalizedStart : normalizedStart + " - " + normalizedEnd;
+    }
+
+    private String nullToPlaceholder(String value) {
+        return value == null ? "未填写" : value;
     }
 
     private Long requireCurrentUserId() {
