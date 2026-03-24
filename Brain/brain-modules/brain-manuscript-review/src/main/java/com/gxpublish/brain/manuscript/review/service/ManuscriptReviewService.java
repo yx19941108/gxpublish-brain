@@ -246,7 +246,7 @@ public class ManuscriptReviewService {
 
     public Long addResource(AddManuscriptReviewResourceCommand command) {
         Long reviewId = requireReviewId(command.getReviewId());
-        requireRecord(reviewId);
+        ensureCanModify(requireRecord(reviewId));
         String resourceType = normalizeResourceType(command.getResourceType());
         return switch (resourceType) {
             case "ATTACHMENT", "VIDEO" -> insertAttachmentResource(reviewId, command, "VIDEO".equals(resourceType));
@@ -262,11 +262,13 @@ public class ManuscriptReviewService {
         }
         ManuscriptReviewAttachmentEntity attachment = attachmentMapper.selectById(resourceId);
         if (attachment != null) {
+            ensureCanModify(requireRecord(attachment.getReviewId()));
             disableAttachment(attachment, command.getDisabledReason());
             return;
         }
         ManuscriptReviewExternalLinkEntity externalLink = externalLinkMapper.selectById(resourceId);
         if (externalLink != null) {
+            ensureCanModify(requireRecord(externalLink.getReviewId()));
             disableExternalLink(externalLink, command.getDisabledReason());
             return;
         }
@@ -275,7 +277,7 @@ public class ManuscriptReviewService {
 
     public Long addVideoMark(AddManuscriptReviewVideoMarkCommand command) {
         Long reviewId = requireReviewId(command.getReviewId());
-        requireRecord(reviewId);
+        ensureCanModify(requireRecord(reviewId));
         ManuscriptReviewAttachmentEntity videoResource = attachmentMapper.selectById(command.getResourceId());
         if (videoResource == null || !Boolean.TRUE.equals(videoResource.getIsVideo()) || !ENABLED.equals(videoResource.getEnabled())) {
             throw new ServiceException(VIDEO_RESOURCE_INVALID_MESSAGE);
@@ -319,6 +321,7 @@ public class ManuscriptReviewService {
         if (marker == null) {
             throw new ServiceException(VIDEO_MARK_NOT_FOUND_MESSAGE);
         }
+        ensureCanModify(requireRecord(marker.getReviewId()));
         ManuscriptReviewVideoMarkerEntity entity = new ManuscriptReviewVideoMarkerEntity();
         entity.setId(marker.getId());
         entity.setEnabled(DISABLED);

@@ -268,7 +268,9 @@ class ManuscriptReviewServiceTest {
     @Test
     void shouldAddVideoResourceWithoutReusingExternalLinkSemantics() {
         ServiceFixture fixture = new ServiceFixture(1008L, "000000", 2001L, "张三");
-        when(fixture.recordMapper.selectById(9005L)).thenReturn(buildRecord(9005L));
+        ManuscriptReviewRecordEntity record = buildRecord(9005L);
+        record.setInitiatorUserId(1008L);
+        when(fixture.recordMapper.selectById(9005L)).thenReturn(record);
 
         Long resourceId = fixture.service.addResource(AddManuscriptReviewResourceCommand.builder()
             .reviewId(9005L)
@@ -295,9 +297,30 @@ class ManuscriptReviewServiceTest {
     }
 
     @Test
+    void shouldRejectAddResourceWhenCurrentUserHasNoModifyPermission() {
+        ServiceFixture fixture = new ServiceFixture(1015L, "000000", 2001L, "李四");
+        when(fixture.recordMapper.selectById(9011L)).thenReturn(buildPendingApprovalRecord(9011L, 2001L));
+        fixture.stubSubmitRouting(false);
+
+        ServiceException exception = assertThrows(ServiceException.class, () -> fixture.service.addResource(AddManuscriptReviewResourceCommand.builder()
+            .reviewId(9011L)
+            .resourceType("VIDEO")
+            .displayName("forbidden.mp4")
+            .ossId(8802L)
+            .build()));
+
+        assertEquals("当前用户无权修改该流程", exception.getMessage());
+        verify(fixture.attachmentMapper, never()).insert(any(ManuscriptReviewAttachmentEntity.class));
+        verify(fixture.externalLinkMapper, never()).insert(any(ManuscriptReviewExternalLinkEntity.class));
+        verify(fixture.historyMapper, never()).insert(any(ManuscriptReviewHistoryEntity.class));
+    }
+
+    @Test
     void shouldWriteExternalLinkHistoryWhenAddingResource() {
         ServiceFixture fixture = new ServiceFixture(1012L, "000000", 2001L, "张三");
-        when(fixture.recordMapper.selectById(9010L)).thenReturn(buildRecord(9010L));
+        ManuscriptReviewRecordEntity record = buildRecord(9010L);
+        record.setInitiatorUserId(1012L);
+        when(fixture.recordMapper.selectById(9010L)).thenReturn(record);
         when(fixture.externalLinkMapper.selectCount(any())).thenReturn(0L);
 
         fixture.service.addResource(AddManuscriptReviewResourceCommand.builder()
@@ -319,6 +342,9 @@ class ManuscriptReviewServiceTest {
         ManuscriptReviewAttachmentEntity attachment = buildAttachment(7003L);
         when(fixture.attachmentMapper.selectById(7003L)).thenReturn(attachment);
         when(fixture.externalLinkMapper.selectById(7003L)).thenReturn(null);
+        ManuscriptReviewRecordEntity record = buildRecord(attachment.getReviewId());
+        record.setInitiatorUserId(1009L);
+        when(fixture.recordMapper.selectById(attachment.getReviewId())).thenReturn(record);
 
         fixture.service.disableResource(DisableManuscriptReviewResourceCommand.builder()
             .resourceId(7003L)
@@ -340,11 +366,35 @@ class ManuscriptReviewServiceTest {
     }
 
     @Test
+    void shouldRejectDisableResourceWhenCurrentUserHasNoModifyPermission() {
+        ServiceFixture fixture = new ServiceFixture(1016L, "000000", 2001L, "王五");
+        ManuscriptReviewAttachmentEntity attachment = buildAttachment(7006L);
+        attachment.setReviewId(9012L);
+        when(fixture.attachmentMapper.selectById(7006L)).thenReturn(attachment);
+        when(fixture.externalLinkMapper.selectById(7006L)).thenReturn(null);
+        when(fixture.recordMapper.selectById(9012L)).thenReturn(buildPendingApprovalRecord(9012L, 2002L));
+        fixture.stubSubmitRouting(false);
+
+        ServiceException exception = assertThrows(ServiceException.class, () -> fixture.service.disableResource(DisableManuscriptReviewResourceCommand.builder()
+            .resourceId(7006L)
+            .disabledReason("no permission")
+            .build()));
+
+        assertEquals("当前用户无权修改该流程", exception.getMessage());
+        verify(fixture.attachmentMapper, never()).updateById(any(ManuscriptReviewAttachmentEntity.class));
+        verify(fixture.externalLinkMapper, never()).updateById(any(ManuscriptReviewExternalLinkEntity.class));
+        verify(fixture.historyMapper, never()).insert(any(ManuscriptReviewHistoryEntity.class));
+    }
+
+    @Test
     void shouldWriteExternalLinkDisableHistory() {
         ServiceFixture fixture = new ServiceFixture(1013L, "000000", 2001L, "张三");
         ManuscriptReviewExternalLinkEntity externalLink = buildExternalLink(7101L);
         when(fixture.attachmentMapper.selectById(7101L)).thenReturn(null);
         when(fixture.externalLinkMapper.selectById(7101L)).thenReturn(externalLink);
+        ManuscriptReviewRecordEntity record = buildRecord(externalLink.getReviewId());
+        record.setInitiatorUserId(1013L);
+        when(fixture.recordMapper.selectById(externalLink.getReviewId())).thenReturn(record);
 
         fixture.service.disableResource(DisableManuscriptReviewResourceCommand.builder()
             .resourceId(7101L)
@@ -360,7 +410,9 @@ class ManuscriptReviewServiceTest {
     @Test
     void shouldNormalizeVideoMarkTimeAndPersistSeconds() {
         ServiceFixture fixture = new ServiceFixture(1010L, "000000", 2001L, "张三");
-        when(fixture.recordMapper.selectById(9006L)).thenReturn(buildRecord(9006L));
+        ManuscriptReviewRecordEntity record = buildRecord(9006L);
+        record.setInitiatorUserId(1010L);
+        when(fixture.recordMapper.selectById(9006L)).thenReturn(record);
         when(fixture.attachmentMapper.selectById(7004L)).thenReturn(buildVideoAttachment(7004L, true, 600));
 
         Long markerId = fixture.service.addVideoMark(AddManuscriptReviewVideoMarkCommand.builder()
@@ -388,9 +440,31 @@ class ManuscriptReviewServiceTest {
     }
 
     @Test
+    void shouldRejectAddVideoMarkWhenCurrentUserHasNoModifyPermission() {
+        ServiceFixture fixture = new ServiceFixture(1017L, "000000", 2001L, "赵六");
+        when(fixture.recordMapper.selectById(9013L)).thenReturn(buildPendingApprovalRecord(9013L, 2003L));
+        when(fixture.attachmentMapper.selectById(7007L)).thenReturn(buildVideoAttachment(7007L, true, 600));
+        fixture.stubSubmitRouting(false);
+
+        ServiceException exception = assertThrows(ServiceException.class, () -> fixture.service.addVideoMark(AddManuscriptReviewVideoMarkCommand.builder()
+            .reviewId(9013L)
+            .resourceId(7007L)
+            .startTimeText("00:00:05")
+            .endTimeText("00:00:10")
+            .markContent("forbidden")
+            .build()));
+
+        assertEquals("当前用户无权修改该流程", exception.getMessage());
+        verify(fixture.videoMarkerMapper, never()).insert(any(ManuscriptReviewVideoMarkerEntity.class));
+        verify(fixture.historyMapper, never()).insert(any(ManuscriptReviewHistoryEntity.class));
+    }
+
+    @Test
     void shouldRejectVideoMarkWhenDurationMissing() {
         ServiceFixture fixture = new ServiceFixture(1011L, "000000", 2001L, "张三");
-        when(fixture.recordMapper.selectById(9007L)).thenReturn(buildRecord(9007L));
+        ManuscriptReviewRecordEntity record = buildRecord(9007L);
+        record.setInitiatorUserId(1011L);
+        when(fixture.recordMapper.selectById(9007L)).thenReturn(record);
         when(fixture.attachmentMapper.selectById(7005L)).thenReturn(buildVideoAttachment(7005L, true, null));
 
         ServiceException exception = assertThrows(ServiceException.class, () -> fixture.service.addVideoMark(AddManuscriptReviewVideoMarkCommand.builder()
@@ -409,6 +483,9 @@ class ManuscriptReviewServiceTest {
         ServiceFixture fixture = new ServiceFixture(1014L, "000000", 2001L, "张三");
         ManuscriptReviewVideoMarkerEntity marker = buildVideoMarker(7201L);
         when(fixture.videoMarkerMapper.selectById(7201L)).thenReturn(marker);
+        ManuscriptReviewRecordEntity record = buildRecord(marker.getReviewId());
+        record.setInitiatorUserId(1014L);
+        when(fixture.recordMapper.selectById(marker.getReviewId())).thenReturn(record);
 
         fixture.service.disableVideoMark(DisableManuscriptReviewVideoMarkCommand.builder()
             .markId(7201L)
@@ -428,6 +505,25 @@ class ManuscriptReviewServiceTest {
         assertEquals("张三停用了视频标注《第一处问题》（00:00:05 - 00:01:10）。", historyCaptor.getValue().getActionText());
     }
 
+    @Test
+    void shouldRejectDisableVideoMarkWhenCurrentUserHasNoModifyPermission() {
+        ServiceFixture fixture = new ServiceFixture(1018L, "000000", 2001L, "孙七");
+        ManuscriptReviewVideoMarkerEntity marker = buildVideoMarker(7202L);
+        marker.setReviewId(9014L);
+        when(fixture.videoMarkerMapper.selectById(7202L)).thenReturn(marker);
+        when(fixture.recordMapper.selectById(9014L)).thenReturn(buildPendingApprovalRecord(9014L, 2004L));
+        fixture.stubSubmitRouting(false);
+
+        ServiceException exception = assertThrows(ServiceException.class, () -> fixture.service.disableVideoMark(DisableManuscriptReviewVideoMarkCommand.builder()
+            .markId(7202L)
+            .disabledReason("no permission")
+            .build()));
+
+        assertEquals("当前用户无权修改该流程", exception.getMessage());
+        verify(fixture.videoMarkerMapper, never()).updateById(any(ManuscriptReviewVideoMarkerEntity.class));
+        verify(fixture.historyMapper, never()).insert(any(ManuscriptReviewHistoryEntity.class));
+    }
+
     private static ManuscriptReviewRecordEntity buildRecord(Long reviewId) {
         ManuscriptReviewRecordEntity entity = new ManuscriptReviewRecordEntity();
         entity.setId(reviewId);
@@ -442,6 +538,15 @@ class ManuscriptReviewServiceTest {
         entity.setInitiatorName("张三");
         entity.setCreateTime(new Date(1774060800000L));
         entity.setUpdateTime(new Date(1774064400000L));
+        return entity;
+    }
+
+    private static ManuscriptReviewRecordEntity buildPendingApprovalRecord(Long reviewId, Long initiatorUserId) {
+        ManuscriptReviewRecordEntity entity = buildRecord(reviewId);
+        entity.setInitiatorUserId(initiatorUserId);
+        entity.setInitiatorName("其他人");
+        entity.setFlowStatusLabel("审批中");
+        entity.setCurrentNodeLabel("待一级审批");
         return entity;
     }
 
