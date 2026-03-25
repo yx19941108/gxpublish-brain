@@ -1,0 +1,109 @@
+{
+  "nodeList": [
+    {
+      "nodeType": "0",
+      "nodeCode": "start-node",
+      "nodeName": "开始",
+      "permissionFlag": null,
+      "nodeRatio": "0.000",
+      "coordinate": "100,200|100,200",
+      "skipList": [
+        {
+          "skipType": "PASS",
+          "skipCondition": null,
+          "nowNodeCode": "start-node",
+          "nextNodeCode": "applicant-node",
+          "coordinate": "120,200;180,200"
+        }
+      ]
+    },
+    {
+      "nodeType": "1",
+      "nodeCode": "applicant-node",
+      "nodeName": "审校申请",
+      "permissionFlag": "",
+      "nodeRatio": "0.000",
+      "coordinate": "240,200|240,200",
+      "ext": "[{\"code\":\"ButtonPermissionEnum\",\"value\":\"back,termination,file\"}]",
+      "skipList": [
+        {
+          "skipType": "PASS",
+          "skipCondition": null,
+          "nowNodeCode": "applicant-node",
+          "nextNodeCode": "first-review-node",
+          "coordinate": "300,200;360,200"
+        }
+      ]
+    },
+    {
+      "nodeType": "1",
+      "nodeCode": "first-review-node",
+      "nodeName": "一级审批",
+      "permissionFlag": "${manuscriptReviewFirstLevelApprover}",
+      "nodeRatio": "0.000",
+      "coordinate": "420,200|420,200",
+      "ext": "[{\"code\":\"ButtonPermissionEnum\",\"value\":\"back,termination,transfer,file\"}]",
+      "skipList": [
+        {
+          "skipType": "PASS",
+          "skipCondition": null,
+          "nowNodeCode": "first-review-node",
+          "nextNodeCode": "second-review-node",
+          "coordinate": "480,200;540,200"
+        }
+      ]
+    },
+    {
+      "nodeType": "1",
+      "nodeCode": "second-review-node",
+      "nodeName": "二级审批",
+      "permissionFlag": "${manuscriptReviewSecondLevelApprover}",
+      "nodeRatio": "0.000",
+      "coordinate": "600,200|600,200",
+      "ext": "[{\"code\":\"ButtonPermissionEnum\",\"value\":\"back,termination,transfer,file\"}]",
+      "skipList": [
+        {
+          "skipType": "PASS",
+          "skipCondition": null,
+          "nowNodeCode": "second-review-node",
+          "nextNodeCode": "final-review-node",
+          "coordinate": "660,200;720,200"
+        }
+      ]
+    },
+    {
+      "nodeType": "1",
+      "nodeCode": "final-review-node",
+      "nodeName": "三级审批",
+      "permissionFlag": "${manuscriptReviewThirdLevelApprover}",
+      "nodeRatio": "0.000",
+      "coordinate": "780,200|780,200",
+      "ext": "[{\"code\":\"ButtonPermissionEnum\",\"value\":\"back,termination,transfer,file\"}]",
+      "skipList": [
+        {
+          "skipType": "PASS",
+          "skipCondition": null,
+          "nowNodeCode": "final-review-node",
+          "nextNodeCode": "end-node",
+          "coordinate": "840,200;900,200"
+        }
+      ]
+    },
+    {
+      "nodeType": "2",
+      "nodeCode": "end-node",
+      "nodeName": "结束",
+      "permissionFlag": null,
+      "nodeRatio": "0.000",
+      "coordinate": "960,200|960,200",
+      "skipList": []
+    }
+  ],
+  "flowCode": "manuscript_review_audit_flow",
+  "flowName": "稿件审校-审核流程",
+  "modelValue": "CLASSICS",
+  "category": "manuscript",
+  "version": "1",
+  "formCustom": "N",
+  "formPath": "/manuscript/review/approval"
+}

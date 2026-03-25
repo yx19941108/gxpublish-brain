@@ -22,7 +22,11 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
+import com.gxpublish.brain.common.core.domain.dto.StartProcessDTO;
+import com.gxpublish.brain.common.core.domain.event.ProcessEvent;
+import com.gxpublish.brain.common.core.domain.event.ProcessTaskEvent;
 import com.gxpublish.brain.common.core.exception.ServiceException;
+import com.gxpublish.brain.common.core.service.WorkflowService;
 import com.gxpublish.brain.manuscript.review.domain.command.AddManuscriptReviewResourceCommand;
 import com.gxpublish.brain.manuscript.review.domain.command.AddManuscriptReviewVideoMarkCommand;
 import com.gxpublish.brain.manuscript.review.domain.command.CreateManuscriptReviewCommand;
@@ -51,6 +55,8 @@ import com.gxpublish.brain.manuscript.review.mapper.ManuscriptReviewSystemRoleMa
 import com.gxpublish.brain.manuscript.review.mapper.ManuscriptReviewSystemUserMapper;
 import com.gxpublish.brain.manuscript.review.mapper.ManuscriptReviewSystemUserRoleMapper;
 import com.gxpublish.brain.manuscript.review.mapper.ManuscriptReviewVideoMarkerMapper;
+import com.gxpublish.brain.workflow.domain.bo.FlowCancelBo;
+import com.gxpublish.brain.workflow.service.IFlwInstanceService;
 
 @Tag("dev")
 class ManuscriptReviewServiceTest {
@@ -93,7 +99,11 @@ class ManuscriptReviewServiceTest {
         assertEquals(2001L, entity.getCreateDept());
         assertEquals(1001L, entity.getCreateBy());
         assertEquals(1001L, entity.getUpdateBy());
+        assertEquals("manuscript_review_audit_flow", entity.getFlowCode());
+        assertEquals("", entity.getFlowStatusLabel());
+        assertEquals("", entity.getCurrentNodeLabel());
         assertNull(entity.getManuscriptCode());
+        assertNull(entity.getFlowInstanceId());
         assertNull(entity.getFirstSubmitTime());
         assertNull(entity.getLatestSubmitTime());
         assertNull(entity.getMediaChannelLabel());
@@ -220,9 +230,21 @@ class ManuscriptReviewServiceTest {
         ManuscriptReviewRecordEntity updated = captor.getValue();
         assertEquals(9002L, updated.getId());
         assertEquals("SH20260321007", updated.getManuscriptCode());
+        assertEquals(99001L, updated.getFlowInstanceId());
         assertNotNull(updated.getFirstSubmitTime());
         assertNotNull(updated.getLatestSubmitTime());
         assertEquals(updated.getFirstSubmitTime(), updated.getLatestSubmitTime());
+        ArgumentCaptor<StartProcessDTO> startProcessCaptor = ArgumentCaptor.forClass(StartProcessDTO.class);
+        verify(fixture.workflowService).startCompleteTask(startProcessCaptor.capture());
+        StartProcessDTO startProcess = startProcessCaptor.getValue();
+        assertEquals("9002", startProcess.getBusinessId());
+        assertEquals("manuscript_review_audit_flow", startProcess.getFlowCode());
+        assertTrue(Boolean.TRUE.equals(startProcess.getVariables().get("ignore")));
+        assertEquals("role:7101", startProcess.getVariables().get("manuscriptReviewFirstLevelApprover"));
+        assertEquals("role:7102", startProcess.getVariables().get("manuscriptReviewSecondLevelApprover"));
+        assertEquals("role:7103", startProcess.getVariables().get("manuscriptReviewThirdLevelApprover"));
+        assertEquals("SH20260321007", startProcess.getBizExt().getBusinessCode());
+        assertEquals("稿件标题", startProcess.getBizExt().getBusinessTitle());
     }
 
     @Test
@@ -248,8 +270,10 @@ class ManuscriptReviewServiceTest {
         verify(fixture.recordMapper).updateById(captor.capture());
         ManuscriptReviewRecordEntity updated = captor.getValue();
         assertEquals("SH20260321008", updated.getManuscriptCode());
+        assertEquals(99001L, updated.getFlowInstanceId());
         assertEquals(firstSubmitTime, updated.getFirstSubmitTime());
         assertNotNull(updated.getLatestSubmitTime());
+        verify(fixture.workflowService).startCompleteTask(any(StartProcessDTO.class));
     }
 
     @Test
@@ -524,6 +548,349 @@ class ManuscriptReviewServiceTest {
         verify(fixture.historyMapper, never()).insert(any(ManuscriptReviewHistoryEntity.class));
     }
 
+    @Test
+    void shouldRejectCreateWhenTitleExceedsLengthLimit() {
+        ServiceFixture fixture = new ServiceFixture(1019L, "000000", 2001L, "张三");
+
+        ServiceException exception = assertThrows(ServiceException.class, () -> fixture.service.create(CreateManuscriptReviewCommand.builder()
+            .processType(ManuscriptReviewProcessType.AUDIT)
+            .title("题".repeat(201))
+            .mediaChannel("新华社/要闻")
+            .submitDepartment("总编室")
+            .authorName("张三")
+            .remark("说明")
+            .contentBody("正文内容")
+            .build()));
+
+        assertEquals("标题长度不能超过200个字符", exception.getMessage());
+        verify(fixture.recordMapper, never()).insert(any(ManuscriptReviewRecordEntity.class));
+    }
+
+    @Test
+    void shouldRejectCreateWhenRemarkExceedsLengthLimit() {
+        ServiceFixture fixture = new ServiceFixture(1020L, "000000", 2001L, "张三");
+
+        ServiceException exception = assertThrows(ServiceException.class, () -> fixture.service.create(CreateManuscriptReviewCommand.builder()
+            .processType(ManuscriptReviewProcessType.AUDIT)
+            .title("稿件标题")
+            .mediaChannel("新华社/要闻")
+            .submitDepartment("总编室")
+            .authorName("张三")
+            .remark("说".repeat(1001))
+            .contentBody("正文内容")
+            .build()));
+
+        assertEquals("说明长度不能超过1000个字符", exception.getMessage());
+        verify(fixture.recordMapper, never()).insert(any(ManuscriptReviewRecordEntity.class));
+    }
+
+    @Test
+    void shouldRejectCreateWhenContentBodyExceedsLengthLimit() {
+        ServiceFixture fixture = new ServiceFixture(1021L, "000000", 2001L, "张三");
+
+        ServiceException exception = assertThrows(ServiceException.class, () -> fixture.service.create(CreateManuscriptReviewCommand.builder()
+            .processType(ManuscriptReviewProcessType.AUDIT)
+            .title("稿件标题")
+            .mediaChannel("新华社/要闻")
+            .submitDepartment("总编室")
+            .authorName("张三")
+            .remark("说明")
+            .contentBody("正".repeat(20001))
+            .build()));
+
+        assertEquals("正文长度不能超过20000个字符", exception.getMessage());
+        verify(fixture.recordMapper, never()).insert(any(ManuscriptReviewRecordEntity.class));
+    }
+
+    @Test
+    void shouldRejectAddExternalLinkWhenTitleExceedsLengthLimit() {
+        ServiceFixture fixture = new ServiceFixture(1022L, "000000", 2001L, "张三");
+        ManuscriptReviewRecordEntity record = buildRecord(9015L);
+        record.setInitiatorUserId(1022L);
+        when(fixture.recordMapper.selectById(9015L)).thenReturn(record);
+
+        ServiceException exception = assertThrows(ServiceException.class, () -> fixture.service.addResource(AddManuscriptReviewResourceCommand.builder()
+            .reviewId(9015L)
+            .resourceType("EXTERNAL_LINK")
+            .displayName("标".repeat(201))
+            .externalUrl("https://example.com/ref")
+            .build()));
+
+        assertEquals("外链标题长度不能超过200个字符", exception.getMessage());
+        verify(fixture.externalLinkMapper, never()).insert(any(ManuscriptReviewExternalLinkEntity.class));
+    }
+
+    @Test
+    void shouldRejectAddExternalLinkWhenUrlExceedsLengthLimit() {
+        ServiceFixture fixture = new ServiceFixture(1023L, "000000", 2001L, "张三");
+        ManuscriptReviewRecordEntity record = buildRecord(9016L);
+        record.setInitiatorUserId(1023L);
+        when(fixture.recordMapper.selectById(9016L)).thenReturn(record);
+
+        ServiceException exception = assertThrows(ServiceException.class, () -> fixture.service.addResource(AddManuscriptReviewResourceCommand.builder()
+            .reviewId(9016L)
+            .resourceType("EXTERNAL_LINK")
+            .displayName("素材参考")
+            .externalUrl("https://" + "a".repeat(493))
+            .build()));
+
+        assertEquals("外链地址长度不能超过500个字符", exception.getMessage());
+        verify(fixture.externalLinkMapper, never()).insert(any(ManuscriptReviewExternalLinkEntity.class));
+    }
+
+    @Test
+    void shouldRejectAddExternalLinkWhenProtocolInvalid() {
+        ServiceFixture fixture = new ServiceFixture(1024L, "000000", 2001L, "张三");
+        ManuscriptReviewRecordEntity record = buildRecord(9017L);
+        record.setInitiatorUserId(1024L);
+        when(fixture.recordMapper.selectById(9017L)).thenReturn(record);
+
+        ServiceException exception = assertThrows(ServiceException.class, () -> fixture.service.addResource(AddManuscriptReviewResourceCommand.builder()
+            .reviewId(9017L)
+            .resourceType("EXTERNAL_LINK")
+            .displayName("素材参考")
+            .externalUrl("ftp://example.com/ref")
+            .build()));
+
+        assertEquals("外链只允许http/https协议", exception.getMessage());
+        verify(fixture.externalLinkMapper, never()).insert(any(ManuscriptReviewExternalLinkEntity.class));
+    }
+
+    @Test
+    void shouldRejectAddExternalLinkWhenUrlDuplicatedWithinSameReview() {
+        ServiceFixture fixture = new ServiceFixture(1025L, "000000", 2001L, "张三");
+        ManuscriptReviewRecordEntity record = buildRecord(9018L);
+        record.setInitiatorUserId(1025L);
+        when(fixture.recordMapper.selectById(9018L)).thenReturn(record);
+        when(fixture.externalLinkMapper.selectCount(any())).thenReturn(1L);
+
+        ServiceException exception = assertThrows(ServiceException.class, () -> fixture.service.addResource(AddManuscriptReviewResourceCommand.builder()
+            .reviewId(9018L)
+            .resourceType("EXTERNAL_LINK")
+            .displayName("素材参考")
+            .externalUrl("https://example.com/ref")
+            .build()));
+
+        assertEquals("同一流程内URL不允许重复", exception.getMessage());
+        verify(fixture.externalLinkMapper, never()).insert(any(ManuscriptReviewExternalLinkEntity.class));
+    }
+
+    @Test
+    void shouldRejectVideoMarkWhenStartTimeFormatInvalid() {
+        ServiceFixture fixture = new ServiceFixture(1026L, "000000", 2001L, "张三");
+        ManuscriptReviewRecordEntity record = buildRecord(9019L);
+        record.setInitiatorUserId(1026L);
+        when(fixture.recordMapper.selectById(9019L)).thenReturn(record);
+        when(fixture.attachmentMapper.selectById(7010L)).thenReturn(buildVideoAttachment(7010L, true, 600));
+
+        ServiceException exception = assertThrows(ServiceException.class, () -> fixture.service.addVideoMark(AddManuscriptReviewVideoMarkCommand.builder()
+            .reviewId(9019L)
+            .resourceId(7010L)
+            .startTimeText("3:7")
+            .endTimeText("00:00:10")
+            .markContent("非法时间")
+            .build()));
+
+        assertEquals("标注开始时间格式不合法", exception.getMessage());
+        verify(fixture.videoMarkerMapper, never()).insert(any(ManuscriptReviewVideoMarkerEntity.class));
+    }
+
+    @Test
+    void shouldRejectVideoMarkWhenEndEarlierThanStart() {
+        ServiceFixture fixture = new ServiceFixture(1027L, "000000", 2001L, "张三");
+        ManuscriptReviewRecordEntity record = buildRecord(9020L);
+        record.setInitiatorUserId(1027L);
+        when(fixture.recordMapper.selectById(9020L)).thenReturn(record);
+        when(fixture.attachmentMapper.selectById(7011L)).thenReturn(buildVideoAttachment(7011L, true, 600));
+
+        ServiceException exception = assertThrows(ServiceException.class, () -> fixture.service.addVideoMark(AddManuscriptReviewVideoMarkCommand.builder()
+            .reviewId(9020L)
+            .resourceId(7011L)
+            .startTimeText("00:00:10")
+            .endTimeText("00:00:05")
+            .markContent("结束早于开始")
+            .build()));
+
+        assertEquals("标注结束时间不能早于开始时间", exception.getMessage());
+        verify(fixture.videoMarkerMapper, never()).insert(any(ManuscriptReviewVideoMarkerEntity.class));
+    }
+
+    @Test
+    void shouldRejectVideoMarkWhenTimeExceedsDuration() {
+        ServiceFixture fixture = new ServiceFixture(1028L, "000000", 2001L, "张三");
+        ManuscriptReviewRecordEntity record = buildRecord(9021L);
+        record.setInitiatorUserId(1028L);
+        when(fixture.recordMapper.selectById(9021L)).thenReturn(record);
+        when(fixture.attachmentMapper.selectById(7012L)).thenReturn(buildVideoAttachment(7012L, true, 600));
+
+        ServiceException exception = assertThrows(ServiceException.class, () -> fixture.service.addVideoMark(AddManuscriptReviewVideoMarkCommand.builder()
+            .reviewId(9021L)
+            .resourceId(7012L)
+            .startTimeText("00:10:01")
+            .endTimeText(null)
+            .markContent("超出总时长")
+            .build()));
+
+        assertEquals("标注时间不能超出视频总时长", exception.getMessage());
+        verify(fixture.videoMarkerMapper, never()).insert(any(ManuscriptReviewVideoMarkerEntity.class));
+    }
+
+    @Test
+    void shouldCancelWaitingReviewAndWriteHistory() {
+        ServiceFixture fixture = new ServiceFixture(1029L, "000000", 2001L, "张三");
+        ManuscriptReviewRecordEntity record = buildRecord(9022L);
+        record.setInitiatorUserId(1029L);
+        record.setFlowStatusLabel("审批中");
+        record.setCurrentNodeLabel("待一级审批");
+        when(fixture.recordMapper.selectById(9022L)).thenReturn(record);
+
+        fixture.service.cancelProcessApply(9022L, "发起人主动撤销");
+
+        ArgumentCaptor<ManuscriptReviewRecordEntity> recordCaptor = ArgumentCaptor.forClass(ManuscriptReviewRecordEntity.class);
+        verify(fixture.recordMapper).updateById(recordCaptor.capture());
+        ManuscriptReviewRecordEntity updated = recordCaptor.getValue();
+        assertEquals("已取消", updated.getFlowStatusLabel());
+        assertEquals("流程已取消", updated.getCurrentNodeLabel());
+        assertEquals("发起人主动撤销", updated.getRemark());
+        ArgumentCaptor<FlowCancelBo> cancelCaptor = ArgumentCaptor.forClass(FlowCancelBo.class);
+        verify(fixture.flwInstanceService).cancelProcessApply(cancelCaptor.capture());
+        assertEquals("9022", cancelCaptor.getValue().getBusinessId());
+        assertEquals("发起人主动撤销", cancelCaptor.getValue().getMessage());
+
+        ArgumentCaptor<ManuscriptReviewHistoryEntity> historyCaptor = ArgumentCaptor.forClass(ManuscriptReviewHistoryEntity.class);
+        verify(fixture.historyMapper).insert(historyCaptor.capture());
+        assertEquals("CANCEL", historyCaptor.getValue().getActionType());
+        assertEquals("张三撤销了审校流程单。", historyCaptor.getValue().getActionText());
+    }
+
+    @Test
+    void shouldRejectCancelWhenFlowIsNotWaiting() {
+        ServiceFixture fixture = new ServiceFixture(1030L, "000000", 2001L, "张三");
+        ManuscriptReviewRecordEntity record = buildRecord(9023L);
+        record.setInitiatorUserId(1030L);
+        record.setFlowStatusLabel("已取消");
+        record.setCurrentNodeLabel("流程已取消");
+        when(fixture.recordMapper.selectById(9023L)).thenReturn(record);
+
+        ServiceException exception = assertThrows(ServiceException.class, () -> fixture.service.cancelProcessApply(9023L, "重复撤销"));
+
+        assertEquals("仅审批中的流程可撤销", exception.getMessage());
+        verify(fixture.recordMapper, never()).updateById(any(ManuscriptReviewRecordEntity.class));
+        verify(fixture.historyMapper, never()).insert(any(ManuscriptReviewHistoryEntity.class));
+    }
+
+    @Test
+    void shouldRejectUpdateWhenCurrentUserHasNoModifyPermission() {
+        ServiceFixture fixture = new ServiceFixture(1031L, "000000", 2001L, "张三");
+        when(fixture.recordMapper.selectById(9024L)).thenReturn(buildPendingApprovalRecord(9024L, 2008L));
+
+        ServiceException exception = assertThrows(ServiceException.class, () -> fixture.service.update(UpdateManuscriptReviewCommand.builder()
+            .id(9024L)
+            .processType(ManuscriptReviewProcessType.AUDIT)
+            .externalManuscriptCode("EXT-9024")
+            .title("越权修改稿件")
+            .mediaChannel("新华社/要闻")
+            .submitDepartment("总编室")
+            .authorName("张三")
+            .remark("越权修改")
+            .contentBody("正文内容")
+            .build()));
+
+        assertEquals("当前用户无权修改该流程", exception.getMessage());
+        verify(fixture.recordMapper, never()).updateById(any(ManuscriptReviewRecordEntity.class));
+    }
+
+    @Test
+    void shouldRejectResubmitWhenFlowIsNotReturned() {
+        ServiceFixture fixture = new ServiceFixture(1032L, "000000", 2001L, "张三");
+        ManuscriptReviewRecordEntity record = buildRecord(9025L);
+        record.setInitiatorUserId(1032L);
+        record.setFlowStatusLabel("审批中");
+        record.setCurrentNodeLabel("待一级审批");
+        record.setManuscriptCode("SH20260321025");
+        when(fixture.recordMapper.selectById(9025L)).thenReturn(record);
+
+        ServiceException exception = assertThrows(ServiceException.class, () -> fixture.service.resubmit(
+            ResubmitManuscriptReviewCommand.builder().reviewId(9025L).build()));
+
+        assertEquals("仅退回给发起人的流程可再次提交", exception.getMessage());
+        verify(fixture.recordMapper, never()).updateById(any(ManuscriptReviewRecordEntity.class));
+    }
+
+    @Test
+    void shouldSyncCanceledRuntimeStateWhenProcessEventReportsCancel() {
+        ServiceFixture fixture = new ServiceFixture(1033L, "000000", 2001L, "张三");
+        ManuscriptReviewRecordEntity record = buildPendingApprovalRecord(9026L, 1033L);
+        when(fixture.recordMapper.selectById(9026L)).thenReturn(record);
+
+        ProcessEvent processEvent = new ProcessEvent();
+        processEvent.setTenantId("000000");
+        processEvent.setBusinessId("9026");
+        processEvent.setInstanceId(99026L);
+        processEvent.setStatus("cancel");
+
+        fixture.service.processHandler(processEvent);
+
+        ArgumentCaptor<ManuscriptReviewRecordEntity> recordCaptor = ArgumentCaptor.forClass(ManuscriptReviewRecordEntity.class);
+        verify(fixture.recordMapper).updateById(recordCaptor.capture());
+        ManuscriptReviewRecordEntity updated = recordCaptor.getValue();
+        assertEquals(99026L, updated.getFlowInstanceId());
+        assertEquals("已取消", updated.getFlowStatusLabel());
+        assertEquals("流程已取消", updated.getCurrentNodeLabel());
+        verify(fixture.historyMapper, never()).insert(any(ManuscriptReviewHistoryEntity.class));
+    }
+
+    @Test
+    void shouldSyncRejectedRuntimeStateAndHistoryWhenProcessEventReportsTermination() {
+        ServiceFixture fixture = new ServiceFixture(1034L, "000000", 2001L, "张三");
+        ManuscriptReviewRecordEntity record = buildPendingApprovalRecord(9027L, 1034L);
+        when(fixture.recordMapper.selectById(9027L)).thenReturn(record);
+
+        ProcessEvent processEvent = new ProcessEvent();
+        processEvent.setTenantId("000000");
+        processEvent.setBusinessId("9027");
+        processEvent.setInstanceId(99027L);
+        processEvent.setStatus("termination");
+        processEvent.setParams(java.util.Map.of("message", "不同意"));
+
+        fixture.service.processHandler(processEvent);
+
+        ArgumentCaptor<ManuscriptReviewRecordEntity> recordCaptor = ArgumentCaptor.forClass(ManuscriptReviewRecordEntity.class);
+        verify(fixture.recordMapper).updateById(recordCaptor.capture());
+        ManuscriptReviewRecordEntity updated = recordCaptor.getValue();
+        assertEquals(99027L, updated.getFlowInstanceId());
+        assertEquals("已驳回", updated.getFlowStatusLabel());
+        assertEquals("流程已驳回", updated.getCurrentNodeLabel());
+
+        ArgumentCaptor<ManuscriptReviewHistoryEntity> historyCaptor = ArgumentCaptor.forClass(ManuscriptReviewHistoryEntity.class);
+        verify(fixture.historyMapper).insert(historyCaptor.capture());
+        assertEquals("REJECT", historyCaptor.getValue().getActionType());
+        assertTrue(historyCaptor.getValue().getActionText().contains("三级审批驳回"));
+        assertTrue(historyCaptor.getValue().getActionText().contains("不同意"));
+    }
+
+    @Test
+    void shouldSyncCurrentNodeWhenProcessTaskEventCreatesWaitingTask() {
+        ServiceFixture fixture = new ServiceFixture(1035L, "000000", 2001L, "张三");
+        ManuscriptReviewRecordEntity record = buildRecord(9028L);
+        when(fixture.recordMapper.selectById(9028L)).thenReturn(record);
+
+        ProcessTaskEvent processTaskEvent = new ProcessTaskEvent();
+        processTaskEvent.setBusinessId("9028");
+        processTaskEvent.setInstanceId(99028L);
+        processTaskEvent.setStatus("waiting");
+        processTaskEvent.setNodeName("待二级审批");
+
+        fixture.service.processTaskHandler(processTaskEvent);
+
+        ArgumentCaptor<ManuscriptReviewRecordEntity> recordCaptor = ArgumentCaptor.forClass(ManuscriptReviewRecordEntity.class);
+        verify(fixture.recordMapper).updateById(recordCaptor.capture());
+        ManuscriptReviewRecordEntity updated = recordCaptor.getValue();
+        assertEquals(99028L, updated.getFlowInstanceId());
+        assertEquals("审批中", updated.getFlowStatusLabel());
+        assertEquals("待二级审批", updated.getCurrentNodeLabel());
+    }
+
     private static ManuscriptReviewRecordEntity buildRecord(Long reviewId) {
         ManuscriptReviewRecordEntity entity = new ManuscriptReviewRecordEntity();
         entity.setId(reviewId);
@@ -613,6 +980,8 @@ class ManuscriptReviewServiceTest {
         private final ManuscriptReviewSystemUserMapper userMapper = mock(ManuscriptReviewSystemUserMapper.class);
         private final ManuscriptReviewSerialGateway serialGateway = mock(ManuscriptReviewSerialGateway.class);
         private final ManuscriptReviewCurrentUserGateway currentUserGateway = mock(ManuscriptReviewCurrentUserGateway.class);
+        private final WorkflowService workflowService = mock(WorkflowService.class);
+        private final IFlwInstanceService flwInstanceService = mock(IFlwInstanceService.class);
         private final AtomicLong idSequence = new AtomicLong(9000L);
         private final ManuscriptReviewService service;
 
@@ -633,6 +1002,8 @@ class ManuscriptReviewServiceTest {
                 userMapper,
                 serialGateway,
                 currentUserGateway,
+                workflowService,
+                flwInstanceService,
                 fixedBusinessClock(),
                 idSequence::incrementAndGet
             );
@@ -720,6 +1091,55 @@ class ManuscriptReviewServiceTest {
                 List.of(levelThreeUser),
                 certifiedCurrentUser ? List.of(certifiedUser) : List.of()
             );
+            when(workflowService.startCompleteTask(any(StartProcessDTO.class))).thenReturn(true);
+            when(workflowService.getInstanceIdByBusinessId(any())).thenReturn(99001L);
         }
+    }
+    @Test
+    void shouldWriteApprovalHistoryWhenProcessEventMovesToSecondLevel() {
+        ServiceFixture fixture = new ServiceFixture(1038L, "000000", 2001L, "张三");
+        ManuscriptReviewRecordEntity record = buildPendingApprovalRecord(9031L, 1038L);
+        when(fixture.recordMapper.selectById(9031L)).thenReturn(record);
+
+        ProcessEvent processEvent = new ProcessEvent();
+        processEvent.setTenantId("000000");
+        processEvent.setBusinessId("9031");
+        processEvent.setInstanceId(99031L);
+        processEvent.setStatus("waiting");
+        processEvent.setNodeCode("second-review-node");
+        processEvent.setNodeName("二级审批");
+        processEvent.setParams(java.util.Map.of("message", "一级通过"));
+
+        fixture.service.processHandler(processEvent);
+
+        ArgumentCaptor<ManuscriptReviewHistoryEntity> historyCaptor = ArgumentCaptor.forClass(ManuscriptReviewHistoryEntity.class);
+        verify(fixture.historyMapper).insert(historyCaptor.capture());
+        assertEquals("APPROVE", historyCaptor.getValue().getActionType());
+        assertTrue(historyCaptor.getValue().getActionText().contains("一级审批审批通过"));
+        assertTrue(historyCaptor.getValue().getActionText().contains("一级通过"));
+    }
+
+    @Test
+    void shouldWriteApprovalHistoryWhenProcessEventMovesToFinalLevel() {
+        ServiceFixture fixture = new ServiceFixture(1039L, "000000", 2001L, "张三");
+        ManuscriptReviewRecordEntity record = buildPendingApprovalRecord(9032L, 1039L);
+        when(fixture.recordMapper.selectById(9032L)).thenReturn(record);
+
+        ProcessEvent processEvent = new ProcessEvent();
+        processEvent.setTenantId("000000");
+        processEvent.setBusinessId("9032");
+        processEvent.setInstanceId(99032L);
+        processEvent.setStatus("waiting");
+        processEvent.setNodeCode("final-review-node");
+        processEvent.setNodeName("三级审批");
+        processEvent.setParams(java.util.Map.of("message", "二级通过"));
+
+        fixture.service.processHandler(processEvent);
+
+        ArgumentCaptor<ManuscriptReviewHistoryEntity> historyCaptor = ArgumentCaptor.forClass(ManuscriptReviewHistoryEntity.class);
+        verify(fixture.historyMapper).insert(historyCaptor.capture());
+        assertEquals("APPROVE", historyCaptor.getValue().getActionType());
+        assertTrue(historyCaptor.getValue().getActionText().contains("二级审批审批通过"));
+        assertTrue(historyCaptor.getValue().getActionText().contains("二级通过"));
     }
 }

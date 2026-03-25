@@ -6,16 +6,24 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.function.LongSupplier;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.gxpublish.brain.common.core.domain.dto.FlowInstanceBizExtDTO;
+import com.gxpublish.brain.common.core.domain.dto.StartProcessDTO;
+import com.gxpublish.brain.common.core.domain.event.ProcessEvent;
+import com.gxpublish.brain.common.core.domain.event.ProcessTaskEvent;
 import com.gxpublish.brain.common.core.exception.ServiceException;
+import com.gxpublish.brain.common.core.service.WorkflowService;
 import com.gxpublish.brain.common.mybatis.utils.IdGeneratorUtil;
 import com.gxpublish.brain.manuscript.review.domain.command.AddManuscriptReviewResourceCommand;
 import com.gxpublish.brain.manuscript.review.domain.command.AddManuscriptReviewVideoMarkCommand;
@@ -45,6 +53,8 @@ import com.gxpublish.brain.manuscript.review.mapper.ManuscriptReviewSystemRoleMa
 import com.gxpublish.brain.manuscript.review.mapper.ManuscriptReviewSystemUserMapper;
 import com.gxpublish.brain.manuscript.review.mapper.ManuscriptReviewSystemUserRoleMapper;
 import com.gxpublish.brain.manuscript.review.mapper.ManuscriptReviewVideoMarkerMapper;
+import com.gxpublish.brain.workflow.domain.bo.FlowCancelBo;
+import com.gxpublish.brain.workflow.service.IFlwInstanceService;
 
 @Service
 public class ManuscriptReviewService {
@@ -73,6 +83,9 @@ public class ManuscriptReviewService {
     private static final String UPDATE_PERMISSION_DENIED_MESSAGE = "当前用户无权修改该流程";
     private static final String FLOW_CONFIG_MISSING_MESSAGE = "审校流程审批链配置缺失";
     private static final String CERTIFIED_ROLE_RESOLUTION_MESSAGE = "持证发起人角色解析失败";
+    private static final String FIRST_APPROVER_PERMISSION_VAR = "manuscriptReviewFirstLevelApprover";
+    private static final String SECOND_APPROVER_PERMISSION_VAR = "manuscriptReviewSecondLevelApprover";
+    private static final String THIRD_APPROVER_PERMISSION_VAR = "manuscriptReviewThirdLevelApprover";
     private static final String ROLE_STATUS_ACTIVE = "0";
     private static final String LEVEL_ONE_NODE = "待一级审批";
     private static final String LEVEL_TWO_NODE = "待二级审批";
@@ -91,10 +104,11 @@ public class ManuscriptReviewService {
     private final ManuscriptReviewSystemUserMapper userMapper;
     private final ManuscriptReviewSerialGateway serialGateway;
     private final ManuscriptReviewCurrentUserGateway currentUserGateway;
+    private final WorkflowService workflowService;
+    private final IFlwInstanceService flwInstanceService;
     private final Clock clock;
     private final LongSupplier idGenerator;
 
-    @Autowired
     public ManuscriptReviewService(ManuscriptReviewRecordMapper recordMapper,
                                    ManuscriptReviewAttachmentMapper attachmentMapper,
                                    ManuscriptReviewExternalLinkMapper externalLinkMapper,
@@ -106,6 +120,8 @@ public class ManuscriptReviewService {
                                    ManuscriptReviewSystemUserMapper userMapper,
                                    ManuscriptReviewSerialGateway serialGateway,
                                    ManuscriptReviewCurrentUserGateway currentUserGateway,
+                                   WorkflowService workflowService,
+                                   IFlwInstanceService flwInstanceService,
                                    Clock clock,
                                    LongSupplier idGenerator) {
         this.recordMapper = recordMapper;
@@ -119,10 +135,13 @@ public class ManuscriptReviewService {
         this.userMapper = userMapper;
         this.serialGateway = serialGateway;
         this.currentUserGateway = currentUserGateway;
+        this.workflowService = workflowService;
+        this.flwInstanceService = flwInstanceService;
         this.clock = clock;
         this.idGenerator = idGenerator;
     }
 
+    @Autowired
     public ManuscriptReviewService(ManuscriptReviewRecordMapper recordMapper,
                                    ManuscriptReviewAttachmentMapper attachmentMapper,
                                    ManuscriptReviewExternalLinkMapper externalLinkMapper,
@@ -133,7 +152,9 @@ public class ManuscriptReviewService {
                                    ManuscriptReviewSystemUserRoleMapper userRoleMapper,
                                    ManuscriptReviewSystemUserMapper userMapper,
                                    ManuscriptReviewSerialGateway serialGateway,
-                                   ManuscriptReviewCurrentUserGateway currentUserGateway) {
+                                   ManuscriptReviewCurrentUserGateway currentUserGateway,
+                                   WorkflowService workflowService,
+                                   IFlwInstanceService flwInstanceService) {
         this(
             recordMapper,
             attachmentMapper,
@@ -146,6 +167,8 @@ public class ManuscriptReviewService {
             userMapper,
             serialGateway,
             currentUserGateway,
+            workflowService,
+            flwInstanceService,
             Clock.system(BUSINESS_ZONE_ID),
             IdGeneratorUtil::nextLongId
         );
@@ -157,6 +180,7 @@ public class ManuscriptReviewService {
         applyWriteFields(entity, command.getProcessType(), command.getExternalManuscriptCode(), command.getTitle(),
             command.getMediaChannel(), command.getSubmitDepartment(), command.getAuthorName(), command.getRemark(),
             command.getContentBody(), null);
+        initializePreSubmitFlowFields(entity, command.getProcessType());
         fillCreateAuditFields(entity);
         recordMapper.insert(entity);
         insertActorHistory(entity.getId(), "CREATE", currentUsername() + "新增了审校流程单《" + entity.getTitle() + "》。");
@@ -174,6 +198,7 @@ public class ManuscriptReviewService {
         applyWriteFields(entity, command.getProcessType(), command.getExternalManuscriptCode(), command.getTitle(),
             command.getMediaChannel(), command.getSubmitDepartment(), command.getAuthorName(), command.getRemark(),
             command.getContentBody(), reviewId);
+        entity.setFlowCode(resolveFlowCode(command.getProcessType()));
         fillUpdateAuditFields(entity);
         recordMapper.updateById(entity);
         insertActorHistory(reviewId, "UPDATE", buildUpdateHistoryText(existing, entity));
@@ -183,13 +208,16 @@ public class ManuscriptReviewService {
         ManuscriptReviewRecordEntity existing = requireRecord(reviewId);
         ensureHasAtLeastOneEffectiveResource(reviewId);
         SubmissionRoute route = resolveSubmissionRoute(existing);
+        String manuscriptCode = buildManuscriptCode(route.processType());
+        Long flowInstanceId = startWorkflowOrThrow(reviewId, route, manuscriptCode, existing.getTitle());
         Date now = now();
         ManuscriptReviewRecordEntity entity = new ManuscriptReviewRecordEntity();
         entity.setId(reviewId);
         entity.setFlowCode(route.flowCode());
+        entity.setFlowInstanceId(flowInstanceId);
         entity.setFlowStatusLabel("审批中");
         entity.setCurrentNodeLabel(route.currentNodeLabel());
-        entity.setManuscriptCode(buildManuscriptCode(route.processType()));
+        entity.setManuscriptCode(manuscriptCode);
         entity.setFirstSubmitTime(existing.getFirstSubmitTime() == null ? now : existing.getFirstSubmitTime());
         entity.setLatestSubmitTime(now);
         fillUpdateAuditFields(entity);
@@ -208,13 +236,16 @@ public class ManuscriptReviewService {
         }
         ensureHasAtLeastOneEffectiveResource(existing.getId());
         SubmissionRoute route = resolveSubmissionRoute(existing);
+        String manuscriptCode = trimToNull(existing.getManuscriptCode()) == null ? buildManuscriptCode(route.processType()) : existing.getManuscriptCode();
+        Long flowInstanceId = startWorkflowOrThrow(existing.getId(), route, manuscriptCode, existing.getTitle());
         Date now = now();
         ManuscriptReviewRecordEntity entity = new ManuscriptReviewRecordEntity();
         entity.setId(existing.getId());
         entity.setFlowCode(route.flowCode());
+        entity.setFlowInstanceId(flowInstanceId);
         entity.setFlowStatusLabel("审批中");
         entity.setCurrentNodeLabel(route.currentNodeLabel());
-        entity.setManuscriptCode(existing.getManuscriptCode());
+        entity.setManuscriptCode(manuscriptCode);
         entity.setFirstSubmitTime(existing.getFirstSubmitTime() == null ? now : existing.getFirstSubmitTime());
         entity.setLatestSubmitTime(now);
         fillUpdateAuditFields(entity);
@@ -234,14 +265,102 @@ public class ManuscriptReviewService {
         if (!"审批中".equals(trimToNull(existing.getFlowStatusLabel()))) {
             throw new ServiceException(CANCEL_ONLY_WAITING_MESSAGE);
         }
+        FlowCancelBo flowCancelBo = new FlowCancelBo();
+        flowCancelBo.setBusinessId(reviewId.toString());
+        flowCancelBo.setMessage(trimToNull(reason));
+        flwInstanceService.cancelProcessApply(flowCancelBo);
         ManuscriptReviewRecordEntity entity = new ManuscriptReviewRecordEntity();
         entity.setId(existing.getId());
+        entity.setFlowInstanceId(existing.getFlowInstanceId());
         entity.setFlowStatusLabel("已取消");
         entity.setCurrentNodeLabel("流程已取消");
         entity.setRemark(trimToNull(reason));
         fillUpdateAuditFields(entity);
         recordMapper.updateById(entity);
         insertActorHistory(existing.getId(), "CANCEL", currentUsername() + "撤销了审校流程单。");
+    }
+
+    @EventListener(condition = "#processEvent.flowCode.startsWith('manuscript_review_')")
+    public void processHandler(ProcessEvent processEvent) {
+        Long reviewId = parseReviewId(processEvent.getBusinessId());
+        if (reviewId == null || requireRecordIfPresent(reviewId) == null) {
+            return;
+        }
+        if (Boolean.TRUE.equals(processEvent.getSubmit())) {
+            ManuscriptReviewRecordEntity entity = new ManuscriptReviewRecordEntity();
+            entity.setId(reviewId);
+            entity.setFlowInstanceId(processEvent.getInstanceId());
+            entity.setFlowStatusLabel("审批中");
+            entity.setUpdateTime(now());
+            recordMapper.updateById(entity);
+            return;
+        }
+        String status = trimToNull(processEvent.getStatus());
+        if (status == null) {
+            return;
+        }
+        ManuscriptReviewRecordEntity entity = new ManuscriptReviewRecordEntity();
+        entity.setId(reviewId);
+        entity.setFlowInstanceId(processEvent.getInstanceId());
+        entity.setUpdateTime(now());
+        switch (status) {
+            case "waiting" -> {
+                entity.setFlowStatusLabel("待审批");
+                recordMapper.updateById(entity);
+                String approvalHistoryText = buildApprovalWorkflowHistoryText(processEvent);
+                if (approvalHistoryText != null) {
+                    insertWorkflowHistory(reviewId, processEvent.getTenantId(), "APPROVE", approvalHistoryText);
+                }
+            }
+            case "cancel" -> {
+                entity.setFlowStatusLabel("已取消");
+                entity.setCurrentNodeLabel("流程已取消");
+                recordMapper.updateById(entity);
+            }
+            case "back" -> {
+                entity.setFlowStatusLabel("已退回");
+                entity.setCurrentNodeLabel("待发起人处理");
+                recordMapper.updateById(entity);
+                insertWorkflowHistory(reviewId, processEvent.getTenantId(), "BACK", "流程已退回发起人处理。");
+            }
+            case "finish" -> {
+                entity.setFlowStatusLabel("已完成");
+                entity.setCurrentNodeLabel("流程完成");
+                recordMapper.updateById(entity);
+                insertWorkflowHistory(reviewId, processEvent.getTenantId(), "FINISH", "流程审批已完成。");
+            }
+            case "termination" -> {
+                entity.setFlowStatusLabel("已驳回");
+                entity.setCurrentNodeLabel("流程已驳回");
+                recordMapper.updateById(entity);
+                insertWorkflowHistory(reviewId, processEvent.getTenantId(), "REJECT", buildRejectWorkflowHistoryText(processEvent));
+            }
+            default -> {
+            }
+        }
+    }
+
+    @EventListener(condition = "#processTaskEvent.flowCode.startsWith('manuscript_review_')")
+    public void processTaskHandler(ProcessTaskEvent processTaskEvent) {
+        Long reviewId = parseReviewId(processTaskEvent.getBusinessId());
+        if (reviewId == null || requireRecordIfPresent(reviewId) == null) {
+            return;
+        }
+        String status = trimToNull(processTaskEvent.getStatus());
+        if ("back".equals(status) || "cancel".equals(status) || "finish".equals(status) || "termination".equals(status)) {
+            return;
+        }
+        String nodeName = trimToNull(processTaskEvent.getNodeName());
+        if (nodeName == null) {
+            return;
+        }
+        ManuscriptReviewRecordEntity entity = new ManuscriptReviewRecordEntity();
+        entity.setId(reviewId);
+        entity.setFlowInstanceId(processTaskEvent.getInstanceId());
+        entity.setFlowStatusLabel("审批中");
+        entity.setCurrentNodeLabel(nodeName);
+        entity.setUpdateTime(now());
+        recordMapper.updateById(entity);
     }
 
     public Long addResource(AddManuscriptReviewResourceCommand command) {
@@ -353,6 +472,13 @@ public class ManuscriptReviewService {
         entity.setContentBody(requireLength(trimToNull(contentBody), "正文不能为空", "正文长度不能超过20000个字符", 20000));
     }
 
+    private void initializePreSubmitFlowFields(ManuscriptReviewRecordEntity entity, ManuscriptReviewProcessType processType) {
+        entity.setFlowCode(resolveFlowCode(processType));
+        // Pre-submit records have not entered workflow yet; keep the runtime state semantically unset.
+        entity.setFlowStatusLabel("");
+        entity.setCurrentNodeLabel("");
+    }
+
     private Long insertAttachmentResource(Long reviewId, AddManuscriptReviewResourceCommand command, boolean video) {
         if (command.getOssId() == null) {
             throw new ServiceException("附件/视频资源必须提供ossId");
@@ -446,15 +572,21 @@ public class ManuscriptReviewService {
         ManuscriptReviewProcessType processType = requireProcessType(record.getProcessType());
         String tenantId = normalizeTenantId(record.getTenantId());
         ManuscriptReviewFlowConfigEntity flowConfig = requireFlowConfig(tenantId, processType);
-        ensureRoleHasActiveMembers(tenantId, LEVEL_ONE_NODE, trimToNull(flowConfig.getLevelOneRoleKey()));
-        ensureRoleHasActiveMembers(tenantId, LEVEL_TWO_NODE, trimToNull(flowConfig.getLevelTwoRoleKey()));
-        ensureRoleHasActiveMembers(tenantId, LEVEL_THREE_NODE, trimToNull(flowConfig.getLevelThreeRoleKey()));
+        ManuscriptReviewSystemRoleEntity levelOneRole = requireActiveRole(tenantId, trimToNull(flowConfig.getLevelOneRoleKey()));
+        ManuscriptReviewSystemRoleEntity levelTwoRole = requireActiveRole(tenantId, trimToNull(flowConfig.getLevelTwoRoleKey()));
+        ManuscriptReviewSystemRoleEntity levelThreeRole = requireActiveRole(tenantId, trimToNull(flowConfig.getLevelThreeRoleKey()));
+        ensureRoleHasActiveMembers(tenantId, LEVEL_ONE_NODE, levelOneRole);
+        ensureRoleHasActiveMembers(tenantId, LEVEL_TWO_NODE, levelTwoRole);
+        ensureRoleHasActiveMembers(tenantId, LEVEL_THREE_NODE, levelThreeRole);
         boolean skipLevelOne = isCertifiedInitiator(tenantId, requireCurrentUserId());
         return new SubmissionRoute(
             processType,
             trimToNull(flowConfig.getFlowCode()),
             skipLevelOne ? LEVEL_TWO_NODE : LEVEL_ONE_NODE,
-            skipLevelOne
+            skipLevelOne,
+            toPermissionFlag(levelOneRole),
+            toPermissionFlag(levelTwoRole),
+            toPermissionFlag(levelThreeRole)
         );
     }
 
@@ -476,8 +608,19 @@ public class ManuscriptReviewService {
         return flowConfig;
     }
 
-    private void ensureRoleHasActiveMembers(String tenantId, String nodeLabel, String roleKey) {
-        if (resolveActiveUserIdsByRoleKey(tenantId, roleKey).isEmpty()) {
+    private ManuscriptReviewSystemRoleEntity requireActiveRole(String tenantId, String roleKey) {
+        return roleMapper.selectOne(
+            new QueryWrapper<ManuscriptReviewSystemRoleEntity>()
+                .eq("tenant_id", tenantId)
+                .eq("role_key", roleKey)
+                .eq("status", ROLE_STATUS_ACTIVE)
+                .eq("del_flag", ROLE_STATUS_ACTIVE)
+                .last("limit 1")
+        );
+    }
+
+    private void ensureRoleHasActiveMembers(String tenantId, String nodeLabel, ManuscriptReviewSystemRoleEntity role) {
+        if (role == null || role.getRoleId() == null || resolveActiveUserIdsByRoleId(tenantId, role.getRoleId()).isEmpty()) {
             throw new ServiceException(nodeLabel + "审批角色无有效成员");
         }
     }
@@ -518,19 +661,19 @@ public class ManuscriptReviewService {
     }
 
     private List<Long> resolveActiveUserIdsByRoleKey(String tenantId, String roleKey) {
-        ManuscriptReviewSystemRoleEntity role = roleMapper.selectOne(
-            new QueryWrapper<ManuscriptReviewSystemRoleEntity>()
-                .eq("tenant_id", tenantId)
-                .eq("role_key", roleKey)
-                .eq("status", ROLE_STATUS_ACTIVE)
-                .eq("del_flag", ROLE_STATUS_ACTIVE)
-                .last("limit 1")
-        );
+        ManuscriptReviewSystemRoleEntity role = requireActiveRole(tenantId, roleKey);
         if (role == null || role.getRoleId() == null) {
             return List.of();
         }
+        return resolveActiveUserIdsByRoleId(tenantId, role.getRoleId());
+    }
+
+    private List<Long> resolveActiveUserIdsByRoleId(String tenantId, Long roleId) {
+        if (roleId == null) {
+            return List.of();
+        }
         List<Long> candidateUserIds = userRoleMapper.selectList(
-            new QueryWrapper<ManuscriptReviewSystemUserRoleEntity>().eq("role_id", role.getRoleId())
+            new QueryWrapper<ManuscriptReviewSystemUserRoleEntity>().eq("role_id", roleId)
         ).stream().map(ManuscriptReviewSystemUserRoleEntity::getUserId).filter(Objects::nonNull).distinct().toList();
         if (candidateUserIds.isEmpty()) {
             return List.of();
@@ -566,6 +709,35 @@ public class ManuscriptReviewService {
         return roleKey == null ? List.of() : resolveActiveUserIdsByRoleKey(tenantId, roleKey);
     }
 
+    private Long startWorkflowOrThrow(Long reviewId, SubmissionRoute route, String manuscriptCode, String title) {
+        StartProcessDTO startProcess = new StartProcessDTO();
+        startProcess.setBusinessId(reviewId.toString());
+        startProcess.setFlowCode(route.flowCode());
+        Map<String, Object> variables = new HashMap<>();
+        variables.put("ignore", true);
+        variables.put("processType", route.processType().name());
+        variables.put("skipLevelOne", route.skipLevelOne());
+        variables.put(FIRST_APPROVER_PERMISSION_VAR, route.firstApproverPermission());
+        variables.put(SECOND_APPROVER_PERMISSION_VAR, route.secondApproverPermission());
+        variables.put(THIRD_APPROVER_PERMISSION_VAR, route.thirdApproverPermission());
+        startProcess.setVariables(variables);
+
+        FlowInstanceBizExtDTO bizExt = new FlowInstanceBizExtDTO();
+        bizExt.setBusinessId(reviewId.toString());
+        bizExt.setBusinessCode(manuscriptCode);
+        bizExt.setBusinessTitle(title);
+        startProcess.setBizExt(bizExt);
+
+        if (!workflowService.startCompleteTask(startProcess)) {
+            throw new ServiceException("流程发起异常");
+        }
+        Long flowInstanceId = workflowService.getInstanceIdByBusinessId(reviewId.toString());
+        if (flowInstanceId == null) {
+            throw new ServiceException("流程实例创建异常");
+        }
+        return flowInstanceId;
+    }
+
     private void insertActorHistory(Long reviewId, String actionType, String actionText) {
         ManuscriptReviewHistoryEntity entity = new ManuscriptReviewHistoryEntity();
         entity.setId(nextId());
@@ -583,6 +755,17 @@ public class ManuscriptReviewService {
         ManuscriptReviewHistoryEntity entity = new ManuscriptReviewHistoryEntity();
         entity.setId(nextId());
         entity.setTenantId(normalizeTenantId(currentUserGateway.getCurrentTenantId()));
+        entity.setReviewId(reviewId);
+        entity.setActionType(actionType);
+        entity.setActionText(actionText);
+        entity.setCreateTime(now());
+        historyMapper.insert(entity);
+    }
+
+    private void insertWorkflowHistory(Long reviewId, String tenantId, String actionType, String actionText) {
+        ManuscriptReviewHistoryEntity entity = new ManuscriptReviewHistoryEntity();
+        entity.setId(nextId());
+        entity.setTenantId(normalizeTenantId(tenantId));
         entity.setReviewId(reviewId);
         entity.setActionType(actionType);
         entity.setActionText(actionText);
@@ -731,6 +914,9 @@ public class ManuscriptReviewService {
             if (segments.length == 1) {
                 seconds = Integer.parseInt(segments[0]);
             } else if (segments.length == 2) {
+                if (segments[0].length() != 2 || segments[1].length() != 2) {
+                    throw new NumberFormatException("mm:ss width");
+                }
                 int minute = Integer.parseInt(segments[0]);
                 int second = Integer.parseInt(segments[1]);
                 if (second < 0 || second >= 60) {
@@ -738,6 +924,9 @@ public class ManuscriptReviewService {
                 }
                 seconds = minute * 60 + second;
             } else if (segments.length == 3) {
+                if (segments[0].length() != 2 || segments[1].length() != 2 || segments[2].length() != 2) {
+                    throw new NumberFormatException("HH:mm:ss width");
+                }
                 int hour = Integer.parseInt(segments[0]);
                 int minute = Integer.parseInt(segments[1]);
                 int second = Integer.parseInt(segments[2]);
@@ -771,6 +960,20 @@ public class ManuscriptReviewService {
             serial = 1;
         }
         return processType.getManuscriptCodePrefix() + businessDate + String.format("%03d", serial);
+    }
+
+    private String resolveFlowCode(ManuscriptReviewProcessType processType) {
+        return switch (requireProcessType(processType)) {
+            case AUDIT -> "manuscript_review_audit_flow";
+            case PROOFREAD -> "manuscript_review_proofread_flow";
+        };
+    }
+
+    private String toPermissionFlag(ManuscriptReviewSystemRoleEntity role) {
+        if (role == null || role.getRoleId() == null) {
+            throw new ServiceException(FLOW_CONFIG_MISSING_MESSAGE);
+        }
+        return "role:" + role.getRoleId();
     }
 
     private void fillCreateAuditFields(ManuscriptReviewRecordEntity entity) {
@@ -919,6 +1122,45 @@ public class ManuscriptReviewService {
         return username == null ? "当前用户" : username;
     }
 
+    private ManuscriptReviewRecordEntity requireRecordIfPresent(Long reviewId) {
+        return recordMapper.selectById(reviewId);
+    }
+
+    private Long parseReviewId(String businessId) {
+        String normalized = trimToNull(businessId);
+        if (normalized == null) {
+            return null;
+        }
+        try {
+            return Long.parseLong(normalized);
+        } catch (NumberFormatException ex) {
+            return null;
+        }
+    }
+
+    private String buildRejectWorkflowHistoryText(ProcessEvent processEvent) {
+        Map<String, Object> params = processEvent.getParams();
+        String message = trimToNull(params == null ? null : Objects.toString(params.get("message"), null));
+        return message == null ? "三级审批驳回，当前流程已终止。"
+            : "三级审批驳回，当前流程已终止。审批意见：" + message + "。";
+    }
+
+    private String buildApprovalWorkflowHistoryText(ProcessEvent processEvent) {
+        String previousNodeLabel = switch (trimToNull(processEvent.getNodeCode())) {
+            case "second-review-node" -> "一级审批";
+            case "final-review-node" -> "二级审批";
+            case "end-node" -> "三级审批";
+            default -> null;
+        };
+        if (previousNodeLabel == null) {
+            return null;
+        }
+        Map<String, Object> params = processEvent.getParams();
+        String message = trimToNull(params == null ? null : Objects.toString(params.get("message"), null));
+        return message == null ? previousNodeLabel + "审批通过。"
+            : previousNodeLabel + "审批通过。审批意见：" + message + "。";
+    }
+
     private String normalizeTenantId(String tenantId) {
         String normalized = trimToNull(tenantId);
         return normalized == null ? DEFAULT_TENANT_ID : normalized;
@@ -944,7 +1186,10 @@ public class ManuscriptReviewService {
         ManuscriptReviewProcessType processType,
         String flowCode,
         String currentNodeLabel,
-        boolean skipLevelOne
+        boolean skipLevelOne,
+        String firstApproverPermission,
+        String secondApproverPermission,
+        String thirdApproverPermission
     ) {
     }
 

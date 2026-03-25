@@ -255,6 +255,10 @@ class ManuscriptReviewFlowRoutingServiceTest {
         private final ManuscriptReviewSystemUserMapper userMapper = mock(ManuscriptReviewSystemUserMapper.class);
         private final ManuscriptReviewSerialGateway serialGateway = mock(ManuscriptReviewSerialGateway.class);
         private final ManuscriptReviewCurrentUserGateway currentUserGateway = mock(ManuscriptReviewCurrentUserGateway.class);
+        private final com.gxpublish.brain.common.core.service.WorkflowService workflowService =
+            mock(com.gxpublish.brain.common.core.service.WorkflowService.class);
+        private final com.gxpublish.brain.workflow.service.IFlwInstanceService flwInstanceService =
+            mock(com.gxpublish.brain.workflow.service.IFlwInstanceService.class);
         private final ManuscriptReviewService service;
 
         private FlowFixture(Long currentUserId, String currentUsername) {
@@ -275,9 +279,13 @@ class ManuscriptReviewFlowRoutingServiceTest {
                 userMapper,
                 serialGateway,
                 currentUserGateway,
+                workflowService,
+                flwInstanceService,
                 fixedBusinessClock(),
                 new AtomicLong(9900L)::incrementAndGet
             );
+            when(workflowService.startCompleteTask(any(com.gxpublish.brain.common.core.domain.dto.StartProcessDTO.class))).thenReturn(true);
+            when(workflowService.getInstanceIdByBusinessId(any())).thenReturn(99100L);
         }
 
         private void stubSubmitRouting(boolean certifiedCurrentUser) {

@@ -525,6 +525,13 @@ class ManuscriptReviewSharedApiMvcTest {
                 return 1;
             });
 
+            com.gxpublish.brain.common.core.service.WorkflowService workflowService =
+                mock(com.gxpublish.brain.common.core.service.WorkflowService.class);
+            com.gxpublish.brain.workflow.service.IFlwInstanceService flwInstanceService =
+                mock(com.gxpublish.brain.workflow.service.IFlwInstanceService.class);
+            when(workflowService.startCompleteTask(any(com.gxpublish.brain.common.core.domain.dto.StartProcessDTO.class))).thenReturn(true);
+            when(workflowService.getInstanceIdByBusinessId(any())).thenReturn(99200L);
+
             ManuscriptReviewService manuscriptReviewService = new ManuscriptReviewService(
                 recordMapper,
                 attachmentMapper,
@@ -537,6 +544,8 @@ class ManuscriptReviewSharedApiMvcTest {
                 userMapper,
                 serialGateway,
                 currentUserGateway,
+                workflowService,
+                flwInstanceService,
                 Clock.fixed(LocalDate.of(2026, 3, 21).atStartOfDay(BUSINESS_ZONE_ID).toInstant(), BUSINESS_ZONE_ID),
                 idSequence::incrementAndGet
             );
