@@ -267,6 +267,51 @@ WHERE definition_id = @audit_definition_id
   AND now_node_code = 'certified-route-node'
   AND next_node_code = 'second-review-node';
 
+INSERT INTO flow_skip
+(`id`, `definition_id`, `now_node_code`, `now_node_type`, `next_node_code`, `next_node_type`, `skip_name`, `skip_type`,
+ `skip_condition`, `coordinate`, `create_time`, `create_by`, `update_time`, `update_by`, `del_flag`, `tenant_id`)
+SELECT 2026032500000002108, @audit_definition_id, 'first-review-node', 1, 'applicant-node', 1, NULL, 'REJECT', NULL,
+       '390,160;300,160', NOW(), @operator, NOW(), @operator, '0', @tenant_id
+FROM DUAL
+WHERE NOT EXISTS (
+    SELECT 1 FROM flow_skip
+    WHERE definition_id = @audit_definition_id
+      AND now_node_code = 'first-review-node'
+      AND next_node_code = 'applicant-node'
+      AND skip_type = 'REJECT'
+      AND del_flag = '0'
+);
+
+INSERT INTO flow_skip
+(`id`, `definition_id`, `now_node_code`, `now_node_type`, `next_node_code`, `next_node_type`, `skip_name`, `skip_type`,
+ `skip_condition`, `coordinate`, `create_time`, `create_by`, `update_time`, `update_by`, `del_flag`, `tenant_id`)
+SELECT 2026032500000002109, @audit_definition_id, 'second-review-node', 1, 'applicant-node', 1, NULL, 'REJECT', NULL,
+       '570,160;300,160', NOW(), @operator, NOW(), @operator, '0', @tenant_id
+FROM DUAL
+WHERE NOT EXISTS (
+    SELECT 1 FROM flow_skip
+    WHERE definition_id = @audit_definition_id
+      AND now_node_code = 'second-review-node'
+      AND next_node_code = 'applicant-node'
+      AND skip_type = 'REJECT'
+      AND del_flag = '0'
+);
+
+INSERT INTO flow_skip
+(`id`, `definition_id`, `now_node_code`, `now_node_type`, `next_node_code`, `next_node_type`, `skip_name`, `skip_type`,
+ `skip_condition`, `coordinate`, `create_time`, `create_by`, `update_time`, `update_by`, `del_flag`, `tenant_id`)
+SELECT 2026032500000002110, @audit_definition_id, 'final-review-node', 1, 'applicant-node', 1, NULL, 'REJECT', NULL,
+       '750,160;300,160', NOW(), @operator, NOW(), @operator, '0', @tenant_id
+FROM DUAL
+WHERE NOT EXISTS (
+    SELECT 1 FROM flow_skip
+    WHERE definition_id = @audit_definition_id
+      AND now_node_code = 'final-review-node'
+      AND next_node_code = 'applicant-node'
+      AND skip_type = 'REJECT'
+      AND del_flag = '0'
+);
+
 INSERT INTO flow_node
 (`id`, `node_type`, `definition_id`, `node_code`, `node_name`, `permission_flag`, `node_ratio`, `coordinate`,
  `any_node_skip`, `listener_type`, `listener_path`, `form_custom`, `form_path`, `version`, `create_time`, `create_by`,
@@ -470,6 +515,51 @@ SET now_node_code = 'certified-route-node',
 WHERE definition_id = @proof_definition_id
   AND now_node_code = 'certified-route-node'
   AND next_node_code = 'second-review-node';
+
+INSERT INTO flow_skip
+(`id`, `definition_id`, `now_node_code`, `now_node_type`, `next_node_code`, `next_node_type`, `skip_name`, `skip_type`,
+ `skip_condition`, `coordinate`, `create_time`, `create_by`, `update_time`, `update_by`, `del_flag`, `tenant_id`)
+SELECT 2026032500000002208, @proof_definition_id, 'first-review-node', 1, 'applicant-node', 1, NULL, 'REJECT', NULL,
+       '390,160;300,160', NOW(), @operator, NOW(), @operator, '0', @tenant_id
+FROM DUAL
+WHERE NOT EXISTS (
+    SELECT 1 FROM flow_skip
+    WHERE definition_id = @proof_definition_id
+      AND now_node_code = 'first-review-node'
+      AND next_node_code = 'applicant-node'
+      AND skip_type = 'REJECT'
+      AND del_flag = '0'
+);
+
+INSERT INTO flow_skip
+(`id`, `definition_id`, `now_node_code`, `now_node_type`, `next_node_code`, `next_node_type`, `skip_name`, `skip_type`,
+ `skip_condition`, `coordinate`, `create_time`, `create_by`, `update_time`, `update_by`, `del_flag`, `tenant_id`)
+SELECT 2026032500000002209, @proof_definition_id, 'second-review-node', 1, 'applicant-node', 1, NULL, 'REJECT', NULL,
+       '570,160;300,160', NOW(), @operator, NOW(), @operator, '0', @tenant_id
+FROM DUAL
+WHERE NOT EXISTS (
+    SELECT 1 FROM flow_skip
+    WHERE definition_id = @proof_definition_id
+      AND now_node_code = 'second-review-node'
+      AND next_node_code = 'applicant-node'
+      AND skip_type = 'REJECT'
+      AND del_flag = '0'
+);
+
+INSERT INTO flow_skip
+(`id`, `definition_id`, `now_node_code`, `now_node_type`, `next_node_code`, `next_node_type`, `skip_name`, `skip_type`,
+ `skip_condition`, `coordinate`, `create_time`, `create_by`, `update_time`, `update_by`, `del_flag`, `tenant_id`)
+SELECT 2026032500000002210, @proof_definition_id, 'final-review-node', 1, 'applicant-node', 1, NULL, 'REJECT', NULL,
+       '750,160;300,160', NOW(), @operator, NOW(), @operator, '0', @tenant_id
+FROM DUAL
+WHERE NOT EXISTS (
+    SELECT 1 FROM flow_skip
+    WHERE definition_id = @proof_definition_id
+      AND now_node_code = 'final-review-node'
+      AND next_node_code = 'applicant-node'
+      AND skip_type = 'REJECT'
+      AND del_flag = '0'
+);
 
 INSERT INTO brain_manuscript_review_flow_config
 (`id`, `tenant_id`, `process_type`, `flow_code`, `level_one_role_key`, `level_two_role_key`, `level_three_role_key`,

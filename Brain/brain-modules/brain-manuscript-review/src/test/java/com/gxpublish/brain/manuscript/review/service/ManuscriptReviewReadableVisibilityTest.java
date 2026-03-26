@@ -101,6 +101,49 @@ class ManuscriptReviewReadableVisibilityTest {
         assertEquals("流程已驳回，不可继续操作", detail.getPermissionMatrix().getButtonReason());
     }
 
+    @Test
+    void shouldTreatRuntimeWorkflowNodeNameAsCurrentApproverNode() {
+        ReadableFixture fixture = new ReadableFixture(4001L);
+        ManuscriptReviewRecordEntity record = buildRecord(9307L, 3007L, "审批中", "一级审批");
+        when(fixture.recordMapper.selectById(9307L)).thenReturn(record);
+        when(fixture.attachmentMapper.selectList(any())).thenReturn(List.of(buildAttachment(8402L)));
+        when(fixture.externalLinkMapper.selectList(any())).thenReturn(List.of());
+        when(fixture.historyMapper.selectList(any())).thenReturn(List.of());
+        when(fixture.videoMarkerMapper.selectList(any())).thenReturn(List.of());
+        when(fixture.flowConfigMapper.selectOne(any())).thenReturn(buildFlowConfig());
+        when(fixture.roleMapper.selectList(any())).thenReturn(List.of(buildRole(7101L, "role:l1")));
+        when(fixture.userRoleMapper.selectList(any())).thenReturn(List.of(buildUserRole(4001L, 7101L)));
+        when(fixture.userMapper.selectList(any())).thenReturn(List.of(buildEnabledUser(4001L)));
+
+        ManuscriptReviewDetailResponse detail = fixture.readableService.getDetail(9307L);
+
+        assertEquals("待一级审批", detail.getCurrentNodeLabel());
+        assertEquals("LEVEL_1", detail.getCurrentNodeCode());
+        assertTrue(detail.getPermissionMatrix().isCanView());
+        assertTrue(detail.getPermissionMatrix().isCanEdit());
+        assertTrue(detail.getPermissionMatrix().isCanGotoApproval());
+    }
+
+    @Test
+    void shouldKeepCreateAheadOfSkipLevelOneWhenTimelineTimestampsTie() {
+        ReadableFixture fixture = new ReadableFixture(3008L);
+        ManuscriptReviewRecordEntity record = buildRecord(9308L, 3008L, "审批中", "待二级审批");
+        when(fixture.recordMapper.selectById(9308L)).thenReturn(record);
+        when(fixture.attachmentMapper.selectList(any())).thenReturn(List.of(buildAttachment(8403L)));
+        when(fixture.externalLinkMapper.selectList(any())).thenReturn(List.of());
+        Date sameTime = new Date(1774236000000L);
+        when(fixture.historyMapper.selectList(any())).thenReturn(List.of(
+            buildHistory(9308L, null, "SKIP_LEVEL_1", "系统判定发起人具备持证资格，自动跳过一级审批。", sameTime),
+            buildHistory(9308L, 3008L, "CREATE", "张三新增了流程。", sameTime)
+        ));
+        when(fixture.videoMarkerMapper.selectList(any())).thenReturn(List.of());
+
+        ManuscriptReviewDetailResponse detail = fixture.readableService.getDetail(9308L);
+
+        assertEquals(List.of("张三新增了流程。", "系统判定发起人具备持证资格，自动跳过一级审批。"),
+            detail.getTimelineItems().stream().map(ManuscriptReviewDetailResponse.TimelineItemVO::getEventText).toList());
+    }
+
     private static ManuscriptReviewRecordEntity buildRecord(Long id, Long initiatorUserId, String flowStatusLabel, String currentNodeLabel) {
         ManuscriptReviewRecordEntity entity = new ManuscriptReviewRecordEntity();
         entity.setId(id);
@@ -124,13 +167,17 @@ class ManuscriptReviewReadableVisibilityTest {
     }
 
     private static ManuscriptReviewHistoryEntity buildHistory(Long reviewId, Long actorUserId, String actionText) {
+        return buildHistory(reviewId, actorUserId, "WORKFLOW", actionText, new Date(1774236000000L));
+    }
+
+    private static ManuscriptReviewHistoryEntity buildHistory(Long reviewId, Long actorUserId, String actionType, String actionText, Date createTime) {
         ManuscriptReviewHistoryEntity entity = new ManuscriptReviewHistoryEntity();
         entity.setReviewId(reviewId);
-        entity.setActionType("WORKFLOW");
+        entity.setActionType(actionType);
         entity.setActionText(actionText);
         entity.setActorUserId(actorUserId);
         entity.setActorName("李四");
-        entity.setCreateTime(new Date(1774236000000L));
+        entity.setCreateTime(createTime);
         return entity;
     }
 

@@ -29,6 +29,7 @@ public class ManuscriptReviewDetailResponse {
     private String businessStatus;
     private String businessStatusLabel;
     private String currentNodeCode;
+    private String currentNodeStatus;
     private String currentNodeLabel;
     private String initiatorName;
     private String firstSubmitTime;

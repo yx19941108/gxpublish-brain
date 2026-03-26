@@ -50,10 +50,9 @@ import com.gxpublish.brain.manuscript.review.domain.entity.ManuscriptReviewVideo
 import com.gxpublish.brain.manuscript.review.domain.enums.ManuscriptReviewEnabledStatusEnum;
 import com.gxpublish.brain.manuscript.review.domain.enums.ManuscriptReviewFlowStatusEnum;
 import com.gxpublish.brain.manuscript.review.domain.enums.ManuscriptReviewHistoryActionTypeEnum;
-import com.gxpublish.brain.manuscript.review.domain.enums.ManuscriptReviewNodeLabelEnum;
+import com.gxpublish.brain.manuscript.review.domain.enums.ManuscriptReviewNodeStatusEnum;
 import com.gxpublish.brain.manuscript.review.domain.enums.ManuscriptReviewProcessType;
 import com.gxpublish.brain.manuscript.review.domain.enums.ManuscriptReviewResourceTypeEnum;
-import com.gxpublish.brain.manuscript.review.domain.enums.ManuscriptReviewWorkflowNodeCodeEnum;
 import com.gxpublish.brain.manuscript.review.gateway.ManuscriptReviewCurrentUserGateway;
 import com.gxpublish.brain.manuscript.review.gateway.ManuscriptReviewSerialGateway;
 import com.gxpublish.brain.manuscript.review.mapper.ManuscriptReviewAttachmentMapper;
@@ -102,9 +101,9 @@ public class ManuscriptReviewService implements IManuscriptReviewService {
     private static final String LEGACY_SUBMIT_HISTORY_ACTION = "SUBMIT";
     private static final String WORKFLOW_PENDING_APPROVAL_LABEL = "待审批";
     private static final String ROLE_STATUS_ACTIVE = "0";
-    private static final String LEVEL_ONE_NODE = "待一级审批";
-    private static final String LEVEL_TWO_NODE = "待二级审批";
-    private static final String LEVEL_THREE_NODE = "待三级审批";
+    private static final String LEVEL_ONE_NODE = ManuscriptReviewNodeStatusEnum.LEVEL_1.getLabel();
+    private static final String LEVEL_TWO_NODE = ManuscriptReviewNodeStatusEnum.LEVEL_2.getLabel();
+    private static final String LEVEL_THREE_NODE = ManuscriptReviewNodeStatusEnum.LEVEL_3.getLabel();
     private static final String ROLE_KEY_CERTIFIED_INITIATOR = "manuscript_review_certified_initiator";
     private static final ZoneId BUSINESS_ZONE_ID = ZoneId.of("Asia/Shanghai");
 
@@ -219,13 +218,10 @@ public class ManuscriptReviewService implements IManuscriptReviewService {
     }
 
     /**
-     * ????????
+     * 修改现有流程单。
      *
-     * <p>v6.26 ?????????????????????????????
-     * ???????????????? BPM ?????</p>
-     *
-     * @param command ??????
-     * @return ????
+     * @param command 主单修改命令
+     * @return 无返回值
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -276,7 +272,7 @@ public class ManuscriptReviewService implements IManuscriptReviewService {
         entity.setFlowCode(route.flowCode());
         entity.setFlowInstanceId(flowInstanceId);
         entity.setFlowStatusLabel(ManuscriptReviewFlowStatusEnum.WAITING.getLabel());
-        entity.setCurrentNodeLabel(route.currentNodeLabel());
+        applyCurrentNodeStatus(entity, route.currentNodeStatus());
         entity.setManuscriptCode(manuscriptCode);
         entity.setFirstSubmitTime(existing.getFirstSubmitTime() == null ? now : existing.getFirstSubmitTime());
         entity.setLatestSubmitTime(now);
@@ -317,7 +313,7 @@ public class ManuscriptReviewService implements IManuscriptReviewService {
             command.getContentBody(), null);
         entity.setFlowCode(route.flowCode());
         entity.setFlowStatusLabel(ManuscriptReviewFlowStatusEnum.WAITING.getLabel());
-        entity.setCurrentNodeLabel(route.currentNodeLabel());
+        applyCurrentNodeStatus(entity, route.currentNodeStatus());
         entity.setManuscriptCode(manuscriptCode);
         entity.setFirstSubmitTime(submitBaseTime);
         entity.setLatestSubmitTime(submitBaseTime);
@@ -330,11 +326,8 @@ public class ManuscriptReviewService implements IManuscriptReviewService {
             command.getExternalLinks(),
             true
         );
-        Date createHistoryTime = route.skipLevelOne()
-            ? new Date(submitBaseTime.getTime() + 1_000L)
-            : submitBaseTime;
         insertActorHistory(reviewId, ManuscriptReviewHistoryActionTypeEnum.CREATE.getCode(),
-            buildCreateAndSubmitHistoryText(entity, resourceSummary), createHistoryTime);
+            buildCreateAndSubmitHistoryText(entity, resourceSummary), submitBaseTime);
         if (route.skipLevelOne()) {
             insertSystemHistory(reviewId, ManuscriptReviewHistoryActionTypeEnum.SKIP_LEVEL_1.getCode(),
                 "系统判定发起人具备持证资格，自动跳过一级审批", submitBaseTime);
@@ -376,7 +369,7 @@ public class ManuscriptReviewService implements IManuscriptReviewService {
         entity.setFlowCode(route.flowCode());
         entity.setFlowInstanceId(flowInstanceId);
         entity.setFlowStatusLabel(ManuscriptReviewFlowStatusEnum.WAITING.getLabel());
-        entity.setCurrentNodeLabel(route.currentNodeLabel());
+        applyCurrentNodeStatus(entity, route.currentNodeStatus());
         entity.setManuscriptCode(manuscriptCode);
         entity.setFirstSubmitTime(existing.getFirstSubmitTime() == null ? now : existing.getFirstSubmitTime());
         entity.setLatestSubmitTime(now);
@@ -419,7 +412,7 @@ public class ManuscriptReviewService implements IManuscriptReviewService {
         entity.setId(existing.getId());
         entity.setFlowInstanceId(existing.getFlowInstanceId());
         entity.setFlowStatusLabel(ManuscriptReviewFlowStatusEnum.CANCEL.getLabel());
-        entity.setCurrentNodeLabel(ManuscriptReviewNodeLabelEnum.CANCEL.getLabel());
+        applyCurrentNodeStatus(entity, ManuscriptReviewNodeStatusEnum.FLOW_CANCELED);
         entity.setRemark(trimToNull(reason));
         fillUpdateAuditFields(entity);
         recordMapper.updateById(entity);
@@ -670,26 +663,26 @@ public class ManuscriptReviewService implements IManuscriptReviewService {
             }
             case "cancel" -> {
                 entity.setFlowStatusLabel(ManuscriptReviewFlowStatusEnum.CANCEL.getLabel());
-                entity.setCurrentNodeLabel(ManuscriptReviewNodeLabelEnum.CANCEL.getLabel());
+                applyCurrentNodeStatus(entity, ManuscriptReviewNodeStatusEnum.FLOW_CANCELED);
                 recordMapper.updateById(entity);
             }
             case "back" -> {
                 entity.setFlowStatusLabel(ManuscriptReviewFlowStatusEnum.BACK.getLabel());
-                entity.setCurrentNodeLabel(ManuscriptReviewNodeLabelEnum.INITIATOR_PENDING.getLabel());
+                applyCurrentNodeStatus(entity, ManuscriptReviewNodeStatusEnum.RETURN_TO_INITIATOR);
                 recordMapper.updateById(entity);
                 insertWorkflowHistory(reviewId, processEvent.getTenantId(),
                     ManuscriptReviewHistoryActionTypeEnum.BACK.getCode(), "流程已退回发起人处理。");
             }
             case "finish" -> {
                 entity.setFlowStatusLabel(ManuscriptReviewFlowStatusEnum.FINISH.getLabel());
-                entity.setCurrentNodeLabel(ManuscriptReviewNodeLabelEnum.FINISH.getLabel());
+                applyCurrentNodeStatus(entity, ManuscriptReviewNodeStatusEnum.FLOW_FINISHED);
                 recordMapper.updateById(entity);
                 insertWorkflowHistory(reviewId, processEvent.getTenantId(),
                     ManuscriptReviewHistoryActionTypeEnum.FINISH.getCode(), "流程审批已完成。");
             }
             case "termination" -> {
                 entity.setFlowStatusLabel(ManuscriptReviewFlowStatusEnum.REJECT.getLabel());
-                entity.setCurrentNodeLabel(ManuscriptReviewNodeLabelEnum.REJECT.getLabel());
+                applyCurrentNodeStatus(entity, ManuscriptReviewNodeStatusEnum.FLOW_REJECTED);
                 recordMapper.updateById(entity);
                 insertWorkflowHistory(reviewId, processEvent.getTenantId(),
                     ManuscriptReviewHistoryActionTypeEnum.REJECT.getCode(), buildRejectWorkflowHistoryText(processEvent));
@@ -709,15 +702,18 @@ public class ManuscriptReviewService implements IManuscriptReviewService {
         if ("back".equals(status) || "cancel".equals(status) || "finish".equals(status) || "termination".equals(status)) {
             return;
         }
-        String nodeName = trimToNull(processTaskEvent.getNodeName());
-        if (nodeName == null) {
+        ManuscriptReviewNodeStatusEnum nodeStatus = resolveCurrentNodeStatus(
+            trimToNull(processTaskEvent.getNodeCode()),
+            trimToNull(processTaskEvent.getNodeName())
+        );
+        if (nodeStatus == null) {
             return;
         }
         ManuscriptReviewRecordEntity entity = new ManuscriptReviewRecordEntity();
         entity.setId(reviewId);
         entity.setFlowInstanceId(processTaskEvent.getInstanceId());
         entity.setFlowStatusLabel(ManuscriptReviewFlowStatusEnum.WAITING.getLabel());
-        entity.setCurrentNodeLabel(nodeName);
+        applyCurrentNodeStatus(entity, nodeStatus);
         entity.setUpdateTime(now());
         recordMapper.updateById(entity);
         String approvalHistoryText = shouldWriteApprovalHistory(processTaskEvent.getNodeCode(), processTaskEvent.getParams())
@@ -844,6 +840,7 @@ public class ManuscriptReviewService implements IManuscriptReviewService {
         entity.setFlowCode(resolveFlowCode(processType));
         // Pre-submit records have not entered workflow yet; keep the runtime state semantically unset.
         entity.setFlowStatusLabel("");
+        entity.setCurrentNodeStatus("");
         entity.setCurrentNodeLabel("");
     }
 
@@ -932,12 +929,14 @@ public class ManuscriptReviewService implements IManuscriptReviewService {
     }
 
     private boolean isDraft(ManuscriptReviewRecordEntity record) {
-        return trimToNull(record.getFlowStatusLabel()) == null && trimToNull(record.getCurrentNodeLabel()) == null;
+        return trimToNull(record.getFlowStatusLabel()) == null
+            && trimToNull(record.getCurrentNodeLabel()) == null
+            && trimToNull(record.getCurrentNodeStatus()) == null;
     }
 
     private boolean isReturnedToInitiator(ManuscriptReviewRecordEntity record) {
         return ManuscriptReviewFlowStatusEnum.BACK.getLabel().equals(trimToNull(record.getFlowStatusLabel()))
-            || ManuscriptReviewNodeLabelEnum.INITIATOR_PENDING.getLabel().equals(trimToNull(record.getCurrentNodeLabel()));
+            || resolveCurrentNodeStatus(record) == ManuscriptReviewNodeStatusEnum.RETURN_TO_INITIATOR;
     }
 
     private SubmissionRoute resolveSubmissionRoute(ManuscriptReviewRecordEntity record) {
@@ -954,7 +953,7 @@ public class ManuscriptReviewService implements IManuscriptReviewService {
         return new SubmissionRoute(
             processType,
             trimToNull(flowConfig.getFlowCode()),
-            skipLevelOne ? LEVEL_TWO_NODE : LEVEL_ONE_NODE,
+            skipLevelOne ? ManuscriptReviewNodeStatusEnum.LEVEL_2 : ManuscriptReviewNodeStatusEnum.LEVEL_1,
             skipLevelOne,
             toPermissionFlag(levelOneRole),
             toPermissionFlag(levelTwoRole),
@@ -1071,11 +1070,14 @@ public class ManuscriptReviewService implements IManuscriptReviewService {
         if (flowConfig == null) {
             return List.of();
         }
-        String currentNodeLabel = trimToNull(record.getCurrentNodeLabel());
-        String roleKey = switch (currentNodeLabel) {
-            case LEVEL_ONE_NODE -> trimToNull(flowConfig.getLevelOneRoleKey());
-            case LEVEL_TWO_NODE -> trimToNull(flowConfig.getLevelTwoRoleKey());
-            case LEVEL_THREE_NODE -> trimToNull(flowConfig.getLevelThreeRoleKey());
+        ManuscriptReviewNodeStatusEnum currentNodeStatus = resolveCurrentNodeStatus(record);
+        if (currentNodeStatus == null) {
+            return List.of();
+        }
+        String roleKey = switch (currentNodeStatus) {
+            case LEVEL_1 -> trimToNull(flowConfig.getLevelOneRoleKey());
+            case LEVEL_2 -> trimToNull(flowConfig.getLevelTwoRoleKey());
+            case LEVEL_3 -> trimToNull(flowConfig.getLevelThreeRoleKey());
             default -> null;
         };
         return roleKey == null ? List.of() : resolveActiveUserIdsByRoleKey(tenantId, roleKey);
@@ -1133,6 +1135,7 @@ public class ManuscriptReviewService implements IManuscriptReviewService {
         entity.setActorUserId(requireCurrentUserId());
         entity.setActorName(currentUsername());
         entity.setCreateTime(createTime);
+        entity.setSorted(nextHistorySorted(reviewId));
         historyMapper.insert(entity);
     }
 
@@ -1156,6 +1159,7 @@ public class ManuscriptReviewService implements IManuscriptReviewService {
         entity.setActionType(actionType);
         entity.setActionText(actionText);
         entity.setCreateTime(createTime);
+        entity.setSorted(nextHistorySorted(reviewId));
         historyMapper.insert(entity);
     }
 
@@ -1179,7 +1183,42 @@ public class ManuscriptReviewService implements IManuscriptReviewService {
         entity.setActionType(actionType);
         entity.setActionText(actionText);
         entity.setCreateTime(now());
+        entity.setSorted(nextHistorySorted(reviewId));
         historyMapper.insert(entity);
+    }
+
+    private void applyCurrentNodeStatus(ManuscriptReviewRecordEntity entity, ManuscriptReviewNodeStatusEnum nodeStatus) {
+        if (entity == null || nodeStatus == null) {
+            return;
+        }
+        entity.setCurrentNodeStatus(nodeStatus.getCode());
+        entity.setCurrentNodeLabel(nodeStatus.getLabel());
+    }
+
+    private ManuscriptReviewNodeStatusEnum resolveCurrentNodeStatus(ManuscriptReviewRecordEntity record) {
+        if (record == null) {
+            return null;
+        }
+        ManuscriptReviewNodeStatusEnum byCode = ManuscriptReviewNodeStatusEnum.fromCode(trimToNull(record.getCurrentNodeStatus()));
+        return byCode != null ? byCode : ManuscriptReviewNodeStatusEnum.fromAnyLabel(trimToNull(record.getCurrentNodeLabel()));
+    }
+
+    private ManuscriptReviewNodeStatusEnum resolveCurrentNodeStatus(String nodeCode, String nodeName) {
+        return ManuscriptReviewNodeStatusEnum.fromWorkflowTask(nodeCode, nodeName);
+    }
+
+    private int nextHistorySorted(Long reviewId) {
+        List<ManuscriptReviewHistoryEntity> histories = historyMapper.selectList(
+            new QueryWrapper<ManuscriptReviewHistoryEntity>()
+                .eq("review_id", reviewId)
+                .orderByDesc("sorted")
+                .orderByDesc("create_time")
+                .last("limit 1")
+        );
+        if (histories == null || histories.isEmpty() || histories.get(0) == null || histories.get(0).getSorted() == null) {
+            return 1;
+        }
+        return histories.get(0).getSorted() + 1;
     }
 
     /**
@@ -1686,7 +1725,7 @@ public class ManuscriptReviewService implements IManuscriptReviewService {
     private record SubmissionRoute(
         ManuscriptReviewProcessType processType,
         String flowCode,
-        String currentNodeLabel,
+        ManuscriptReviewNodeStatusEnum currentNodeStatus,
         boolean skipLevelOne,
         String firstApproverPermission,
         String secondApproverPermission,

@@ -29,6 +29,7 @@ NOTE: 本轮仅起草，未 apply。
 /* -------------------------------------------------------------------------- */
 /* 1) 按日按类型流水号表（独立）                                                    */
 /* -------------------------------------------------------------------------- */
+drop table if exists `brain_manuscript_review_serial`;
 CREATE TABLE `brain_manuscript_review_serial` (
   `id` bigint NOT NULL COMMENT '主键',
   `tenant_id` varchar(20) COLLATE utf8mb4_bin NOT NULL DEFAULT '000000' COMMENT '租户编号',
@@ -43,6 +44,7 @@ CREATE TABLE `brain_manuscript_review_serial` (
 /* -------------------------------------------------------------------------- */
 /* 2) 审校主记录表（一期无草稿/删除/回收站语义）                                     */
 /* -------------------------------------------------------------------------- */
+drop table if exists `brain_manuscript_review`;
 CREATE TABLE `brain_manuscript_review` (
   `id` bigint NOT NULL COMMENT '主键',
   `tenant_id` varchar(20) COLLATE utf8mb4_bin NOT NULL DEFAULT '000000' COMMENT '租户编号',
@@ -52,6 +54,7 @@ CREATE TABLE `brain_manuscript_review` (
   `flow_instance_id` bigint DEFAULT NULL COMMENT '流程实例ID（flow_instance.id）',
 
   `flow_status_label` varchar(20) COLLATE utf8mb4_bin NOT NULL COMMENT '流程状态（审批中/已退回/已完成/已取消/已驳回）',
+  `current_node_status` varchar(40) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '当前节点状态码（LEVEL_1/LEVEL_2/LEVEL_3/RETURN_TO_INITIATOR/FLOW_FINISHED/FLOW_CANCELED/FLOW_REJECTED）',
   `current_node_label` varchar(30) COLLATE utf8mb4_bin NOT NULL COMMENT '当前节点（待一级审批/待二级审批/待三级审批/待发起人处理/流程完成/流程已取消/流程已驳回）',
 
   `manuscript_code` varchar(30) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '系统稿件号（submitAndFlowStart 成功后写入；SH|JD + yyyyMMdd + 三位流水号）',
@@ -94,6 +97,7 @@ CREATE TABLE `brain_manuscript_review` (
 /* -------------------------------------------------------------------------- */
 /* 3) 审批链映射配置（按租户隔离，roleKey 作为业务引用，不使用数据库主键）                 */
 /* -------------------------------------------------------------------------- */
+drop table if exists `brain_manuscript_review_flow_config`;
 CREATE TABLE `brain_manuscript_review_flow_config` (
   `id` bigint NOT NULL COMMENT '主键',
   `tenant_id` varchar(20) COLLATE utf8mb4_bin NOT NULL DEFAULT '000000' COMMENT '租户编号',
@@ -116,6 +120,7 @@ CREATE TABLE `brain_manuscript_review_flow_config` (
 /* -------------------------------------------------------------------------- */
 /* 4) 附件（含视频）资源表：追加历史 + 当前可停用                                     */
 /* -------------------------------------------------------------------------- */
+drop table if exists `brain_manuscript_review_attachment`;
 CREATE TABLE `brain_manuscript_review_attachment` (
   `id` bigint NOT NULL COMMENT '主键',
   `tenant_id` varchar(20) COLLATE utf8mb4_bin NOT NULL DEFAULT '000000' COMMENT '租户编号',
@@ -147,6 +152,7 @@ CREATE TABLE `brain_manuscript_review_attachment` (
 /* -------------------------------------------------------------------------- */
 /* 5) 外部链接资源表：追加历史 + 当前可停用（同一流程内 URL 不重复）                         */
 /* -------------------------------------------------------------------------- */
+drop table if exists `brain_manuscript_review_external_link`;
 CREATE TABLE `brain_manuscript_review_external_link` (
   `id` bigint NOT NULL COMMENT '主键',
   `tenant_id` varchar(20) COLLATE utf8mb4_bin NOT NULL DEFAULT '000000' COMMENT '租户编号',
@@ -173,6 +179,7 @@ CREATE TABLE `brain_manuscript_review_external_link` (
 /* -------------------------------------------------------------------------- */
 /* 6) 视频时间标注：追加历史 + 当前可停用（统一保存/展示为 HH:mm:ss）                         */
 /* -------------------------------------------------------------------------- */
+drop table if exists `brain_manuscript_review_video_marker`;
 CREATE TABLE `brain_manuscript_review_video_marker` (
   `id` bigint NOT NULL COMMENT '主键',
   `tenant_id` varchar(20) COLLATE utf8mb4_bin NOT NULL DEFAULT '000000' COMMENT '租户编号',
@@ -203,6 +210,7 @@ CREATE TABLE `brain_manuscript_review_video_marker` (
 /* -------------------------------------------------------------------------- */
 /* 7) 统一时间线历史：自然语言文案优先（不在此表对外暴露技术码值）                              */
 /* -------------------------------------------------------------------------- */
+drop table if exists `brain_manuscript_review_history`;
 CREATE TABLE `brain_manuscript_review_history` (
   `id` bigint NOT NULL COMMENT '主键',
   `tenant_id` varchar(20) COLLATE utf8mb4_bin NOT NULL DEFAULT '000000' COMMENT '租户编号',
@@ -214,7 +222,9 @@ CREATE TABLE `brain_manuscript_review_history` (
   `actor_name` varchar(30) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '执行人姓名（展示用）',
 
   `create_time` datetime NOT NULL COMMENT '发生时间',
+  `sorted` int DEFAULT NULL COMMENT '同一流程内的稳定排序号',
   `ext_json` text COLLATE utf8mb4_bin COMMENT '扩展信息（JSON，可选）',
   PRIMARY KEY (`id`),
-  KEY `idx_tenant_review_time` (`tenant_id`,`review_id`,`create_time`)
+  KEY `idx_tenant_review_time` (`tenant_id`,`review_id`,`create_time`),
+  KEY `idx_tenant_review_sorted` (`tenant_id`,`review_id`,`sorted`,`create_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='审校-统一时间线历史（自然语言）';

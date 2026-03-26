@@ -2,6 +2,7 @@ import request from '@/utils/request';
 import { AxiosPromise } from 'axios';
 
 import type {
+  ManuscriptReviewIntegratedSubmitCommand,
   ManuscriptReviewCancelCommand,
   ManuscriptReviewDetailVO,
   ManuscriptReviewListPageVO,
@@ -38,7 +39,7 @@ export const createManuscriptReview = (data: ManuscriptReviewSaveCommand): Axios
   });
 };
 
-export const updateManuscriptReview = (data: ManuscriptReviewSaveCommand): AxiosPromise<void> => {
+export const updateManuscriptReview = (data: ManuscriptReviewIntegratedSubmitCommand): AxiosPromise<void> => {
   return request({
     url: '/workflow/manuscript-review',
     method: 'put',
@@ -47,12 +48,19 @@ export const updateManuscriptReview = (data: ManuscriptReviewSaveCommand): Axios
 };
 
 export const submitAndFlowStartManuscriptReview = (
-  data: ManuscriptReviewReviewIdCommand
+  data: ManuscriptReviewIntegratedSubmitCommand
 ): AxiosPromise<ManuscriptReviewDetailVO> => {
   return request({
     url: '/workflow/manuscript-review/submitAndFlowStart',
     method: 'post',
     data
+  });
+};
+
+export const deletePendingOssResource = (ossId: string | number): AxiosPromise<void> => {
+  return request({
+    url: `/resource/oss/${ossId}`,
+    method: 'delete'
   });
 };
 

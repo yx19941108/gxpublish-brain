@@ -77,6 +77,7 @@ class ManuscriptReviewReadableServiceTest {
 
         assertEquals(9002L, detail.getId());
         assertEquals("BACK", detail.getBusinessStatus());
+        assertEquals("RETURN_TO_INITIATOR", detail.getCurrentNodeStatus());
         assertEquals("待发起人处理", detail.getCurrentNodeLabel());
         assertEquals("审核流程", detail.getProcessTypeLabel());
         assertEquals("新华社/要闻", detail.getMediaChannel());
@@ -99,6 +100,7 @@ class ManuscriptReviewReadableServiceTest {
         ManuscriptReviewRecordEntity reviewRecord = buildReviewRecord();
         reviewRecord.setTenantId("000000");
         reviewRecord.setFlowStatusLabel("审批中");
+        reviewRecord.setCurrentNodeStatus("LEVEL_2");
         reviewRecord.setCurrentNodeLabel("待二级审批");
         when(fixture.recordMapper.selectById(9002L)).thenReturn(reviewRecord);
         when(fixture.attachmentMapper.selectList(any())).thenReturn(List.of());
@@ -144,6 +146,7 @@ class ManuscriptReviewReadableServiceTest {
         entity.setId(9002L);
         entity.setProcessType("AUDIT");
         entity.setFlowStatusLabel("已退回");
+        entity.setCurrentNodeStatus("RETURN_TO_INITIATOR");
         entity.setCurrentNodeLabel("待发起人处理");
         entity.setManuscriptCode("SH20260321002");
         entity.setExternalManuscriptCode("EXT-002");

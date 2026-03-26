@@ -43,6 +43,10 @@ public class ManuscriptReviewRecordEntity {
      */
     private String flowStatusLabel;
     /**
+     * 当前节点状态码。
+     */
+    private String currentNodeStatus;
+    /**
      * 当前节点文案。
      */
     private String currentNodeLabel;

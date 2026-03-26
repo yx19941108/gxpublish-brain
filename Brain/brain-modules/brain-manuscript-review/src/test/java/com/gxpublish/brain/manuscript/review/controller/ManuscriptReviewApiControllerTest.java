@@ -126,6 +126,7 @@ class ManuscriptReviewApiControllerTest {
         detail.setBusinessStatus("BACK");
         detail.setBusinessStatusLabel("已退回");
         detail.setCurrentNodeCode("RETURN_TO_INITIATOR");
+        detail.setCurrentNodeStatus("RETURN_TO_INITIATOR");
         detail.setCurrentNodeLabel("待发起人处理");
         detail.setInitiatorName("张三");
         detail.setFirstSubmitTime("2026-03-21 11:00:00");
@@ -149,6 +150,7 @@ class ManuscriptReviewApiControllerTest {
         assertTrue(responseJson.contains("\"id\":9002"));
         assertTrue(responseJson.contains("\"submitDepartment\":\"总编室\""));
         assertTrue(responseJson.contains("\"permissionMatrix\":"));
+        assertTrue(responseJson.contains("\"currentNodeStatus\":\"RETURN_TO_INITIATOR\""));
         assertTrue(responseJson.contains("\"resourceUrl\":\"https://files.example/a.pdf\""));
         assertTrue(responseJson.contains("\"resourceUrl\":\"https://files.example/video.mp4\""));
         assertTrue(responseJson.contains("\"externalUrl\":\"https://example.com/ref\""));

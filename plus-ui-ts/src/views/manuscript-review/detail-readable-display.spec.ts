@@ -15,27 +15,56 @@ describe('T07_Frontend_DetailActions_AndReadableDisplaySpec', () => {
     requestInvoker.mockClear();
   });
 
-  it('manuscript-review api uses only frozen workflow routes and split submit chain', async () => {
+  it('manuscript-review api uses only frozen workflow routes and integrated submit-save payloads', async () => {
     const api = await import('@/api/manuscript-review');
 
     await api.listManuscriptReview({ keyword: '系统稿件号' });
     await api.getManuscriptReviewDetail(9001);
-    await api.createManuscriptReview({
+    await api.submitAndFlowStartManuscriptReview({
       processType: 'AUDIT',
+      externalManuscriptCode: 'EXT-001',
       title: '审校稿件',
       mediaChannel: '新华社/要闻',
       submitDepartment: '总编室',
-      contentBody: '正文内容'
+      authorName: '张三',
+      remark: '提交备注',
+      contentBody: '正文内容',
+      attachmentList: [
+        {
+          displayName: '送审单.pdf',
+          ossId: 8001
+        }
+      ],
+      externalLinkList: [
+        {
+          displayName: '素材参考',
+          externalUrl: 'https://example.com/ref'
+        }
+      ]
     });
     await api.updateManuscriptReview({
       id: 9001,
       processType: 'AUDIT',
+      externalManuscriptCode: 'EXT-001',
       title: '审校稿件',
       mediaChannel: '新华社/要闻',
       submitDepartment: '总编室',
-      contentBody: '正文内容'
+      authorName: '张三',
+      remark: '修改备注',
+      contentBody: '正文内容',
+      attachmentList: [
+        {
+          displayName: '补充附件.pdf',
+          ossId: 8002
+        }
+      ],
+      externalLinkList: [
+        {
+          displayName: '补充外链',
+          externalUrl: 'https://example.com/extra'
+        }
+      ]
     });
-    await api.submitAndFlowStartManuscriptReview({ id: 9001 });
     await api.resubmitManuscriptReview({ id: 9001 });
     await api.cancelManuscriptReviewProcess({ id: 9001, reason: '发起人撤销' });
     await api.addManuscriptReviewResource({
@@ -61,15 +90,46 @@ describe('T07_Frontend_DetailActions_AndReadableDisplaySpec', () => {
     ).toEqual([
       'get:/workflow/manuscript-review/list',
       'get:/workflow/manuscript-review/9001',
-      'post:/workflow/manuscript-review',
-      'put:/workflow/manuscript-review',
       'post:/workflow/manuscript-review/submitAndFlowStart',
+      'put:/workflow/manuscript-review',
       'post:/workflow/manuscript-review/resubmit',
       'put:/workflow/manuscript-review/cancelProcessApply',
       'post:/workflow/manuscript-review/resource',
       'put:/workflow/manuscript-review/resource/disable',
       'post:/workflow/manuscript-review/video-mark'
     ]);
+
+    const [submitCall, updateCall] = requestInvoker.mock.calls
+      .map(([config]) => config as { url: string; data?: Record<string, unknown> })
+      .filter((config) => config.url === '/workflow/manuscript-review/submitAndFlowStart' || config.url === '/workflow/manuscript-review');
+
+    expect(submitCall.data).toEqual(
+      expect.objectContaining({
+        processType: 'AUDIT',
+        externalManuscriptCode: 'EXT-001',
+        title: '审校稿件',
+        attachmentList: [{ displayName: '送审单.pdf', ossId: 8001 }],
+        externalLinkList: [{ displayName: '素材参考', externalUrl: 'https://example.com/ref' }]
+      })
+    );
+    expect(updateCall.data).toEqual(
+      expect.objectContaining({
+        id: 9001,
+        attachmentList: [{ displayName: '补充附件.pdf', ossId: 8002 }],
+        externalLinkList: [{ displayName: '补充外链', externalUrl: 'https://example.com/extra' }]
+      })
+    );
+  });
+
+  it('exposes pending-upload delete helper for pre-submit attachments', async () => {
+    const api = await import('@/api/manuscript-review');
+
+    expect(api.deletePendingOssResource).toBeTypeOf('function');
+
+    await api.deletePendingOssResource(8101);
+
+    const lastCall = requestInvoker.mock.calls.at(-1)?.[0] as { method: string; url: string };
+    expect(`${lastCall.method}:${lastCall.url}`).toBe('delete:/resource/oss/8101');
   });
 
   it('shows only modify, approve, and back for the current approver', () => {

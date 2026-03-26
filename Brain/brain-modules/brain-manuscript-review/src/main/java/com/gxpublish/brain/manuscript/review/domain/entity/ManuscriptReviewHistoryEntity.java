@@ -51,6 +51,10 @@ public class ManuscriptReviewHistoryEntity {
      */
     private Date createTime;
     /**
+     * 同一流程内的稳定排序号。
+     */
+    private Integer sorted;
+    /**
      * 扩展 JSON。
      */
     private String extJson;

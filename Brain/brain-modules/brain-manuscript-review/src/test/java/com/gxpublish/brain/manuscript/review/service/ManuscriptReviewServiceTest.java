@@ -1116,6 +1116,11 @@ class ManuscriptReviewServiceTest {
 
         fixture.service.processTaskHandler(processTaskEvent);
 
+        ArgumentCaptor<ManuscriptReviewRecordEntity> recordCaptor = ArgumentCaptor.forClass(ManuscriptReviewRecordEntity.class);
+        verify(fixture.recordMapper).updateById(recordCaptor.capture());
+        assertEquals("LEVEL_2", recordCaptor.getValue().getCurrentNodeStatus());
+        assertEquals("待二级审批", recordCaptor.getValue().getCurrentNodeLabel());
+
         ArgumentCaptor<ManuscriptReviewHistoryEntity> historyCaptor = ArgumentCaptor.forClass(ManuscriptReviewHistoryEntity.class);
         verify(fixture.historyMapper).insert(historyCaptor.capture());
         assertEquals("APPROVE", historyCaptor.getValue().getActionType());

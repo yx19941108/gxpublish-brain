@@ -20,6 +20,23 @@ export interface ManuscriptReviewSaveCommand extends BaseEntity {
   contentBody?: string;
 }
 
+export interface ManuscriptReviewAttachmentDraftItem {
+  displayName: string;
+  ossId: string | number;
+  resourceType?: string;
+}
+
+export interface ManuscriptReviewExternalLinkDraftItem {
+  displayName: string;
+  externalUrl: string;
+  resourceType?: string;
+}
+
+export interface ManuscriptReviewIntegratedSubmitCommand extends ManuscriptReviewSaveCommand {
+  attachmentList?: ManuscriptReviewAttachmentDraftItem[];
+  externalLinkList?: ManuscriptReviewExternalLinkDraftItem[];
+}
+
 export interface ManuscriptReviewReviewIdCommand {
   id: string | number;
 }

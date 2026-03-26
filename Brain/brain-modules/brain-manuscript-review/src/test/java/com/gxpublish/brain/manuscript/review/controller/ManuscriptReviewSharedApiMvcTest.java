@@ -160,6 +160,7 @@ class ManuscriptReviewSharedApiMvcTest {
             .andExpect(jsonPath("$.data.businessStatus").value("BACK"))
             .andExpect(jsonPath("$.data.businessStatusLabel").value("已退回"))
             .andExpect(jsonPath("$.data.currentNodeCode").value("RETURN_TO_INITIATOR"))
+            .andExpect(jsonPath("$.data.currentNodeStatus").value("RETURN_TO_INITIATOR"))
             .andExpect(jsonPath("$.data.currentNodeLabel").value("待发起人处理"))
             .andExpect(jsonPath("$.data.firstSubmitTime").value("2026-03-21 08:00:00"))
             .andExpect(jsonPath("$.data.latestSubmitTime").value("2026-03-24 09:30:00"))
