@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div data-testid="manuscript-review-form-page" class="p-2 manuscript-review-form-page">
     <el-card shadow="hover" class="mb-[12px]">
       <template #header>
@@ -8,7 +8,9 @@
             <h1 class="manuscript-review-form-page__title">{{ presentation.title }}</h1>
             <p class="manuscript-review-form-page__desc">{{ presentation.description }}</p>
           </div>
-          <el-tag type="primary" effect="light">{{ presentation.mode === 'create' ? '冻结口径：新增提交是一体化动作' : '冻结口径：修改保存不推 BPM' }}</el-tag>
+          <el-tag type="primary" effect="light">{{
+            presentation.mode === 'create' ? '冻结口径：新增提交是一体化动作' : '冻结口径：修改保存不推 BPM'
+          }}</el-tag>
         </div>
       </template>
 
@@ -27,7 +29,11 @@
               <div class="manuscript-review-form-page__section-head">
                 <span>基础信息区</span>
                 <span class="manuscript-review-form-page__section-tip">
-                  {{ presentation.mode === 'create' ? 'create 模式：提交时整表单 + 暂存资源一次性发送' : 'edit 模式：保存时主表 + 本次追加资源一次性发送' }}
+                  {{
+                    presentation.mode === 'create'
+                      ? 'create 模式：提交时整表单 + 暂存资源一次性发送'
+                      : 'edit 模式：保存时主表 + 本次追加资源一次性发送'
+                  }}
                 </span>
               </div>
             </template>
@@ -55,7 +61,7 @@
               </el-col>
               <el-col :span="12">
                 <el-form-item label="报送部门" prop="submitDepartment">
-                  <el-input v-model="formModel.submitDepartment" placeholder="请输入报送部门" />
+                  <el-input v-model="formModel.submitDepartment" placeholder="系统自动带出" readonly />
                 </el-form-item>
               </el-col>
               <el-col :span="12">
@@ -130,12 +136,7 @@
             <el-button plain @click="appendExternalLink">新增外链</el-button>
           </el-card>
 
-          <el-card
-            v-if="presentation.mode === 'edit'"
-            data-testid="manuscript-review-form-persisted-resources"
-            shadow="never"
-            class="mb-[12px]"
-          >
+          <el-card v-if="presentation.mode === 'edit'" data-testid="manuscript-review-form-persisted-resources" shadow="never" class="mb-[12px]">
             <template #header>
               <div class="manuscript-review-form-page__section-head">
                 <span>当前已入库资源</span>
@@ -148,7 +149,9 @@
               <div v-for="item in persistedResources" :key="item.id" class="manuscript-review-form-page__draft-item">
                 <div>
                   <div class="manuscript-review-form-page__draft-name">{{ item.displayName }}</div>
-                  <div class="manuscript-review-form-page__draft-meta">{{ item.typeLabel }}<span v-if="item.note"> / {{ item.note }}</span></div>
+                  <div class="manuscript-review-form-page__draft-meta">
+                    {{ item.typeLabel }}<span v-if="item.note"> / {{ item.note }}</span>
+                  </div>
                 </div>
                 <el-tag size="small" type="success" effect="light">已入库</el-tag>
               </div>
@@ -157,12 +160,7 @@
 
           <div class="manuscript-review-form-page__footer">
             <el-button @click="handleBack">返回</el-button>
-            <el-button
-              data-testid="manuscript-review-form-primary-action"
-              type="primary"
-              :loading="submitting"
-              @click="handlePrimaryAction"
-            >
+            <el-button data-testid="manuscript-review-form-primary-action" type="primary" :loading="submitting" @click="handlePrimaryAction">
               {{ presentation.primaryActionLabel }}
             </el-button>
           </div>
@@ -177,7 +175,13 @@ import { computed, onMounted, reactive, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage, type FormInstance, type FormRules, type UploadProps } from 'element-plus';
 
-import { deletePendingOssResource, getManuscriptReviewDetail, submitAndFlowStartManuscriptReview, updateManuscriptReview } from '@/api/manuscript-review';
+import {
+  deletePendingOssResource,
+  getManuscriptReviewDetail,
+  submitAndFlowStartManuscriptReview,
+  updateManuscriptReview
+} from '@/api/manuscript-review';
+import { getInfo as getCurrentUserInfo } from '@/api/login';
 import { globalHeaders } from '@/utils/request';
 
 import {
@@ -275,7 +279,8 @@ const applyEditDraftState = async () => {
     Object.assign(formModel, draftState.form);
     persistedResources.value = draftState.persistedResources;
     draftUploads.value = draftState.draftUploads;
-    draftExternalLinks.value = draftState.draftExternalLinks.length > 0 ? draftState.draftExternalLinks : [{ uid: `link-${Date.now()}`, displayName: '', externalUrl: '' }];
+    draftExternalLinks.value =
+      draftState.draftExternalLinks.length > 0 ? draftState.draftExternalLinks : [{ uid: `link-${Date.now()}`, displayName: '', externalUrl: '' }];
   } catch {
     errorMessage.value = '详情回填失败，请从详情页重新进入修改。';
   } finally {
@@ -283,6 +288,21 @@ const applyEditDraftState = async () => {
   }
 };
 
+const applyCreateDefaultSubmitDepartment = async () => {
+  if (mode.value !== 'create' || formModel.submitDepartment.trim()) {
+    return;
+  }
+
+  try {
+    const payload = await getCurrentUserInfo();
+    const deptName = payload?.data?.user?.deptName ?? payload?.user?.deptName ?? '';
+    if (typeof deptName === 'string' && deptName.trim()) {
+      formModel.submitDepartment = deptName.trim();
+    }
+  } catch {
+    // keep empty and rely on validation/runtime feedback if current user info is unavailable
+  }
+};
 const handleBeforeUpload: UploadProps['beforeUpload'] = (rawFile) => {
   if (rawFile.name.includes(',')) {
     ElMessage.error('文件名不能包含英文逗号。');
@@ -365,9 +385,7 @@ const handlePrimaryAction = async () => {
       return;
     }
 
-    const result = await submitAndFlowStartManuscriptReview(
-      buildIntegratedSubmitPayload(formModel, draftUploads.value, draftExternalLinks.value)
-    );
+    const result = await submitAndFlowStartManuscriptReview(buildIntegratedSubmitPayload(formModel, draftUploads.value, draftExternalLinks.value));
     const nextReviewId = resolveSuccessReviewId(result);
     ElMessage.success(presentation.value.successToast);
     if (nextReviewId) {
@@ -390,7 +408,9 @@ onMounted(() => {
   resetDraftState();
   if (mode.value === 'edit') {
     void applyEditDraftState();
+    return;
   }
+  void applyCreateDefaultSubmitDepartment();
 });
 </script>
 

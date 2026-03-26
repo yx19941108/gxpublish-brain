@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <section class="manuscript-review-detail-shell">
     <header class="manuscript-review-detail-shell__header">
       <div class="manuscript-review-detail-shell__headline">
@@ -55,17 +55,11 @@
           <header class="manuscript-review-detail-shell__section-header">
             <div>
               <h2 class="manuscript-review-detail-shell__section-title">基本信息与状态摘要</h2>
-              <p class="manuscript-review-detail-shell__section-desc">
-                详情页负责看状态、看资源、看历史、做动作分流；当前页不承接审批表单。
-              </p>
+              <p class="manuscript-review-detail-shell__section-desc">详情页负责看状态、看资源、看历史、做动作分流；当前页不承接审批表单。</p>
             </div>
             <div class="manuscript-review-detail-shell__section-tags">
-              <span class="manuscript-review-detail-shell__tag manuscript-review-detail-shell__tag--primary">
-                动作来源：permissionMatrix
-              </span>
-              <span class="manuscript-review-detail-shell__tag manuscript-review-detail-shell__tag--warning">
-                去审批只跳 BPM 办理页
-              </span>
+              <span class="manuscript-review-detail-shell__tag manuscript-review-detail-shell__tag--primary"> 动作来源：permissionMatrix </span>
+              <span class="manuscript-review-detail-shell__tag manuscript-review-detail-shell__tag--warning"> 去审批只跳 BPM 办理页 </span>
             </div>
           </header>
           <div class="manuscript-review-detail-shell__section-body">
@@ -92,9 +86,7 @@
           <header class="manuscript-review-detail-shell__section-header">
             <div>
               <h2 class="manuscript-review-detail-shell__section-title">当前有效资源区</h2>
-              <p class="manuscript-review-detail-shell__section-desc">
-                资源按附件、外链、视频、视频标注分组展示；当前有效资源与历史追溯分开表达。
-              </p>
+              <p class="manuscript-review-detail-shell__section-desc">资源按附件、外链、视频、视频标注分组展示；当前有效资源与历史追溯分开表达。</p>
             </div>
           </header>
           <div class="manuscript-review-detail-shell__section-body manuscript-review-detail-shell__section-body--resource">
@@ -106,16 +98,10 @@
             </div>
 
             <div class="manuscript-review-detail-shell__resource-groups">
-              <article
-                v-for="group in resourceGroups"
-                :key="group.key"
-                class="manuscript-review-detail-shell__resource-group"
-              >
+              <article v-for="group in resourceGroups" :key="group.key" class="manuscript-review-detail-shell__resource-group">
                 <h3 class="manuscript-review-detail-shell__resource-group-title">{{ group.title }}</h3>
                 <p v-if="loading" class="manuscript-review-detail-shell__section-hint">正在加载资源数据…</p>
-                <p v-else-if="group.items.length === 0" class="manuscript-review-detail-shell__section-hint">
-                  当前暂无{{ group.title }}数据。
-                </p>
+                <p v-else-if="group.items.length === 0" class="manuscript-review-detail-shell__section-hint">当前暂无{{ group.title }}数据。</p>
                 <ul v-else class="manuscript-review-detail-shell__resource-list" :aria-label="`${group.title}列表`">
                   <li v-for="item in group.items" :key="item.id" class="manuscript-review-detail-shell__resource-item">
                     <div class="manuscript-review-detail-shell__resource-main">
@@ -134,9 +120,7 @@
           <header class="manuscript-review-detail-shell__section-header">
             <div>
               <h2 class="manuscript-review-detail-shell__section-title">统一时间线</h2>
-              <p class="manuscript-review-detail-shell__section-desc">
-                时间线采用统一自然语言可读文案，整合业务动作、系统判定与审批动作。
-              </p>
+              <p class="manuscript-review-detail-shell__section-desc">时间线采用统一自然语言可读文案，整合业务动作、系统判定与审批动作。</p>
             </div>
           </header>
           <div class="manuscript-review-detail-shell__section-body">
@@ -180,9 +164,7 @@
           <header class="manuscript-review-detail-shell__section-header">
             <div>
               <h2 class="manuscript-review-detail-shell__section-title">按钮分流板</h2>
-              <p class="manuscript-review-detail-shell__section-desc">
-                “去审批”和“重新提交”是两个独立后置流程动作，不能与修改保存混成一个动作。
-              </p>
+              <p class="manuscript-review-detail-shell__section-desc">“去审批”和“重新提交”是两个独立后置流程动作，不能与修改保存混成一个动作。</p>
             </div>
           </header>
           <div class="manuscript-review-detail-shell__section-body manuscript-review-detail-shell__guidance-list">
@@ -209,9 +191,8 @@
 import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
-import { resubmitManuscriptReview } from '@/api/manuscript-review';
+import { getManuscriptReviewDetail, resubmitManuscriptReview } from '@/api/manuscript-review';
 import { flowHisTaskList, getInfo } from '@/api/workflow/instance';
-import request from '@/utils/request';
 import { resolveManuscriptApproveAction, type ManuscriptReviewApproveActionResult } from '@/types/manuscript-review/detail';
 
 import {
@@ -373,9 +354,7 @@ const fetchDetail = async () => {
   errorMessage.value = '';
 
   try {
-    const payload = await request.get('/manuscript-review/readable/detail', {
-      params: { reviewId: reviewId.value }
-    });
+    const payload = await getManuscriptReviewDetail(reviewId.value);
     viewModel.value = normalizeDetailViewModel(payload);
   } catch {
     viewModel.value = null;

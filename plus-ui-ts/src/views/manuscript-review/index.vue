@@ -97,7 +97,6 @@
 import { getCurrentInstance, onMounted, reactive, ref } from 'vue';
 import type { ComponentInternalInstance } from 'vue';
 import { useRouter } from 'vue-router';
-
 import { listManuscriptReview } from '@/api/manuscript-review';
 
 import { normalizeLedgerRows, type ManuscriptReviewLedgerRow } from './detail.contract';
