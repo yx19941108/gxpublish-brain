@@ -240,6 +240,7 @@ class ManuscriptReviewServiceTest {
         assertEquals("9002", startProcess.getBusinessId());
         assertEquals("manuscript_review_audit_flow", startProcess.getFlowCode());
         assertTrue(Boolean.TRUE.equals(startProcess.getVariables().get("ignore")));
+        assertEquals(Boolean.FALSE, startProcess.getVariables().get("isCertified"));
         assertEquals("role:7101", startProcess.getVariables().get("manuscriptReviewFirstLevelApprover"));
         assertEquals("role:7102", startProcess.getVariables().get("manuscriptReviewSecondLevelApprover"));
         assertEquals("role:7103", startProcess.getVariables().get("manuscriptReviewThirdLevelApprover"));
@@ -1096,21 +1097,21 @@ class ManuscriptReviewServiceTest {
         }
     }
     @Test
-    void shouldWriteApprovalHistoryWhenProcessEventMovesToSecondLevel() {
+    void shouldWriteApprovalHistoryWhenProcessTaskEventMovesToSecondLevel() {
         ServiceFixture fixture = new ServiceFixture(1038L, "000000", 2001L, "张三");
         ManuscriptReviewRecordEntity record = buildPendingApprovalRecord(9031L, 1038L);
         when(fixture.recordMapper.selectById(9031L)).thenReturn(record);
 
-        ProcessEvent processEvent = new ProcessEvent();
-        processEvent.setTenantId("000000");
-        processEvent.setBusinessId("9031");
-        processEvent.setInstanceId(99031L);
-        processEvent.setStatus("waiting");
-        processEvent.setNodeCode("second-review-node");
-        processEvent.setNodeName("二级审批");
-        processEvent.setParams(java.util.Map.of("message", "一级通过"));
+        ProcessTaskEvent processTaskEvent = new ProcessTaskEvent();
+        processTaskEvent.setTenantId("000000");
+        processTaskEvent.setBusinessId("9031");
+        processTaskEvent.setInstanceId(99031L);
+        processTaskEvent.setStatus("waiting");
+        processTaskEvent.setNodeCode("second-review-node");
+        processTaskEvent.setNodeName("二级审批");
+        processTaskEvent.setParams(java.util.Map.of("message", "一级通过"));
 
-        fixture.service.processHandler(processEvent);
+        fixture.service.processTaskHandler(processTaskEvent);
 
         ArgumentCaptor<ManuscriptReviewHistoryEntity> historyCaptor = ArgumentCaptor.forClass(ManuscriptReviewHistoryEntity.class);
         verify(fixture.historyMapper).insert(historyCaptor.capture());
@@ -1120,21 +1121,41 @@ class ManuscriptReviewServiceTest {
     }
 
     @Test
-    void shouldWriteApprovalHistoryWhenProcessEventMovesToFinalLevel() {
+    void shouldNotWriteApprovalHistoryWhenSubmitCreatesSecondLevelTask() {
+        ServiceFixture fixture = new ServiceFixture(1040L, "000000", 2001L, "寮犱笁");
+        ManuscriptReviewRecordEntity record = buildPendingApprovalRecord(9033L, 1040L);
+        when(fixture.recordMapper.selectById(9033L)).thenReturn(record);
+
+        ProcessTaskEvent processTaskEvent = new ProcessTaskEvent();
+        processTaskEvent.setTenantId("000000");
+        processTaskEvent.setBusinessId("9033");
+        processTaskEvent.setInstanceId(99033L);
+        processTaskEvent.setStatus("waiting");
+        processTaskEvent.setNodeCode("second-review-node");
+        processTaskEvent.setNodeName("浜岀骇瀹℃壒");
+        processTaskEvent.setParams(java.util.Map.of("submit", true, "handler", "64005"));
+
+        fixture.service.processTaskHandler(processTaskEvent);
+
+        verify(fixture.historyMapper, never()).insert(any(ManuscriptReviewHistoryEntity.class));
+    }
+
+    @Test
+    void shouldWriteApprovalHistoryWhenProcessTaskEventMovesToFinalLevel() {
         ServiceFixture fixture = new ServiceFixture(1039L, "000000", 2001L, "张三");
         ManuscriptReviewRecordEntity record = buildPendingApprovalRecord(9032L, 1039L);
         when(fixture.recordMapper.selectById(9032L)).thenReturn(record);
 
-        ProcessEvent processEvent = new ProcessEvent();
-        processEvent.setTenantId("000000");
-        processEvent.setBusinessId("9032");
-        processEvent.setInstanceId(99032L);
-        processEvent.setStatus("waiting");
-        processEvent.setNodeCode("final-review-node");
-        processEvent.setNodeName("三级审批");
-        processEvent.setParams(java.util.Map.of("message", "二级通过"));
+        ProcessTaskEvent processTaskEvent = new ProcessTaskEvent();
+        processTaskEvent.setTenantId("000000");
+        processTaskEvent.setBusinessId("9032");
+        processTaskEvent.setInstanceId(99032L);
+        processTaskEvent.setStatus("waiting");
+        processTaskEvent.setNodeCode("final-review-node");
+        processTaskEvent.setNodeName("三级审批");
+        processTaskEvent.setParams(java.util.Map.of("message", "二级通过"));
 
-        fixture.service.processHandler(processEvent);
+        fixture.service.processTaskHandler(processTaskEvent);
 
         ArgumentCaptor<ManuscriptReviewHistoryEntity> historyCaptor = ArgumentCaptor.forClass(ManuscriptReviewHistoryEntity.class);
         verify(fixture.historyMapper).insert(historyCaptor.capture());

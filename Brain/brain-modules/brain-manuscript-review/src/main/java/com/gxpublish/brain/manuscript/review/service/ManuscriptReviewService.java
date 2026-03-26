@@ -307,10 +307,6 @@ public class ManuscriptReviewService {
             case "waiting" -> {
                 entity.setFlowStatusLabel("待审批");
                 recordMapper.updateById(entity);
-                String approvalHistoryText = buildApprovalWorkflowHistoryText(processEvent);
-                if (approvalHistoryText != null) {
-                    insertWorkflowHistory(reviewId, processEvent.getTenantId(), "APPROVE", approvalHistoryText);
-                }
             }
             case "cancel" -> {
                 entity.setFlowStatusLabel("已取消");
@@ -361,6 +357,12 @@ public class ManuscriptReviewService {
         entity.setCurrentNodeLabel(nodeName);
         entity.setUpdateTime(now());
         recordMapper.updateById(entity);
+        String approvalHistoryText = shouldWriteApprovalHistory(processTaskEvent.getNodeCode(), processTaskEvent.getParams())
+            ? buildApprovalWorkflowHistoryText(processTaskEvent.getNodeCode(), processTaskEvent.getParams())
+            : null;
+        if (approvalHistoryText != null) {
+            insertWorkflowHistory(reviewId, processTaskEvent.getTenantId(), "APPROVE", approvalHistoryText);
+        }
     }
 
     public Long addResource(AddManuscriptReviewResourceCommand command) {
@@ -717,6 +719,7 @@ public class ManuscriptReviewService {
         variables.put("ignore", true);
         variables.put("processType", route.processType().name());
         variables.put("skipLevelOne", route.skipLevelOne());
+        variables.put("isCertified", route.skipLevelOne());
         variables.put(FIRST_APPROVER_PERMISSION_VAR, route.firstApproverPermission());
         variables.put(SECOND_APPROVER_PERMISSION_VAR, route.secondApproverPermission());
         variables.put(THIRD_APPROVER_PERMISSION_VAR, route.thirdApproverPermission());
@@ -1145,8 +1148,12 @@ public class ManuscriptReviewService {
             : "三级审批驳回，当前流程已终止。审批意见：" + message + "。";
     }
 
-    private String buildApprovalWorkflowHistoryText(ProcessEvent processEvent) {
-        String previousNodeLabel = switch (trimToNull(processEvent.getNodeCode())) {
+    private String buildApprovalWorkflowHistoryText(String nextNodeCode, Map<String, Object> params) {
+        String normalizedNextNodeCode = trimToNull(nextNodeCode);
+        if (normalizedNextNodeCode == null) {
+            return null;
+        }
+        String previousNodeLabel = switch (normalizedNextNodeCode) {
             case "second-review-node" -> "一级审批";
             case "final-review-node" -> "二级审批";
             case "end-node" -> "三级审批";
@@ -1155,10 +1162,31 @@ public class ManuscriptReviewService {
         if (previousNodeLabel == null) {
             return null;
         }
-        Map<String, Object> params = processEvent.getParams();
         String message = trimToNull(params == null ? null : Objects.toString(params.get("message"), null));
         return message == null ? previousNodeLabel + "审批通过。"
             : previousNodeLabel + "审批通过。审批意见：" + message + "。";
+    }
+
+    private boolean shouldWriteApprovalHistory(String nextNodeCode, Map<String, Object> params) {
+        String normalizedNextNodeCode = trimToNull(nextNodeCode);
+        if (normalizedNextNodeCode == null || isSubmitTriggeredTaskCreation(params)) {
+            return false;
+        }
+        return switch (normalizedNextNodeCode) {
+            case "second-review-node", "final-review-node", "end-node" -> true;
+            default -> false;
+        };
+    }
+
+    private boolean isSubmitTriggeredTaskCreation(Map<String, Object> params) {
+        if (params == null || params.isEmpty()) {
+            return false;
+        }
+        Object submit = params.get("submit");
+        if (submit instanceof Boolean submitFlag) {
+            return submitFlag;
+        }
+        return "true".equalsIgnoreCase(Objects.toString(submit, null));
     }
 
     private String normalizeTenantId(String tenantId) {

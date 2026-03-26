@@ -188,6 +188,9 @@ public class WorkflowGlobalListener implements GlobalListener {
         }
         //申请人提交事件
         Boolean submit = MapUtil.getBool(variable, FlowConstant.SUBMIT);
+        if (Boolean.TRUE.equals(submit)) {
+            params.put(FlowConstant.SUBMIT, true);
+        }
         if (submit != null && submit) {
             String status = determineFlowStatus(instance);
             flowProcessEventHandler.processHandler(definition.getFlowCode(), instance, status, variable, true);
