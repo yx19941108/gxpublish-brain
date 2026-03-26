@@ -1,133 +1,79 @@
 package com.gxpublish.brain.manuscript.review.domain.command;
 
+import java.util.List;
+
+import com.gxpublish.brain.manuscript.review.domain.command.SubmitAndStartManuscriptReviewCommand.SubmitAttachmentResourceCommand;
+import com.gxpublish.brain.manuscript.review.domain.command.SubmitAndStartManuscriptReviewCommand.SubmitExternalLinkCommand;
 import com.gxpublish.brain.manuscript.review.domain.enums.ManuscriptReviewProcessType;
 
+import lombok.Builder;
+import lombok.Data;
+
+/**
+ * 稿件审校修改保存命令。
+ *
+ * <p>v6.26 追加改动：修改保存与新增提交一样，支持一次性携带主表字段、
+ * 追加附件/视频参数和追加外链参数，但不触发 BPM 状态推进。</p>
+ *
+ * @author Codex
+ * @since 2026-03-26
+ */
+@Data
+@Builder
 public class UpdateManuscriptReviewCommand {
 
-    private final Long id;
-    private final ManuscriptReviewProcessType processType;
-    private final String externalManuscriptCode;
-    private final String title;
-    private final String mediaChannel;
-    private final String submitDepartment;
-    private final String authorName;
-    private final String remark;
-    private final String contentBody;
+    /**
+     * 流程单主键。
+     */
+    private Long id;
 
-    private UpdateManuscriptReviewCommand(Builder builder) {
-        this.id = builder.id;
-        this.processType = builder.processType;
-        this.externalManuscriptCode = builder.externalManuscriptCode;
-        this.title = builder.title;
-        this.mediaChannel = builder.mediaChannel;
-        this.submitDepartment = builder.submitDepartment;
-        this.authorName = builder.authorName;
-        this.remark = builder.remark;
-        this.contentBody = builder.contentBody;
-    }
+    /**
+     * 流程类型。
+     */
+    private ManuscriptReviewProcessType processType;
 
-    public static Builder builder() {
-        return new Builder();
-    }
+    /**
+     * 外部稿件编号。
+     */
+    private String externalManuscriptCode;
 
-    public Long getId() {
-        return id;
-    }
+    /**
+     * 标题。
+     */
+    private String title;
 
-    public ManuscriptReviewProcessType getProcessType() {
-        return processType;
-    }
+    /**
+     * 媒体栏目。
+     */
+    private String mediaChannel;
 
-    public String getExternalManuscriptCode() {
-        return externalManuscriptCode;
-    }
+    /**
+     * 报送部门。
+     */
+    private String submitDepartment;
 
-    public String getTitle() {
-        return title;
-    }
+    /**
+     * 作者。
+     */
+    private String authorName;
 
-    public String getMediaChannel() {
-        return mediaChannel;
-    }
+    /**
+     * 备注说明。
+     */
+    private String remark;
 
-    public String getSubmitDepartment() {
-        return submitDepartment;
-    }
+    /**
+     * 正文内容。
+     */
+    private String contentBody;
 
-    public String getAuthorName() {
-        return authorName;
-    }
+    /**
+     * 本次保存新追加的附件/视频参数。
+     */
+    private List<SubmitAttachmentResourceCommand> attachmentResources;
 
-    public String getRemark() {
-        return remark;
-    }
-
-    public String getContentBody() {
-        return contentBody;
-    }
-
-    public static final class Builder {
-
-        private Long id;
-        private ManuscriptReviewProcessType processType;
-        private String externalManuscriptCode;
-        private String title;
-        private String mediaChannel;
-        private String submitDepartment;
-        private String authorName;
-        private String remark;
-        private String contentBody;
-
-        private Builder() {
-        }
-
-        public Builder id(Long id) {
-            this.id = id;
-            return this;
-        }
-
-        public Builder processType(ManuscriptReviewProcessType processType) {
-            this.processType = processType;
-            return this;
-        }
-
-        public Builder externalManuscriptCode(String externalManuscriptCode) {
-            this.externalManuscriptCode = externalManuscriptCode;
-            return this;
-        }
-
-        public Builder title(String title) {
-            this.title = title;
-            return this;
-        }
-
-        public Builder mediaChannel(String mediaChannel) {
-            this.mediaChannel = mediaChannel;
-            return this;
-        }
-
-        public Builder submitDepartment(String submitDepartment) {
-            this.submitDepartment = submitDepartment;
-            return this;
-        }
-
-        public Builder authorName(String authorName) {
-            this.authorName = authorName;
-            return this;
-        }
-
-        public Builder remark(String remark) {
-            this.remark = remark;
-            return this;
-        }
-
-        public Builder contentBody(String contentBody) {
-            this.contentBody = contentBody;
-            return this;
-        }
-
-        public UpdateManuscriptReviewCommand build() {
-            return new UpdateManuscriptReviewCommand(this);
-        }
-    }
+    /**
+     * 本次保存新追加的外链参数。
+     */
+    private List<SubmitExternalLinkCommand> externalLinks;
 }

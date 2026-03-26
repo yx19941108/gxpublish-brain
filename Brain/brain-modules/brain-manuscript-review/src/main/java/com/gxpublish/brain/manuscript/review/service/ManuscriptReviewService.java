@@ -5,6 +5,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -16,6 +17,7 @@ import java.util.function.LongSupplier;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gxpublish.brain.common.core.domain.dto.FlowInstanceBizExtDTO;
@@ -24,6 +26,7 @@ import com.gxpublish.brain.common.core.domain.event.ProcessEvent;
 import com.gxpublish.brain.common.core.domain.event.ProcessTaskEvent;
 import com.gxpublish.brain.common.core.exception.ServiceException;
 import com.gxpublish.brain.common.core.service.WorkflowService;
+import com.gxpublish.brain.common.json.utils.JsonUtils;
 import com.gxpublish.brain.common.mybatis.utils.IdGeneratorUtil;
 import com.gxpublish.brain.manuscript.review.domain.command.AddManuscriptReviewResourceCommand;
 import com.gxpublish.brain.manuscript.review.domain.command.AddManuscriptReviewVideoMarkCommand;
@@ -31,6 +34,7 @@ import com.gxpublish.brain.manuscript.review.domain.command.CreateManuscriptRevi
 import com.gxpublish.brain.manuscript.review.domain.command.DisableManuscriptReviewResourceCommand;
 import com.gxpublish.brain.manuscript.review.domain.command.DisableManuscriptReviewVideoMarkCommand;
 import com.gxpublish.brain.manuscript.review.domain.command.ResubmitManuscriptReviewCommand;
+import com.gxpublish.brain.manuscript.review.domain.command.SubmitAndStartManuscriptReviewCommand;
 import com.gxpublish.brain.manuscript.review.domain.command.UpdateManuscriptReviewCommand;
 import com.gxpublish.brain.manuscript.review.domain.entity.ManuscriptReviewAttachmentEntity;
 import com.gxpublish.brain.manuscript.review.domain.entity.ManuscriptReviewExternalLinkEntity;
@@ -38,10 +42,18 @@ import com.gxpublish.brain.manuscript.review.domain.entity.ManuscriptReviewFlowC
 import com.gxpublish.brain.manuscript.review.domain.entity.ManuscriptReviewHistoryEntity;
 import com.gxpublish.brain.manuscript.review.domain.entity.ManuscriptReviewRecordEntity;
 import com.gxpublish.brain.manuscript.review.domain.entity.ManuscriptReviewSystemRoleEntity;
+import com.gxpublish.brain.manuscript.review.domain.entity.ManuscriptReviewSysOssEntity;
+import com.gxpublish.brain.manuscript.review.domain.entity.ManuscriptReviewSysOssExt;
 import com.gxpublish.brain.manuscript.review.domain.entity.ManuscriptReviewSystemUserEntity;
 import com.gxpublish.brain.manuscript.review.domain.entity.ManuscriptReviewSystemUserRoleEntity;
 import com.gxpublish.brain.manuscript.review.domain.entity.ManuscriptReviewVideoMarkerEntity;
+import com.gxpublish.brain.manuscript.review.domain.enums.ManuscriptReviewEnabledStatusEnum;
+import com.gxpublish.brain.manuscript.review.domain.enums.ManuscriptReviewFlowStatusEnum;
+import com.gxpublish.brain.manuscript.review.domain.enums.ManuscriptReviewHistoryActionTypeEnum;
+import com.gxpublish.brain.manuscript.review.domain.enums.ManuscriptReviewNodeLabelEnum;
 import com.gxpublish.brain.manuscript.review.domain.enums.ManuscriptReviewProcessType;
+import com.gxpublish.brain.manuscript.review.domain.enums.ManuscriptReviewResourceTypeEnum;
+import com.gxpublish.brain.manuscript.review.domain.enums.ManuscriptReviewWorkflowNodeCodeEnum;
 import com.gxpublish.brain.manuscript.review.gateway.ManuscriptReviewCurrentUserGateway;
 import com.gxpublish.brain.manuscript.review.gateway.ManuscriptReviewSerialGateway;
 import com.gxpublish.brain.manuscript.review.mapper.ManuscriptReviewAttachmentMapper;
@@ -50,6 +62,7 @@ import com.gxpublish.brain.manuscript.review.mapper.ManuscriptReviewFlowConfigMa
 import com.gxpublish.brain.manuscript.review.mapper.ManuscriptReviewHistoryMapper;
 import com.gxpublish.brain.manuscript.review.mapper.ManuscriptReviewRecordMapper;
 import com.gxpublish.brain.manuscript.review.mapper.ManuscriptReviewSystemRoleMapper;
+import com.gxpublish.brain.manuscript.review.mapper.ManuscriptReviewSysOssMapper;
 import com.gxpublish.brain.manuscript.review.mapper.ManuscriptReviewSystemUserMapper;
 import com.gxpublish.brain.manuscript.review.mapper.ManuscriptReviewSystemUserRoleMapper;
 import com.gxpublish.brain.manuscript.review.mapper.ManuscriptReviewVideoMarkerMapper;
@@ -57,7 +70,7 @@ import com.gxpublish.brain.workflow.domain.bo.FlowCancelBo;
 import com.gxpublish.brain.workflow.service.IFlwInstanceService;
 
 @Service
-public class ManuscriptReviewService {
+public class ManuscriptReviewService implements IManuscriptReviewService {
 
     private static final String DEFAULT_TENANT_ID = "000000";
     private static final String ENABLED = "1";
@@ -86,6 +99,8 @@ public class ManuscriptReviewService {
     private static final String FIRST_APPROVER_PERMISSION_VAR = "manuscriptReviewFirstLevelApprover";
     private static final String SECOND_APPROVER_PERMISSION_VAR = "manuscriptReviewSecondLevelApprover";
     private static final String THIRD_APPROVER_PERMISSION_VAR = "manuscriptReviewThirdLevelApprover";
+    private static final String LEGACY_SUBMIT_HISTORY_ACTION = "SUBMIT";
+    private static final String WORKFLOW_PENDING_APPROVAL_LABEL = "待审批";
     private static final String ROLE_STATUS_ACTIVE = "0";
     private static final String LEVEL_ONE_NODE = "待一级审批";
     private static final String LEVEL_TWO_NODE = "待二级审批";
@@ -106,6 +121,7 @@ public class ManuscriptReviewService {
     private final ManuscriptReviewCurrentUserGateway currentUserGateway;
     private final WorkflowService workflowService;
     private final IFlwInstanceService flwInstanceService;
+    private final ManuscriptReviewSysOssMapper sysOssMapper;
     private final Clock clock;
     private final LongSupplier idGenerator;
 
@@ -122,6 +138,7 @@ public class ManuscriptReviewService {
                                    ManuscriptReviewCurrentUserGateway currentUserGateway,
                                    WorkflowService workflowService,
                                    IFlwInstanceService flwInstanceService,
+                                   ManuscriptReviewSysOssMapper sysOssMapper,
                                    Clock clock,
                                    LongSupplier idGenerator) {
         this.recordMapper = recordMapper;
@@ -137,6 +154,7 @@ public class ManuscriptReviewService {
         this.currentUserGateway = currentUserGateway;
         this.workflowService = workflowService;
         this.flwInstanceService = flwInstanceService;
+        this.sysOssMapper = sysOssMapper;
         this.clock = clock;
         this.idGenerator = idGenerator;
     }
@@ -154,7 +172,8 @@ public class ManuscriptReviewService {
                                    ManuscriptReviewSerialGateway serialGateway,
                                    ManuscriptReviewCurrentUserGateway currentUserGateway,
                                    WorkflowService workflowService,
-                                   IFlwInstanceService flwInstanceService) {
+                                   IFlwInstanceService flwInstanceService,
+                                   ManuscriptReviewSysOssMapper sysOssMapper) {
         this(
             recordMapper,
             attachmentMapper,
@@ -169,11 +188,22 @@ public class ManuscriptReviewService {
             currentUserGateway,
             workflowService,
             flwInstanceService,
+            sysOssMapper,
             Clock.system(BUSINESS_ZONE_ID),
             IdGeneratorUtil::nextLongId
         );
     }
 
+    /**
+     * ???????
+     *
+     * <p>v6.26 ?????????????????????
+     * ??????????????????</p>
+     *
+     * @param command ??????
+     * @return ???????
+     */
+    @Override
     public Long create(CreateManuscriptReviewCommand command) {
         ManuscriptReviewRecordEntity entity = new ManuscriptReviewRecordEntity();
         entity.setId(nextId());
@@ -183,10 +213,22 @@ public class ManuscriptReviewService {
         initializePreSubmitFlowFields(entity, command.getProcessType());
         fillCreateAuditFields(entity);
         recordMapper.insert(entity);
-        insertActorHistory(entity.getId(), "CREATE", currentUsername() + "新增了审校流程单《" + entity.getTitle() + "》。");
+        insertActorHistory(entity.getId(), ManuscriptReviewHistoryActionTypeEnum.CREATE.getCode(),
+            currentUsername() + "新增了审校流程单《" + entity.getTitle() + "》。");
         return entity.getId();
     }
 
+    /**
+     * ????????
+     *
+     * <p>v6.26 ?????????????????????????????
+     * ???????????????? BPM ?????</p>
+     *
+     * @param command ??????
+     * @return ????
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
     public void update(UpdateManuscriptReviewCommand command) {
         Long reviewId = requireReviewId(command.getId());
         ManuscriptReviewRecordEntity existing = requireRecord(reviewId);
@@ -201,9 +243,27 @@ public class ManuscriptReviewService {
         entity.setFlowCode(resolveFlowCode(command.getProcessType()));
         fillUpdateAuditFields(entity);
         recordMapper.updateById(entity);
-        insertActorHistory(reviewId, "UPDATE", buildUpdateHistoryText(existing, entity));
+        SubmittedResourceSummary resourceSummary = saveSubmittedResources(
+            reviewId,
+            command.getAttachmentResources(),
+            command.getExternalLinks(),
+            false
+        );
+        insertActorHistory(reviewId, ManuscriptReviewHistoryActionTypeEnum.UPDATE.getCode(),
+            buildUpdateHistoryText(existing, entity, resourceSummary));
     }
 
+    /**
+     * 兼容旧草稿记录的提交发起能力。
+     *
+     * <p>v6.26 追加改动：该方法仅保留边界内最小兼容能力，
+     * 提交后仍需补写兼容链路使用的 SUBMIT 与 SKIP_LEVEL_1 历史。</p>
+     *
+     * @param reviewId 已存在流程单主键
+     * @return 系统稿件号
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
     public String submitAndFlowStart(Long reviewId) {
         ManuscriptReviewRecordEntity existing = requireRecord(reviewId);
         ensureHasAtLeastOneEffectiveResource(reviewId);
@@ -215,20 +275,92 @@ public class ManuscriptReviewService {
         entity.setId(reviewId);
         entity.setFlowCode(route.flowCode());
         entity.setFlowInstanceId(flowInstanceId);
-        entity.setFlowStatusLabel("审批中");
+        entity.setFlowStatusLabel(ManuscriptReviewFlowStatusEnum.WAITING.getLabel());
         entity.setCurrentNodeLabel(route.currentNodeLabel());
         entity.setManuscriptCode(manuscriptCode);
         entity.setFirstSubmitTime(existing.getFirstSubmitTime() == null ? now : existing.getFirstSubmitTime());
         entity.setLatestSubmitTime(now);
         fillUpdateAuditFields(entity);
         recordMapper.updateById(entity);
-        insertActorHistory(reviewId, "SUBMIT", currentUsername() + "提交了审校流程单。");
+        insertActorHistory(reviewId, LEGACY_SUBMIT_HISTORY_ACTION,
+            currentUsername() + "提交了审校流程单。");
         if (route.skipLevelOne()) {
-            insertSystemHistory(reviewId, "SKIP_LEVEL_1", "系统判定发起人具备持证资格，自动跳过一级审批");
+            insertSystemHistory(reviewId, ManuscriptReviewHistoryActionTypeEnum.SKIP_LEVEL_1.getCode(),
+                "系统判定发起人具备持证资格，自动跳过一级审批");
         }
         return entity.getManuscriptCode();
     }
 
+    /**
+     * 新增并提交一体化写入入口。
+     *
+     * <p>v6.26 追加改动：该方法在单个事务内完成主表落库、资源落库、
+     * history 写入与 BPM 发起，作为新增页正式提交主入口。</p>
+     *
+     * @param command 新增并提交命令
+     * @return 新建流程单主键
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Long submitAndFlowStart(SubmitAndStartManuscriptReviewCommand command) {
+        ManuscriptReviewProcessType processType = requireProcessType(command.getProcessType());
+        String tenantId = normalizeTenantId(currentUserGateway.getCurrentTenantId());
+        SubmissionRoute route = resolveSubmissionRoute(buildSubmissionRouteRecord(tenantId, processType));
+        Date submitBaseTime = now();
+        Long reviewId = nextId();
+        String manuscriptCode = buildManuscriptCode(processType);
+
+        ManuscriptReviewRecordEntity entity = new ManuscriptReviewRecordEntity();
+        entity.setId(reviewId);
+        applyWriteFields(entity, processType, command.getExternalManuscriptCode(), command.getTitle(),
+            command.getMediaChannel(), command.getSubmitDepartment(), command.getAuthorName(), command.getRemark(),
+            command.getContentBody(), null);
+        entity.setFlowCode(route.flowCode());
+        entity.setFlowStatusLabel(ManuscriptReviewFlowStatusEnum.WAITING.getLabel());
+        entity.setCurrentNodeLabel(route.currentNodeLabel());
+        entity.setManuscriptCode(manuscriptCode);
+        entity.setFirstSubmitTime(submitBaseTime);
+        entity.setLatestSubmitTime(submitBaseTime);
+        fillCreateAuditFields(entity);
+        recordMapper.insert(entity);
+
+        SubmittedResourceSummary resourceSummary = saveSubmittedResources(
+            reviewId,
+            command.getAttachmentResources(),
+            command.getExternalLinks(),
+            true
+        );
+        Date createHistoryTime = route.skipLevelOne()
+            ? new Date(submitBaseTime.getTime() + 1_000L)
+            : submitBaseTime;
+        insertActorHistory(reviewId, ManuscriptReviewHistoryActionTypeEnum.CREATE.getCode(),
+            buildCreateAndSubmitHistoryText(entity, resourceSummary), createHistoryTime);
+        if (route.skipLevelOne()) {
+            insertSystemHistory(reviewId, ManuscriptReviewHistoryActionTypeEnum.SKIP_LEVEL_1.getCode(),
+                "系统判定发起人具备持证资格，自动跳过一级审批", submitBaseTime);
+        }
+
+        Long flowInstanceId = startWorkflowOrThrow(reviewId, route, manuscriptCode, entity.getTitle());
+        ManuscriptReviewRecordEntity patch = new ManuscriptReviewRecordEntity();
+        patch.setId(reviewId);
+        patch.setFlowInstanceId(flowInstanceId);
+        patch.setUpdateBy(requireCurrentUserId());
+        patch.setUpdateTime(now());
+        recordMapper.updateById(patch);
+        return reviewId;
+    }
+
+    /**
+     * 发起人修改后再次提交流程。
+     *
+     * <p>v6.26 追加改动：重新提交仍是独立后置动作，
+     * 本方法只负责重提链路，不与修改保存混写。</p>
+     *
+     * @param command 再次提交命令
+     * @return 无返回值
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
     public void resubmit(ResubmitManuscriptReviewCommand command) {
         ManuscriptReviewRecordEntity existing = requireRecord(requireReviewId(command.getReviewId()));
         if (!isReturnedToInitiator(existing) || !Objects.equals(requireCurrentUserId(), existing.getInitiatorUserId())) {
@@ -243,26 +375,40 @@ public class ManuscriptReviewService {
         entity.setId(existing.getId());
         entity.setFlowCode(route.flowCode());
         entity.setFlowInstanceId(flowInstanceId);
-        entity.setFlowStatusLabel("审批中");
+        entity.setFlowStatusLabel(ManuscriptReviewFlowStatusEnum.WAITING.getLabel());
         entity.setCurrentNodeLabel(route.currentNodeLabel());
         entity.setManuscriptCode(manuscriptCode);
         entity.setFirstSubmitTime(existing.getFirstSubmitTime() == null ? now : existing.getFirstSubmitTime());
         entity.setLatestSubmitTime(now);
         fillUpdateAuditFields(entity);
         recordMapper.updateById(entity);
-        insertActorHistory(existing.getId(), "RESUBMIT", currentUsername() + "再次提交了审校流程单。");
+        insertActorHistory(existing.getId(), ManuscriptReviewHistoryActionTypeEnum.RESUBMIT.getCode(),
+            currentUsername() + "再次提交了审校流程单。");
         if (route.skipLevelOne()) {
-            insertSystemHistory(existing.getId(), "SKIP_LEVEL_1", "系统判定发起人具备持证资格，自动跳过一级审批");
+            insertSystemHistory(existing.getId(), ManuscriptReviewHistoryActionTypeEnum.SKIP_LEVEL_1.getCode(),
+                "系统判定发起人具备持证资格，自动跳过一级审批");
         }
     }
 
+    /**
+     * 发起人撤销流程。
+     *
+     * <p>v6.26 追加改动：撤销仍保持独立流程动作，
+     * 只允许审批中且由发起人本人发起撤销。</p>
+     *
+     * @param reviewId 流程单主键
+     * @param reason 撤销原因
+     * @return 无返回值
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
     public void cancelProcessApply(Long reviewId, String reason) {
         ManuscriptReviewRecordEntity existing = requireRecord(requireReviewId(reviewId));
         Long currentUserId = requireCurrentUserId();
         if (!Objects.equals(currentUserId, existing.getInitiatorUserId())) {
             throw new ServiceException(CANCEL_ONLY_INITIATOR_MESSAGE);
         }
-        if (!"审批中".equals(trimToNull(existing.getFlowStatusLabel()))) {
+        if (!ManuscriptReviewFlowStatusEnum.WAITING.getLabel().equals(trimToNull(existing.getFlowStatusLabel()))) {
             throw new ServiceException(CANCEL_ONLY_WAITING_MESSAGE);
         }
         FlowCancelBo flowCancelBo = new FlowCancelBo();
@@ -272,12 +418,226 @@ public class ManuscriptReviewService {
         ManuscriptReviewRecordEntity entity = new ManuscriptReviewRecordEntity();
         entity.setId(existing.getId());
         entity.setFlowInstanceId(existing.getFlowInstanceId());
-        entity.setFlowStatusLabel("已取消");
-        entity.setCurrentNodeLabel("流程已取消");
+        entity.setFlowStatusLabel(ManuscriptReviewFlowStatusEnum.CANCEL.getLabel());
+        entity.setCurrentNodeLabel(ManuscriptReviewNodeLabelEnum.CANCEL.getLabel());
         entity.setRemark(trimToNull(reason));
         fillUpdateAuditFields(entity);
         recordMapper.updateById(entity);
-        insertActorHistory(existing.getId(), "CANCEL", currentUsername() + "撤销了审校流程单。");
+        insertActorHistory(existing.getId(), ManuscriptReviewHistoryActionTypeEnum.CANCEL.getCode(),
+            currentUsername() + "撤销了审校流程单。");
+    }
+
+    /**
+     * 构造用于提交路由解析的临时主单对象。
+     *
+     * <p>v6.26 追加改动：新增并提交一体化场景下，主单尚未持久化前，
+     * 需要先根据租户和流程类型解析审批链与持证跳级规则。</p>
+     *
+     * @param tenantId 租户编号
+     * @param processType 流程类型
+     * @return 最小可用的临时主单对象
+     */
+    private ManuscriptReviewRecordEntity buildSubmissionRouteRecord(String tenantId, ManuscriptReviewProcessType processType) {
+        ManuscriptReviewRecordEntity entity = new ManuscriptReviewRecordEntity();
+        entity.setTenantId(tenantId);
+        entity.setProcessType(processType.name());
+        return entity;
+    }
+
+    /**
+     * 保存新增提交或修改保存时一并带入的资源参数。
+     *
+     * <p>v6.26 追加改动：该方法只负责事务内资源落表，
+     * 是否单独写 RESOURCE_ADD history 由调用方通过 createAndSubmit 控制。</p>
+     *
+     * @param reviewId 流程单主键
+     * @param attachmentResources 附件/视频参数列表
+     * @param externalLinks 外链参数列表
+     * @param createAndSubmit 是否为新增并提交一体化场景
+     * @return 已保存资源摘要，供 history 文案组装使用
+     */
+    private SubmittedResourceSummary saveSubmittedResources(
+        Long reviewId,
+        List<SubmitAndStartManuscriptReviewCommand.SubmitAttachmentResourceCommand> attachmentResources,
+        List<SubmitAndStartManuscriptReviewCommand.SubmitExternalLinkCommand> externalLinks,
+        boolean createAndSubmit
+    ) {
+        List<SubmitAndStartManuscriptReviewCommand.SubmitAttachmentResourceCommand> normalizedAttachments =
+            attachmentResources == null ? List.of() : attachmentResources;
+        List<SubmitAndStartManuscriptReviewCommand.SubmitExternalLinkCommand> normalizedExternalLinks =
+            externalLinks == null ? List.of() : externalLinks;
+        if (createAndSubmit && normalizedAttachments.isEmpty() && normalizedExternalLinks.isEmpty()) {
+            throw new ServiceException(RESOURCE_REQUIRED_MESSAGE);
+        }
+
+        List<String> attachmentNames = new ArrayList<>();
+        List<String> videoNames = new ArrayList<>();
+        List<String> externalLinkTitles = new ArrayList<>();
+
+        for (SubmitAndStartManuscriptReviewCommand.SubmitAttachmentResourceCommand resource : normalizedAttachments) {
+            ManuscriptReviewResourceTypeEnum resourceType = requireAttachmentSubmitType(resource.getResourceType());
+            ManuscriptReviewAttachmentEntity entity = createSubmittedAttachmentEntity(
+                reviewId,
+                resourceType,
+                resource.getDisplayName(),
+                resource.getOssId()
+            );
+            attachmentMapper.insert(entity);
+            if (resourceType.isVideo()) {
+                videoNames.add(entity.getFileName());
+            } else {
+                attachmentNames.add(entity.getFileName());
+            }
+        }
+
+        for (SubmitAndStartManuscriptReviewCommand.SubmitExternalLinkCommand externalLink : normalizedExternalLinks) {
+            ManuscriptReviewExternalLinkEntity entity = createSubmittedExternalLinkEntity(
+                reviewId,
+                externalLink.getDisplayName(),
+                externalLink.getExternalUrl()
+            );
+            externalLinkMapper.insert(entity);
+            externalLinkTitles.add(entity.getLinkTitle());
+        }
+        return new SubmittedResourceSummary(attachmentNames, videoNames, externalLinkTitles);
+    }
+
+    /**
+     * 校验并创建提交场景下的附件/视频实体。
+     *
+     * @param reviewId 流程单主键
+     * @param resourceType 资源类型
+     * @param displayName 显示名称
+     * @param ossId OSS 主键
+     * @return 已填充的附件实体
+     */
+    private ManuscriptReviewAttachmentEntity createSubmittedAttachmentEntity(
+        Long reviewId,
+        ManuscriptReviewResourceTypeEnum resourceType,
+        String displayName,
+        Long ossId
+    ) {
+        if (ossId == null) {
+            throw new ServiceException("附件/视频资源必须提供ossId");
+        }
+        ManuscriptReviewSysOssEntity sysOss = sysOssMapper.selectById(ossId);
+        if (sysOss == null) {
+            throw new ServiceException("上传文件不存在或已被删除");
+        }
+        ManuscriptReviewSysOssExt ossExt = trimToNull(sysOss.getExt1()) == null ? null : JsonUtils.parseObject(sysOss.getExt1(), ManuscriptReviewSysOssExt.class);
+        ManuscriptReviewAttachmentEntity entity = new ManuscriptReviewAttachmentEntity();
+        entity.setId(nextId());
+        entity.setTenantId(normalizeTenantId(currentUserGateway.getCurrentTenantId()));
+        entity.setReviewId(reviewId);
+        entity.setOssId(ossId);
+        entity.setFileName(requireLength(trimToNull(displayName), "资源名称不能为空", "资源名称长度不能超过255个字符", 255));
+        entity.setFileUrl(sysOss.getUrl());
+        entity.setFileSize(ossExt == null ? null : ossExt.getFileSize());
+        entity.setMimeType(ossExt == null ? null : trimToNull(ossExt.getContentType()));
+        entity.setIsVideo(resourceType.isVideo());
+
+        /**
+         * 当前 shared 上传返回结果里没有视频总时长。
+         * 这里不凭空推断 videoDurationSeconds，保持为空并作为缺口交由主控裁决。
+         */
+        entity.setVideoDurationSeconds(null);
+        entity.setEnabled(ManuscriptReviewEnabledStatusEnum.ENABLED.getCode());
+        fillCreateAuditFields(entity);
+        return entity;
+    }
+
+    /**
+     * 校验并创建提交场景下的外链实体。
+     *
+     * @param reviewId 流程单主键
+     * @param displayName 显示名称
+     * @param externalUrl 外链地址
+     * @return 已填充的外链实体
+     */
+    private ManuscriptReviewExternalLinkEntity createSubmittedExternalLinkEntity(Long reviewId, String displayName, String externalUrl) {
+        String linkTitle = requireLength(trimToNull(displayName), "外链标题不能为空", "外链标题长度不能超过200个字符", 200);
+        String validatedExternalUrl = validateExternalUrl(externalUrl);
+        Long duplicateCount = externalLinkMapper.selectCount(
+            new QueryWrapper<ManuscriptReviewExternalLinkEntity>()
+                .eq("tenant_id", normalizeTenantId(currentUserGateway.getCurrentTenantId()))
+                .eq("review_id", reviewId)
+                .eq("link_url", validatedExternalUrl)
+        );
+        if (duplicateCount != null && duplicateCount > 0) {
+            throw new ServiceException(EXTERNAL_LINK_DUPLICATE_MESSAGE);
+        }
+        ManuscriptReviewExternalLinkEntity entity = new ManuscriptReviewExternalLinkEntity();
+        entity.setId(nextId());
+        entity.setTenantId(normalizeTenantId(currentUserGateway.getCurrentTenantId()));
+        entity.setReviewId(reviewId);
+        entity.setLinkTitle(linkTitle);
+        entity.setLinkUrl(validatedExternalUrl);
+        entity.setEnabled(ManuscriptReviewEnabledStatusEnum.ENABLED.getCode());
+        fillCreateAuditFields(entity);
+        return entity;
+    }
+
+    /**
+     * 校验提交场景下的附件资源类型。
+     *
+     * @param resourceType 资源类型编码
+     * @return 合法的资源类型枚举
+     */
+    private ManuscriptReviewResourceTypeEnum requireAttachmentSubmitType(String resourceType) {
+        ManuscriptReviewResourceTypeEnum typeEnum = ManuscriptReviewResourceTypeEnum.fromCode(trimToNull(resourceType));
+        if (typeEnum == null || ManuscriptReviewResourceTypeEnum.EXTERNAL_LINK == typeEnum) {
+            throw new ServiceException(RESOURCE_TYPE_INVALID_MESSAGE);
+        }
+        return typeEnum;
+    }
+
+    /**
+     * 生成新增并提交场景下的 CREATE 历史文案。
+     *
+     * @param entity 主单实体
+     * @param resourceSummary 提交资源摘要
+     * @return 可读 CREATE 历史文案
+     */
+    private String buildCreateAndSubmitHistoryText(ManuscriptReviewRecordEntity entity, SubmittedResourceSummary resourceSummary) {
+        List<String> summaryItems = new ArrayList<>();
+        if (!resourceSummary.attachmentNames().isEmpty()) {
+            summaryItems.add("附件" + joinResourceNames(resourceSummary.attachmentNames()));
+        }
+        if (!resourceSummary.videoNames().isEmpty()) {
+            summaryItems.add("视频" + joinResourceNames(resourceSummary.videoNames()));
+        }
+        if (!resourceSummary.externalLinkTitles().isEmpty()) {
+            summaryItems.add("外链" + joinResourceNames(resourceSummary.externalLinkTitles()));
+        }
+        if (summaryItems.isEmpty()) {
+            return currentUsername() + "新增并提交了审校流程单《" + entity.getTitle() + "》。";
+        }
+        return currentUsername() + "新增并提交了审校流程单《" + entity.getTitle() + "》，并一并提交了"
+            + String.join("、", summaryItems) + "。";
+    }
+
+    /**
+     * 拼接资源名称列表，供 history 文案使用。
+     *
+     * @param resourceNames 资源名称集合
+     * @return 拼接后的名称文案
+     */
+    private String joinResourceNames(Collection<String> resourceNames) {
+        return "《" + String.join("》《", resourceNames) + "》";
+    }
+
+    /**
+     * 提交资源摘要。
+     *
+     * @param attachmentNames 附件名称列表
+     * @param videoNames 视频名称列表
+     * @param externalLinkTitles 外链标题列表
+     */
+    private record SubmittedResourceSummary(
+        List<String> attachmentNames,
+        List<String> videoNames,
+        List<String> externalLinkTitles
+    ) {
     }
 
     @EventListener(condition = "#processEvent.flowCode.startsWith('manuscript_review_')")
@@ -290,7 +650,7 @@ public class ManuscriptReviewService {
             ManuscriptReviewRecordEntity entity = new ManuscriptReviewRecordEntity();
             entity.setId(reviewId);
             entity.setFlowInstanceId(processEvent.getInstanceId());
-            entity.setFlowStatusLabel("审批中");
+            entity.setFlowStatusLabel(ManuscriptReviewFlowStatusEnum.WAITING.getLabel());
             entity.setUpdateTime(now());
             recordMapper.updateById(entity);
             return;
@@ -305,31 +665,34 @@ public class ManuscriptReviewService {
         entity.setUpdateTime(now());
         switch (status) {
             case "waiting" -> {
-                entity.setFlowStatusLabel("待审批");
+                entity.setFlowStatusLabel(WORKFLOW_PENDING_APPROVAL_LABEL);
                 recordMapper.updateById(entity);
             }
             case "cancel" -> {
-                entity.setFlowStatusLabel("已取消");
-                entity.setCurrentNodeLabel("流程已取消");
+                entity.setFlowStatusLabel(ManuscriptReviewFlowStatusEnum.CANCEL.getLabel());
+                entity.setCurrentNodeLabel(ManuscriptReviewNodeLabelEnum.CANCEL.getLabel());
                 recordMapper.updateById(entity);
             }
             case "back" -> {
-                entity.setFlowStatusLabel("已退回");
-                entity.setCurrentNodeLabel("待发起人处理");
+                entity.setFlowStatusLabel(ManuscriptReviewFlowStatusEnum.BACK.getLabel());
+                entity.setCurrentNodeLabel(ManuscriptReviewNodeLabelEnum.INITIATOR_PENDING.getLabel());
                 recordMapper.updateById(entity);
-                insertWorkflowHistory(reviewId, processEvent.getTenantId(), "BACK", "流程已退回发起人处理。");
+                insertWorkflowHistory(reviewId, processEvent.getTenantId(),
+                    ManuscriptReviewHistoryActionTypeEnum.BACK.getCode(), "流程已退回发起人处理。");
             }
             case "finish" -> {
-                entity.setFlowStatusLabel("已完成");
-                entity.setCurrentNodeLabel("流程完成");
+                entity.setFlowStatusLabel(ManuscriptReviewFlowStatusEnum.FINISH.getLabel());
+                entity.setCurrentNodeLabel(ManuscriptReviewNodeLabelEnum.FINISH.getLabel());
                 recordMapper.updateById(entity);
-                insertWorkflowHistory(reviewId, processEvent.getTenantId(), "FINISH", "流程审批已完成。");
+                insertWorkflowHistory(reviewId, processEvent.getTenantId(),
+                    ManuscriptReviewHistoryActionTypeEnum.FINISH.getCode(), "流程审批已完成。");
             }
             case "termination" -> {
-                entity.setFlowStatusLabel("已驳回");
-                entity.setCurrentNodeLabel("流程已驳回");
+                entity.setFlowStatusLabel(ManuscriptReviewFlowStatusEnum.REJECT.getLabel());
+                entity.setCurrentNodeLabel(ManuscriptReviewNodeLabelEnum.REJECT.getLabel());
                 recordMapper.updateById(entity);
-                insertWorkflowHistory(reviewId, processEvent.getTenantId(), "REJECT", buildRejectWorkflowHistoryText(processEvent));
+                insertWorkflowHistory(reviewId, processEvent.getTenantId(),
+                    ManuscriptReviewHistoryActionTypeEnum.REJECT.getCode(), buildRejectWorkflowHistoryText(processEvent));
             }
             default -> {
             }
@@ -353,7 +716,7 @@ public class ManuscriptReviewService {
         ManuscriptReviewRecordEntity entity = new ManuscriptReviewRecordEntity();
         entity.setId(reviewId);
         entity.setFlowInstanceId(processTaskEvent.getInstanceId());
-        entity.setFlowStatusLabel("审批中");
+        entity.setFlowStatusLabel(ManuscriptReviewFlowStatusEnum.WAITING.getLabel());
         entity.setCurrentNodeLabel(nodeName);
         entity.setUpdateTime(now());
         recordMapper.updateById(entity);
@@ -361,7 +724,8 @@ public class ManuscriptReviewService {
             ? buildApprovalWorkflowHistoryText(processTaskEvent.getNodeCode(), processTaskEvent.getParams())
             : null;
         if (approvalHistoryText != null) {
-            insertWorkflowHistory(reviewId, processTaskEvent.getTenantId(), "APPROVE", approvalHistoryText);
+            insertWorkflowHistory(reviewId, processTaskEvent.getTenantId(),
+                ManuscriptReviewHistoryActionTypeEnum.APPROVE.getCode(), approvalHistoryText);
         }
     }
 
@@ -429,7 +793,8 @@ public class ManuscriptReviewService {
         entity.setEnabled(ENABLED);
         fillCreateAuditFields(entity);
         videoMarkerMapper.insert(entity);
-        insertActorHistory(reviewId, "VIDEO_MARK_ADD", buildVideoMarkAddHistoryText(entity));
+        insertActorHistory(reviewId, ManuscriptReviewHistoryActionTypeEnum.VIDEO_MARK_ADD.getCode(),
+            buildVideoMarkAddHistoryText(entity));
         return entity.getId();
     }
 
@@ -451,7 +816,8 @@ public class ManuscriptReviewService {
         entity.setRemark(trimToNull(command.getDisabledReason()));
         fillUpdateAuditFields(entity);
         videoMarkerMapper.updateById(entity);
-        insertActorHistory(marker.getReviewId(), "VIDEO_MARK_DISABLE", buildVideoMarkDisableHistoryText(marker));
+        insertActorHistory(marker.getReviewId(), ManuscriptReviewHistoryActionTypeEnum.VIDEO_MARK_DISABLE.getCode(),
+            buildVideoMarkDisableHistoryText(marker));
     }
 
     private void applyWriteFields(ManuscriptReviewRecordEntity entity,
@@ -495,7 +861,8 @@ public class ManuscriptReviewService {
         entity.setEnabled(ENABLED);
         fillCreateAuditFields(entity);
         attachmentMapper.insert(entity);
-        insertActorHistory(reviewId, "RESOURCE_ADD", buildAttachmentAddHistoryText(entity));
+        insertActorHistory(reviewId, ManuscriptReviewHistoryActionTypeEnum.RESOURCE_ADD.getCode(),
+            buildAttachmentAddHistoryText(entity));
         return entity.getId();
     }
 
@@ -521,7 +888,8 @@ public class ManuscriptReviewService {
         entity.setEnabled(ENABLED);
         fillCreateAuditFields(entity);
         externalLinkMapper.insert(entity);
-        insertActorHistory(reviewId, "RESOURCE_ADD", currentUsername() + "新增了外链《" + entity.getLinkTitle() + "》。");
+        insertActorHistory(reviewId, ManuscriptReviewHistoryActionTypeEnum.RESOURCE_ADD.getCode(),
+            currentUsername() + "新增了外链《" + entity.getLinkTitle() + "》。");
         return entity.getId();
     }
 
@@ -534,7 +902,8 @@ public class ManuscriptReviewService {
         entity.setRemark(trimToNull(reason));
         fillUpdateAuditFields(entity);
         attachmentMapper.updateById(entity);
-        insertActorHistory(attachment.getReviewId(), "RESOURCE_DISABLE", buildAttachmentDisableHistoryText(attachment));
+        insertActorHistory(attachment.getReviewId(), ManuscriptReviewHistoryActionTypeEnum.RESOURCE_DISABLE.getCode(),
+            buildAttachmentDisableHistoryText(attachment));
     }
 
     private void disableExternalLink(ManuscriptReviewExternalLinkEntity externalLink, String reason) {
@@ -546,7 +915,7 @@ public class ManuscriptReviewService {
         entity.setRemark(trimToNull(reason));
         fillUpdateAuditFields(entity);
         externalLinkMapper.updateById(entity);
-        insertActorHistory(externalLink.getReviewId(), "RESOURCE_DISABLE",
+        insertActorHistory(externalLink.getReviewId(), ManuscriptReviewHistoryActionTypeEnum.RESOURCE_DISABLE.getCode(),
             currentUsername() + "停用了外链《" + externalLink.getLinkTitle() + "》。");
     }
 
@@ -555,7 +924,8 @@ public class ManuscriptReviewService {
         if (Objects.equals(currentUserId, existing.getInitiatorUserId()) && (isDraft(existing) || isReturnedToInitiator(existing))) {
             return;
         }
-        if ("审批中".equals(trimToNull(existing.getFlowStatusLabel())) && resolveCurrentApproverUserIds(existing).contains(currentUserId)) {
+        if (ManuscriptReviewFlowStatusEnum.WAITING.getLabel().equals(trimToNull(existing.getFlowStatusLabel()))
+            && resolveCurrentApproverUserIds(existing).contains(currentUserId)) {
             return;
         }
         throw new ServiceException(UPDATE_PERMISSION_DENIED_MESSAGE);
@@ -566,8 +936,8 @@ public class ManuscriptReviewService {
     }
 
     private boolean isReturnedToInitiator(ManuscriptReviewRecordEntity record) {
-        return "已退回".equals(trimToNull(record.getFlowStatusLabel()))
-            || "待发起人处理".equals(trimToNull(record.getCurrentNodeLabel()));
+        return ManuscriptReviewFlowStatusEnum.BACK.getLabel().equals(trimToNull(record.getFlowStatusLabel()))
+            || ManuscriptReviewNodeLabelEnum.INITIATOR_PENDING.getLabel().equals(trimToNull(record.getCurrentNodeLabel()));
     }
 
     private SubmissionRoute resolveSubmissionRoute(ManuscriptReviewRecordEntity record) {
@@ -742,6 +1112,18 @@ public class ManuscriptReviewService {
     }
 
     private void insertActorHistory(Long reviewId, String actionType, String actionText) {
+        insertActorHistory(reviewId, actionType, actionText, now());
+    }
+
+    /**
+     * 写入带自定义时间的人工动作历史。
+     *
+     * @param reviewId 流程单主键
+     * @param actionType 动作类型
+     * @param actionText 动作文案
+     * @param createTime 历史创建时间
+     */
+    private void insertActorHistory(Long reviewId, String actionType, String actionText, Date createTime) {
         ManuscriptReviewHistoryEntity entity = new ManuscriptReviewHistoryEntity();
         entity.setId(nextId());
         entity.setTenantId(normalizeTenantId(currentUserGateway.getCurrentTenantId()));
@@ -750,21 +1132,45 @@ public class ManuscriptReviewService {
         entity.setActionText(actionText);
         entity.setActorUserId(requireCurrentUserId());
         entity.setActorName(currentUsername());
-        entity.setCreateTime(now());
+        entity.setCreateTime(createTime);
         historyMapper.insert(entity);
     }
 
     private void insertSystemHistory(Long reviewId, String actionType, String actionText) {
+        insertSystemHistory(reviewId, actionType, actionText, now());
+    }
+
+    /**
+     * 写入带自定义时间的系统历史。
+     *
+     * @param reviewId 流程单主键
+     * @param actionType 动作类型
+     * @param actionText 动作文案
+     * @param createTime 历史创建时间
+     */
+    private void insertSystemHistory(Long reviewId, String actionType, String actionText, Date createTime) {
         ManuscriptReviewHistoryEntity entity = new ManuscriptReviewHistoryEntity();
         entity.setId(nextId());
         entity.setTenantId(normalizeTenantId(currentUserGateway.getCurrentTenantId()));
         entity.setReviewId(reviewId);
         entity.setActionType(actionType);
         entity.setActionText(actionText);
-        entity.setCreateTime(now());
+        entity.setCreateTime(createTime);
         historyMapper.insert(entity);
     }
 
+    /**
+     * 写入工作流侧同步的历史记录。
+     *
+     * <p>v6.26 追加改动：审批通过、退回、完成、驳回等工作流回写动作，
+     * 统一通过该方法写入可读 history，保持业务时间线口径一致。</p>
+     *
+     * @param reviewId 流程单主键
+     * @param tenantId 租户编号
+     * @param actionType 动作类型编码
+     * @param actionText 动作文案
+     * @return 无返回值
+     */
     private void insertWorkflowHistory(Long reviewId, String tenantId, String actionType, String actionText) {
         ManuscriptReviewHistoryEntity entity = new ManuscriptReviewHistoryEntity();
         entity.setId(nextId());
@@ -776,6 +1182,15 @@ public class ManuscriptReviewService {
         historyMapper.insert(entity);
     }
 
+    /**
+     * 校验流程单至少存在一项有效资源。
+     *
+     * <p>v6.26 追加改动：新增并提交与修改后重新提交都要求资源随主单一并收敛，
+     * 因此提交流程前必须统一校验附件、视频、外链不能同时为空。</p>
+     *
+     * @param reviewId 流程单主键
+     * @return 无返回值
+     */
     private void ensureHasAtLeastOneEffectiveResource(Long reviewId) {
         List<ManuscriptReviewAttachmentEntity> attachments = attachmentMapper.selectList(
             new QueryWrapper<ManuscriptReviewAttachmentEntity>().eq("review_id", reviewId)
@@ -791,6 +1206,16 @@ public class ManuscriptReviewService {
         }
     }
 
+    /**
+     * 校验外部稿件编号并执行唯一性检查。
+     *
+     * <p>v6.26 追加改动：新增并提交与修改保存共用同一写入校验口径，
+     * 外部稿件编号在当前租户下需保持可选但唯一。</p>
+     *
+     * @param externalManuscriptCode 外部稿件编号
+     * @param reviewIdForDuplicateCheck 排重时需要排除的当前流程单主键
+     * @return 规范化后的外部稿件编号
+     */
     private String validateExternalManuscriptCode(String externalManuscriptCode, Long reviewIdForDuplicateCheck) {
         String normalized = trimToNull(externalManuscriptCode);
         if (normalized == null) {
@@ -1042,7 +1467,22 @@ public class ManuscriptReviewService {
         entity.setUpdateTime(now());
     }
 
-    private String buildUpdateHistoryText(ManuscriptReviewRecordEntity existing, ManuscriptReviewRecordEntity incoming) {
+    /**
+     * 组装修改保存场景的 UPDATE 历史文案。
+     *
+     * <p>v6.26 追加改动：修改保存改为整表单一次性提交后，
+     * 需要把主表字段变化与本次追加资源变化统一收敛成可读 history。</p>
+     *
+     * @param existing 变更前主单
+     * @param incoming 变更后主单
+     * @param resourceSummary 本次追加资源摘要
+     * @return 可读的 UPDATE 历史文案
+     */
+    private String buildUpdateHistoryText(
+        ManuscriptReviewRecordEntity existing,
+        ManuscriptReviewRecordEntity incoming,
+        SubmittedResourceSummary resourceSummary
+    ) {
         List<String> diffItems = new ArrayList<>();
         appendTextDiff(diffItems, "外部稿件编号", existing.getExternalManuscriptCode(), incoming.getExternalManuscriptCode());
         appendTextDiff(diffItems, "标题", existing.getTitle(), incoming.getTitle());
@@ -1052,12 +1492,33 @@ public class ManuscriptReviewService {
         if (!Objects.equals(trimToNull(existing.getContentBody()), trimToNull(incoming.getContentBody()))) {
             diffItems.add("正文已更新");
         }
+        if (!resourceSummary.attachmentNames().isEmpty()) {
+            diffItems.add("新增附件" + joinResourceNames(resourceSummary.attachmentNames()));
+        }
+        if (!resourceSummary.videoNames().isEmpty()) {
+            diffItems.add("新增视频" + joinResourceNames(resourceSummary.videoNames()));
+        }
+        if (!resourceSummary.externalLinkTitles().isEmpty()) {
+            diffItems.add("新增外链" + joinResourceNames(resourceSummary.externalLinkTitles()));
+        }
         if (diffItems.isEmpty()) {
             diffItems.add("未识别到字段差异，已重新保存《" + incoming.getTitle() + "》");
         }
         return currentUsername() + "更新了审校流程单：" + String.join("；", diffItems) + "。";
     }
 
+    /**
+     * 追加必填字段的差异摘要。
+     *
+     * <p>v6.26 追加改动：为修改保存一体化场景输出可读 history，
+     * 主表核心字段变化统一通过该方法转成摘要文案。</p>
+     *
+     * @param diffItems 差异摘要列表
+     * @param fieldLabel 字段展示名称
+     * @param oldValue 旧值
+     * @param newValue 新值
+     * @return 无返回值
+     */
     private void appendTextDiff(List<String> diffItems, String fieldLabel, String oldValue, String newValue) {
         String normalizedOld = trimToNull(oldValue);
         String normalizedNew = trimToNull(newValue);
@@ -1066,6 +1527,18 @@ public class ManuscriptReviewService {
         }
     }
 
+    /**
+     * 追加可选字段的差异摘要。
+     *
+     * <p>v6.26 追加改动：可选字段允许从空到有、从有到空，
+     * 该方法统一处理补充、清空、改值三种摘要文案。</p>
+     *
+     * @param diffItems 差异摘要列表
+     * @param fieldLabel 字段展示名称
+     * @param oldValue 旧值
+     * @param newValue 新值
+     * @return 无返回值
+     */
     private void appendOptionalTextDiff(List<String> diffItems, String fieldLabel, String oldValue, String newValue) {
         String normalizedOld = trimToNull(oldValue);
         String normalizedNew = trimToNull(newValue);

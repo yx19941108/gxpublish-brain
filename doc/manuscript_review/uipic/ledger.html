@@ -1,0 +1,97 @@
+﻿<!--
+Owner: UI Designer
+Task: manuscript_review ledger page mockup
+Status: Draft for controller screenshot export
+Updated: 2026-03-26 15:05 +08:00
+-->
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>manuscript_review - 业务台账列表页</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div class="page">
+      <div class="topbar">
+        <div>
+          <div class="eyebrow">ledger / management page</div>
+          <h1 class="title">审校业务台账</h1>
+          <p class="subtitle">页面职责固定为：找流程、看状态、进详情。列表行内默认且唯一动作是“详情”，不承载修改、去审批、撤销、重新提交。</p>
+        </div>
+        <div class="stamp">冻结口径：列表只做搜索 / 筛选 / 状态查看 / 详情入口</div>
+      </div>
+
+      <div class="card">
+        <div class="section-head">
+          <h2 class="section-title">搜索筛选区</h2>
+          <div class="section-tip">管理页视觉语言：搜索卡片 + 表格卡片 + Element Plus 密度</div>
+        </div>
+        <div class="section-body">
+          <div class="grid-6">
+            <div class="field"><div class="label">统一关键词</div><div class="input">可搜索系统稿件号 / 外部稿件编号 / 标题</div></div>
+            <div class="field"><div class="label">流程类型</div><div class="select">审核流程 / 校对流程</div></div>
+            <div class="field"><div class="label">所属媒体 / 栏目</div><div class="select">人民出版 / 新媒体栏目</div></div>
+            <div class="field"><div class="label">流程状态</div><div class="select">审批中 / 已退回 / 已完成 / 已取消 / 已驳回</div></div>
+            <div class="field"><div class="label">当前节点</div><div class="select">待一级审批 / 待二级审批 / 待三级审批 / 待发起人处理</div></div>
+            <div class="field"><div class="label">发起时间区间</div><div class="fake-picker">2026-03-01 00:00:00 至 2026-03-26 23:59:59</div></div>
+          </div>
+          <div class="toolbar" style="margin-top: 16px; margin-bottom: 0">
+            <div class="chips">
+              <span class="badge info">默认排序：最近更新时间倒序</span>
+              <span class="badge gray">一期不提供删除操作</span>
+              <span class="badge warning">不下沉 permissionMatrix 到列表</span>
+            </div>
+            <div class="actions"><span class="btn primary">搜索</span><span class="btn">重置</span><span class="btn">显隐列</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-head">
+          <h2 class="section-title">台账列表</h2>
+          <div class="legend"><span class="tag info">列表只承担状态查看</span><span class="tag gray">唯一行内动作：详情</span></div>
+        </div>
+        <div class="section-body">
+          <div class="banner" style="margin-bottom: 16px">本图故意不画“新增、修改、去审批、撤销、重新提交”等业务动作入口，避免把详情动作层与列表层混写。</div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>系统稿件号</th><th>标题</th><th>流程类型</th><th>所属媒体 / 栏目</th><th>流程状态</th><th>当前节点</th><th>发起人</th><th>最近更新时间</th><th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="strong mono">SH20260326007</td>
+                  <td>春季重点图书宣传片审校稿<div class="small muted">外部稿件编号：BK-2026-0315</div></td>
+                  <td>审核流程</td><td>集团视频中心 / 宣发栏目</td><td><span class="tag warning">审批中</span></td><td>待二级审批</td><td>张敏</td><td>2026-03-26 10:42:19</td><td><span class="btn soft">详情</span></td>
+                </tr>
+                <tr>
+                  <td class="strong mono">JD20260326003</td>
+                  <td>重点书单推文校对流程<div class="small muted">外部稿件编号：TXT-2026-0088</div></td>
+                  <td>校对流程</td><td>融媒体编辑部 / 书单栏目</td><td><span class="tag purple">已退回</span></td><td>待发起人处理</td><td>李欣</td><td>2026-03-26 09:31:52</td><td><span class="btn soft">详情</span></td>
+                </tr>
+                <tr>
+                  <td class="strong mono">SH20260325012</td>
+                  <td>出版社作者访谈视频终审<div class="small muted">外部稿件编号：VID-2026-0041</div></td>
+                  <td>审核流程</td><td>作者服务中心 / 访谈栏目</td><td><span class="tag success">已完成</span></td><td>流程已完成</td><td>周晴</td><td>2026-03-25 18:16:08</td><td><span class="btn soft">详情</span></td>
+                </tr>
+                <tr>
+                  <td class="strong mono">SH20260324005</td>
+                  <td>图书节直播物料审核<div class="small muted">外部稿件编号：LIVE-2026-0009</div></td>
+                  <td>审核流程</td><td>新媒体运营部 / 直播栏目</td><td><span class="tag gray">已取消</span></td><td>流程已取消</td><td>王一帆</td><td>2026-03-24 16:09:44</td><td><span class="btn soft">详情</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="toolbar" style="margin-top: 16px; margin-bottom: 0">
+            <div class="helper">展示字段全部为业务文案，不暴露主键、账号、原始码值。</div>
+            <div class="chips"><span class="badge gray">第 1 页 / 共 37 条</span><span class="badge info">每页 10 条</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

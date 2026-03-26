@@ -1,0 +1,134 @@
+﻿<!--
+Owner: UI Designer
+Task: manuscript_review detail page mockup
+Status: Draft for controller screenshot export
+Updated: 2026-03-26 15:05 +08:00
+-->
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>manuscript_review - 详情页</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div class="page">
+      <div class="topbar">
+        <div>
+          <div class="eyebrow">detail / action hub</div>
+          <h1 class="title">流程详情</h1>
+          <p class="subtitle">详情页是动作中枢：展示状态摘要、基本信息、当前有效资源、统一时间线，并基于 <span class="mono">permissionMatrix</span> 做按钮分流。审批不在本页内直接完成，只能“去审批”跳 BPM 办理页。</p>
+        </div>
+        <div class="stamp">冻结口径：详情页只分流，不页内审批</div>
+      </div>
+
+      <div class="card">
+        <div class="section-head">
+          <h2 class="section-title">状态摘要 + 基本信息</h2>
+          <div class="legend"><span class="tag info">双卡片结构</span><span class="tag gray">正文默认折叠</span></div>
+        </div>
+        <div class="section-body">
+          <div class="subcards">
+            <div class="resource-box">
+              <h4>流程状态摘要卡片</h4>
+              <div class="summary-grid">
+                <div class="metric"><div class="k">流程状态</div><div class="v">审批中</div></div>
+                <div class="metric"><div class="k">当前节点</div><div class="v">待二级审批</div></div>
+                <div class="metric"><div class="k">发起人</div><div class="v">张敏</div></div>
+                <div class="metric"><div class="k">最近更新时间</div><div class="v" style="font-size: 16px">2026-03-26 10:42:19</div></div>
+              </div>
+            </div>
+            <div class="resource-box">
+              <h4>稿件基本信息卡片</h4>
+              <div class="list">
+                <div class="list-item"><span class="muted">流程类型</span><span class="strong">审核流程</span></div>
+                <div class="list-item"><span class="muted">系统稿件号</span><span class="strong mono">SH20260326007</span></div>
+                <div class="list-item"><span class="muted">外部稿件编号</span><span class="strong">BK-2026-0315</span></div>
+                <div class="list-item"><span class="muted">所属媒体 / 栏目</span><span class="strong">集团视频中心 / 宣发栏目</span></div>
+                <div class="list-item"><span class="muted">报送部门</span><span class="strong">集团视频中心</span></div>
+                <div class="list-item"><span class="muted">作者</span><span class="strong">张敏、王一帆</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="resource-box" style="margin-top: 16px">
+            <h4>正文（默认折叠摘要）</h4>
+            <div class="helper">本区域用摘要承载正文长文本，避免挤压状态卡片与资源区的阅读体验；点击“展开全文”后可查看完整正文内容。</div>
+            <div class="toolbar" style="margin-top: 12px; margin-bottom: 0"><div class="chips"><span class="badge gray">说明：补充宣传片审校重点与素材来源说明</span></div><div class="actions"><span class="btn">展开全文</span></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-head">
+          <h2 class="section-title">当前有效资源区</h2>
+          <div class="section-tip">视频 / 标注能力只作为信息块预留，不扩成超出本轮最小闭环的复杂交互原型</div>
+        </div>
+        <div class="section-body">
+          <div class="resource-panel">
+            <div class="resource-box">
+              <h4>视频区（预留为“视频列表 + 单播放器”）</h4>
+              <div class="video-shell">
+                <div class="screen">视频播放器预留区 · 当前选中《样片_v1.mp4》</div>
+                <div class="split">
+                  <div>
+                    <div class="mini-title">视频列表</div>
+                    <div class="list">
+                      <div class="list-item"><div><div class="strong">《样片_v1.mp4》</div><div class="small muted">当前选中 · MP4(H.264)</div></div><span class="tag info">播放中</span></div>
+                      <div class="list-item"><div><div class="strong">《片尾补充镜头.mp4》</div><div class="small muted">当前有效</div></div><span class="tag gray">待切换</span></div>
+                    </div>
+                  </div>
+                  <div>
+                    <div class="mini-title">当前有效标注</div>
+                    <div class="list">
+                      <div class="list-item"><div><div class="strong">00:00:18 - 00:00:26</div><div class="small muted">镜头字幕需与封面文案一致</div></div><span class="btn soft">跳转</span></div>
+                      <div class="list-item"><div><div class="strong">00:01:07</div><div class="small muted">作者署名需补充单位</div></div><span class="btn soft">跳转</span></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="resource-box">
+              <h4>当前有效附件 / 外链</h4>
+              <div class="list">
+                <div class="list-item"><div><div class="strong">《宣传文案说明.docx》</div><div class="small muted">普通附件 · 当前有效</div></div><div class="inline-actions"><span class="btn">打开</span><span class="btn warning">停用</span></div></div>
+                <div class="list-item"><div><div class="strong">《作者授权补充.pdf》</div><div class="small muted">普通附件 · 当前有效</div></div><div class="inline-actions"><span class="btn">打开</span><span class="btn warning">停用</span></div></div>
+                <div class="list-item"><div><div class="strong">素材参考链接</div><div class="small muted">https://media.example.com/source/book-trailer</div></div><div class="inline-actions"><span class="btn">打开</span><span class="btn warning">停用</span></div></div>
+              </div>
+              <div class="banner" style="margin-top: 14px">当前资源列表仅展示有效资源；停用后退出当前有效区，但仍在统一时间线中可追溯。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-head">
+          <h2 class="section-title">基于 permissionMatrix 的动作分流</h2>
+          <div class="legend"><span class="tag purple">唯一来源：DetailVO.permissionMatrix</span><span class="tag gray">前端不得本地猜权限</span></div>
+        </div>
+        <div class="section-body">
+          <div class="matrix">
+            <div class="matrix-card"><h4>当前审批人视角</h4><p>显示“修改 / 去审批 / 返回”。审批动作仍在 BPM 办理页完成，不在详情页直接完成。</p><div class="actions"><span class="btn">修改</span><span class="btn primary">去审批</span><span class="btn">返回</span></div></div>
+            <div class="matrix-card"><h4>被退回发起人视角</h4><p>显示“修改 / 重新提交 / 返回”。重新提交是独立动作，不混入修改页主提交区。</p><div class="actions"><span class="btn">修改</span><span class="btn primary">重新提交</span><span class="btn">返回</span></div></div>
+            <div class="matrix-card"><h4>纯查看视角</h4><p>仅显示“返回”。若是发起人且流程仍在审批中，可根据 permissionMatrix 额外显示“撤销”。</p><div class="actions"><span class="btn danger">撤销（条件显示）</span><span class="btn">返回</span></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-head">
+          <h2 class="section-title">统一时间线</h2>
+          <div class="section-tip">流程动作、资源变化、系统判定、审批结果统一按业务自然语言输出</div>
+        </div>
+        <div class="section-body">
+          <div class="timeline">
+            <div class="timeline-item"><div class="timeline-top"><div class="strong">张敏新增了流程</div><div class="small muted">2026-03-25 09:15:08</div></div><div class="helper">系统生成稿件号 SH20260326007，并进入审校流程。</div></div>
+            <div class="timeline-item"><div class="timeline-top"><div class="strong">系统判定发起人具备持证资格，自动跳过一级审批</div><div class="small muted">2026-03-25 09:15:08</div></div><div class="helper">当前流程直接进入二级审批节点。</div></div>
+            <div class="timeline-item"><div class="timeline-top"><div class="strong">张敏上传了新附件《作者授权补充.pdf》</div><div class="small muted">2026-03-26 09:46:12</div></div><div class="helper">资源变化继续统一沉淀在时间线中，便于追溯。</div></div>
+            <div class="timeline-item"><div class="timeline-top"><div class="strong">李成修改了标题：旧值 → 新值</div><div class="small muted">2026-03-26 10:42:19</div></div><div class="helper">修改历史需业务可读，不允许只写“已修改”。</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

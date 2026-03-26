@@ -54,6 +54,7 @@ import com.gxpublish.brain.manuscript.review.mapper.ManuscriptReviewFlowConfigMa
 import com.gxpublish.brain.manuscript.review.mapper.ManuscriptReviewHistoryMapper;
 import com.gxpublish.brain.manuscript.review.mapper.ManuscriptReviewRecordMapper;
 import com.gxpublish.brain.manuscript.review.mapper.ManuscriptReviewSystemRoleMapper;
+import com.gxpublish.brain.manuscript.review.mapper.ManuscriptReviewSysOssMapper;
 import com.gxpublish.brain.manuscript.review.mapper.ManuscriptReviewSystemUserMapper;
 import com.gxpublish.brain.manuscript.review.mapper.ManuscriptReviewSystemUserRoleMapper;
 import com.gxpublish.brain.manuscript.review.mapper.ManuscriptReviewVideoMarkerMapper;
@@ -413,6 +414,7 @@ class ManuscriptReviewSharedApiMvcTest {
         private final ManuscriptReviewHistoryMapper historyMapper = mock(ManuscriptReviewHistoryMapper.class);
         private final ManuscriptReviewFlowConfigMapper flowConfigMapper = mock(ManuscriptReviewFlowConfigMapper.class);
         private final ManuscriptReviewSystemRoleMapper roleMapper = mock(ManuscriptReviewSystemRoleMapper.class);
+        private final ManuscriptReviewSysOssMapper sysOssMapper = mock(ManuscriptReviewSysOssMapper.class);
         private final ManuscriptReviewSystemUserRoleMapper userRoleMapper = mock(ManuscriptReviewSystemUserRoleMapper.class);
         private final ManuscriptReviewSystemUserMapper userMapper = mock(ManuscriptReviewSystemUserMapper.class);
         private final ManuscriptReviewSerialGateway serialGateway = mock(ManuscriptReviewSerialGateway.class);
@@ -546,6 +548,7 @@ class ManuscriptReviewSharedApiMvcTest {
                 currentUserGateway,
                 workflowService,
                 flwInstanceService,
+                sysOssMapper,
                 Clock.fixed(LocalDate.of(2026, 3, 21).atStartOfDay(BUSINESS_ZONE_ID).toInstant(), BUSINESS_ZONE_ID),
                 idSequence::incrementAndGet
             );

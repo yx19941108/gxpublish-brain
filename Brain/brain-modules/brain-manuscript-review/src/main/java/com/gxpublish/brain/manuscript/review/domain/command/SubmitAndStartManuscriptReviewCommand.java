@@ -1,37 +1,34 @@
-package com.gxpublish.brain.manuscript.review.controller.request;
+package com.gxpublish.brain.manuscript.review.domain.command;
 
 import java.util.List;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
+import com.gxpublish.brain.manuscript.review.domain.enums.ManuscriptReviewProcessType;
 
-import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
 
 /**
- * 稿件审校提交请求对象。
+ * 新增并提交一体化命令对象。
  *
- * <p>v6.26 追加改动：在保留主表字段的同时，
- * 补充新增并提交一体化所需的附件/视频参数与外链参数。</p>
+ * <p>v6.26 追加改动：用于承载新增页点击提交时的完整载荷，
+ * 包含主表字段、附件/视频参数和外链参数。</p>
  *
  * @author Codex
  * @since 2026-03-26
  */
 @Data
-@JsonInclude(JsonInclude.Include.NON_NULL)
-public class ManuscriptReviewSubmitRequest {
+@Builder
+public class SubmitAndStartManuscriptReviewCommand {
 
     /**
-     * 兼容旧草稿提交流程时的主键。
+     * 兼容旧草稿提交时的主键。
      */
     private Long id;
 
     /**
      * 流程类型。
      */
-    private String processType;
+    private ManuscriptReviewProcessType processType;
 
     /**
      * 外部稿件编号。
@@ -59,7 +56,7 @@ public class ManuscriptReviewSubmitRequest {
     private String authorName;
 
     /**
-     * 备注。
+     * 备注说明。
      */
     private String remark;
 
@@ -71,24 +68,22 @@ public class ManuscriptReviewSubmitRequest {
     /**
      * 附件/视频参数列表。
      */
-    private List<AttachmentResourceRequest> attachmentResources;
+    private List<SubmitAttachmentResourceCommand> attachmentResources;
 
     /**
      * 外链参数列表。
      */
-    private List<ExternalLinkRequest> externalLinks;
+    private List<SubmitExternalLinkCommand> externalLinks;
 
     /**
-     * 提交场景下的附件/视频参数。
+     * 提交场景下的附件/视频资源命令。
      */
-    @Getter
-    @Setter
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class AttachmentResourceRequest {
+    @Data
+    @Builder
+    public static class SubmitAttachmentResourceCommand {
 
         /**
-         * 资源类型，仅允许 ATTACHMENT / VIDEO。
+         * 资源类型，仅允许附件或视频。
          */
         private String resourceType;
 
@@ -104,13 +99,11 @@ public class ManuscriptReviewSubmitRequest {
     }
 
     /**
-     * 提交场景下的外链参数。
+     * 提交场景下的外链资源命令。
      */
-    @Getter
-    @Setter
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class ExternalLinkRequest {
+    @Data
+    @Builder
+    public static class SubmitExternalLinkCommand {
 
         /**
          * 显示名称。

@@ -1,0 +1,85 @@
+﻿<!--
+Owner: UI Designer
+Task: manuscript_review create page mockup
+Status: Draft for controller screenshot export
+Updated: 2026-03-26 15:05 +08:00
+-->
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>manuscript_review - 新增页</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div class="page">
+      <div class="topbar">
+        <div>
+          <div class="eyebrow">create / submit only</div>
+          <h1 class="title">发起新审校流程</h1>
+          <p class="subtitle">新增页只承载“发起一条新流程”。正式业务动作只有“提交”；上传仅暂存，未提交前可删附件；不提供草稿，也不拆成保存再提交。</p>
+        </div>
+        <div class="stamp">冻结口径：新增并提交是一个业务动作</div>
+      </div>
+
+      <div class="card">
+        <div class="section-head">
+          <h2 class="section-title">提交规则提示</h2>
+          <div class="legend"><span class="tag info">正式动作：提交</span><span class="tag gray">上传仅暂存</span><span class="tag warning">附件或外链至少一种</span></div>
+        </div>
+        <div class="section-body"><div class="banner">该页不画“保存”“保存并提交”“提交后审批”等混合按钮。视觉沿用系统管理页语言，但页面职责严格遵守冻结契约。</div></div>
+      </div>
+
+      <div class="card">
+        <div class="section-head">
+          <h2 class="section-title">主表信息</h2>
+          <div class="section-tip">报送部门自动带出且只读；系统稿件号提交后生成</div>
+        </div>
+        <div class="section-body">
+          <div class="grid-4">
+            <div class="field"><div class="label">流程类型 *</div><div class="select">审核流程</div></div>
+            <div class="field"><div class="label">系统稿件号</div><div class="input readonly">提交后自动生成</div></div>
+            <div class="field"><div class="label">外部稿件编号</div><div class="input">例如：BK-2026-0315</div></div>
+            <div class="field"><div class="label">所属媒体 / 栏目 *</div><div class="select">集团视频中心 / 宣发栏目</div></div>
+            <div class="field" style="grid-column: span 2"><div class="label">标题 *</div><div class="input">春季重点图书宣传片审校稿</div></div>
+            <div class="field"><div class="label">报送部门 *</div><div class="input readonly">集团视频中心</div></div>
+            <div class="field"><div class="label">作者</div><div class="input">张敏、王一帆</div></div>
+          </div>
+          <div class="grid-2" style="margin-top: 14px">
+            <div class="field"><div class="label">说明</div><div class="textarea">补充说明本次宣传片涉及的书目、外部配音素材与审校重点。</div></div>
+            <div class="field"><div class="label">正文 *</div><div class="textarea">这里展示富文本/长文本编辑区域的管理页版式承载方式。正文必填，允许较长文本，但不压缩页面整体信息层级。</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-head">
+          <h2 class="section-title">资源暂存区</h2>
+          <div class="legend"><span class="tag purple">当前仅为表单暂存资源</span><span class="tag gray">删除暂存附件走 DELETE /resource/oss/{ossId}</span></div>
+        </div>
+        <div class="section-body">
+          <div class="resource-panel">
+            <div class="resource-box">
+              <h4>附件 / 视频上传暂存</h4>
+              <div class="list">
+                <div class="list-item"><div><div class="strong">《样片_v1.mp4》</div><div class="small muted">视频附件 · 暂存成功 · ossId=临时返回值</div></div><div class="inline-actions"><span class="tag info">暂存中</span><span class="btn danger">删除</span></div></div>
+                <div class="list-item"><div><div class="strong">《宣传文案说明.docx》</div><div class="small muted">普通附件 · 暂存成功 · 待随“提交”一并入业务资源</div></div><div class="inline-actions"><span class="tag info">暂存中</span><span class="btn danger">删除</span></div></div>
+              </div>
+              <div class="toolbar" style="margin-top: 14px; margin-bottom: 0"><div class="helper">未点击“提交”前，不写业务资源表。</div><div class="actions"><span class="btn">上传附件</span><span class="btn">上传视频</span></div></div>
+            </div>
+            <div class="resource-box">
+              <h4>外部链接</h4>
+              <div class="list">
+                <div class="list-item"><div><div class="strong">素材参考链接</div><div class="small muted">https://media.example.com/source/book-trailer</div></div><span class="btn danger">删除</span></div>
+                <div class="list-item"><div><div class="strong">采访文字底稿</div><div class="small muted">https://docs.example.com/interview-manuscript</div></div><span class="btn danger">删除</span></div>
+              </div>
+              <div class="banner" style="margin-top: 14px">外链需为合法 http/https；同一流程内 URL 不允许重复。提交时一并进入后端校验。</div>
+            </div>
+          </div>
+        </div>
+        <div class="footer-actions"><span class="btn">返回台账</span><span class="btn primary">提交</span></div>
+      </div>
+    </div>
+  </body>
+</html>

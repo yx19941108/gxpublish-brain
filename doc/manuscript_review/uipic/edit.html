@@ -1,0 +1,85 @@
+﻿<!--
+Owner: UI Designer
+Task: manuscript_review edit page mockup
+Status: Draft for controller screenshot export
+Updated: 2026-03-26 15:05 +08:00
+-->
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>manuscript_review - 修改页</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div class="page">
+      <div class="topbar">
+        <div>
+          <div class="eyebrow">edit / save only</div>
+          <h1 class="title">修改流程资料</h1>
+          <p class="subtitle">修改页只承担资料保存。正式业务动作只有“保存”；保存后回详情，不推 BPM；“去审批 / 重新提交”必须留在详情页动作层。</p>
+        </div>
+        <div class="stamp">冻结口径：修改保存与流程动作严格拆分</div>
+      </div>
+
+      <div class="card">
+        <div class="section-head">
+          <h2 class="section-title">保存边界提示</h2>
+          <div class="legend"><span class="tag success">正式动作：保存</span><span class="tag warning">不改 BPM 当前节点</span><span class="tag gray">保存成功后回详情</span></div>
+        </div>
+        <div class="section-body"><div class="banner">该页故意不出现“保存并提交”“去审批”“重新提交”等按钮。修改保存只处理主表与“本次新增追加资源参数”。</div></div>
+      </div>
+
+      <div class="card">
+        <div class="section-head">
+          <h2 class="section-title">基础资料</h2>
+          <div class="section-tip">具备修改权的用户可进入；审批人遵循“可审即可改”</div>
+        </div>
+        <div class="section-body">
+          <div class="grid-4">
+            <div class="field"><div class="label">流程类型 *</div><div class="select">审核流程</div></div>
+            <div class="field"><div class="label">系统稿件号</div><div class="input readonly">SH20260326007</div></div>
+            <div class="field"><div class="label">外部稿件编号</div><div class="input">BK-2026-0315</div></div>
+            <div class="field"><div class="label">所属媒体 / 栏目 *</div><div class="select">集团视频中心 / 宣发栏目</div></div>
+            <div class="field" style="grid-column: span 2"><div class="label">标题 *</div><div class="input">春季重点图书宣传片审校稿（修改中）</div></div>
+            <div class="field"><div class="label">报送部门 *</div><div class="input readonly">集团视频中心</div></div>
+            <div class="field"><div class="label">作者</div><div class="input">张敏、王一帆</div></div>
+          </div>
+          <div class="grid-2" style="margin-top: 14px">
+            <div class="field"><div class="label">说明</div><div class="textarea">补充修改说明：替换片尾素材，新增作者授权附件，并更新宣传口径。</div></div>
+            <div class="field"><div class="label">正文 *</div><div class="textarea">修改页仍按管理页表单布局承载长文本；正文保持在主表中统一保存，不与流程动作按钮混排。</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-head">
+          <h2 class="section-title">资源处理</h2>
+          <div class="legend"><span class="tag info">左侧：当前有效资源</span><span class="tag purple">右侧：本次新追加资源</span></div>
+        </div>
+        <div class="section-body">
+          <div class="resource-panel">
+            <div class="resource-box">
+              <h4>当前有效资源（只读查看 / 可发起停用）</h4>
+              <div class="list">
+                <div class="list-item"><div><div class="strong">《样片_v1.mp4》</div><div class="small muted">视频附件 · 当前有效 · 可在详情资源区进一步承载视频/标注能力</div></div><span class="btn warning">停用</span></div>
+                <div class="list-item"><div><div class="strong">《宣传文案说明.docx》</div><div class="small muted">普通附件 · 当前有效</div></div><span class="btn warning">停用</span></div>
+                <div class="list-item"><div><div class="strong">素材参考链接</div><div class="small muted">https://media.example.com/source/book-trailer</div></div><span class="btn warning">停用</span></div>
+              </div>
+            </div>
+            <div class="resource-box">
+              <h4>本次新增追加资源（保存前暂存）</h4>
+              <div class="list">
+                <div class="list-item"><div><div class="strong">《作者授权补充.pdf》</div><div class="small muted">新上传附件 · 保存前仅作为本次追加参数</div></div><span class="btn danger">删除</span></div>
+                <div class="list-item"><div><div class="strong">新视频镜头说明链接</div><div class="small muted">https://docs.example.com/video-note-2</div></div><span class="btn danger">删除</span></div>
+              </div>
+              <div class="toolbar" style="margin-top: 14px; margin-bottom: 0"><div class="helper">保存时仅提交“本次追加资源参数”，不覆盖已有历史。</div><div class="actions"><span class="btn">上传附件</span><span class="btn">上传视频</span><span class="btn">新增外链</span></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="footer-actions"><span class="btn">返回详情</span><span class="btn primary">保存</span></div>
+      </div>
+    </div>
+  </body>
+</html>
