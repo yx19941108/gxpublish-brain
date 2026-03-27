@@ -6,6 +6,7 @@ import {
   buildIntegratedSavePayload,
   buildIntegratedSubmitPayload,
   createDraftStateFromDetail,
+  createDraftStateFromPayload,
   PROCESS_TYPE_OPTIONS,
   readReviewIdFromQuery,
   removeDraftUploadByOssId,
@@ -92,7 +93,7 @@ describe('T09_ManuscriptReview_FormStateSpec', () => {
   it('builds integrated create payload with main fields, attachments, and external links', () => {
     expect(buildIntegratedSubmitPayload(baseForm, uploads, links)).toEqual({
       ...baseForm,
-      attachmentList: [
+      attachmentResources: [
         {
           displayName: '送审单.pdf',
           ossId: 8001,
@@ -104,11 +105,10 @@ describe('T09_ManuscriptReview_FormStateSpec', () => {
           resourceType: 'VIDEO'
         }
       ],
-      externalLinkList: [
+      externalLinks: [
         {
           displayName: '素材参考',
-          externalUrl: 'https://example.com/ref',
-          resourceType: 'EXTERNAL_LINK'
+          externalUrl: 'https://example.com/ref'
         }
       ]
     });
@@ -118,18 +118,17 @@ describe('T09_ManuscriptReview_FormStateSpec', () => {
     expect(buildIntegratedSavePayload('9001', baseForm, uploads.slice(0, 1), links)).toEqual({
       id: '9001',
       ...baseForm,
-      attachmentList: [
+      attachmentResources: [
         {
           displayName: '送审单.pdf',
           ossId: 8001,
           resourceType: 'ATTACHMENT'
         }
       ],
-      externalLinkList: [
+      externalLinks: [
         {
           displayName: '素材参考',
-          externalUrl: 'https://example.com/ref',
-          resourceType: 'EXTERNAL_LINK'
+          externalUrl: 'https://example.com/ref'
         }
       ]
     });
@@ -202,6 +201,94 @@ describe('T09_ManuscriptReview_FormStateSpec', () => {
           typeLabel: '外链',
           displayName: '已入库外链',
           note: 'https://example.com/online'
+        }
+      ],
+      draftUploads: [],
+      draftExternalLinks: []
+    });
+  });
+
+  it('creates edit draft state from raw detail response payload for edit-page hydration', () => {
+    expect(
+      createDraftStateFromPayload({
+        code: 200,
+        data: {
+          id: 9002,
+          manuscriptCode: 'MR-20260327-0007',
+          businessStatusLabel: '已退回',
+          currentNodeLabel: '待发起人处理',
+          processType: 'AUDIT',
+          processTypeLabel: '审核流程',
+          externalManuscriptCode: 'EXT-RAW-001',
+          title: '退回后修改样本',
+          mediaChannel: '新华社 / 正式测试频道',
+          submitDepartment: '总编室',
+          authorName: '张三、李四',
+          remark: '正式测试退回修改说明',
+          contentBody: '正式测试正文内容',
+          externalLinks: [
+            {
+              id: 21,
+              resourceType: 'EXTERNAL_LINK',
+              resourceTypeLabel: '外链',
+              displayName: '已入库外链',
+              externalUrl: 'https://example.com/review/21'
+            }
+          ],
+          attachments: [
+            {
+              id: 22,
+              resourceType: 'ATTACHMENT',
+              resourceTypeLabel: '附件',
+              displayName: '已入库附件.pdf',
+              resourceUrl: 'https://example.com/files/22.pdf'
+            }
+          ],
+          videos: [
+            {
+              id: 23,
+              resourceType: 'VIDEO',
+              resourceTypeLabel: '视频',
+              displayName: '已入库视频.mp4',
+              resourceUrl: 'https://example.com/files/23.mp4'
+            }
+          ],
+          permissionMatrix: {
+            canView: true,
+            canEdit: true,
+            canResubmit: true
+          }
+        }
+      })
+    ).toEqual({
+      form: {
+        processType: 'AUDIT',
+        externalManuscriptCode: 'EXT-RAW-001',
+        title: '退回后修改样本',
+        mediaChannel: '新华社 / 正式测试频道',
+        submitDepartment: '总编室',
+        authorName: '张三、李四',
+        remark: '正式测试退回修改说明',
+        contentBody: '正式测试正文内容'
+      },
+      persistedResources: [
+        {
+          id: '22',
+          typeLabel: '附件',
+          displayName: '已入库附件.pdf',
+          note: 'https://example.com/files/22.pdf'
+        },
+        {
+          id: '21',
+          typeLabel: '外链',
+          displayName: '已入库外链',
+          note: 'https://example.com/review/21'
+        },
+        {
+          id: '23',
+          typeLabel: '视频',
+          displayName: '已入库视频.mp4',
+          note: 'https://example.com/files/23.mp4'
         }
       ],
       draftUploads: [],

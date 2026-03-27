@@ -14,6 +14,8 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.function.LongSupplier;
 
+import cn.hutool.core.util.ObjectUtil;
+import cn.hutool.core.util.StrUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
@@ -830,7 +832,7 @@ public class ManuscriptReviewService implements IManuscriptReviewService {
         entity.setExternalManuscriptCode(validateExternalManuscriptCode(externalManuscriptCode, reviewIdForDuplicateCheck));
         entity.setTitle(requireLength(trimToNull(title), "标题不能为空", "标题长度不能超过200个字符", 200));
         entity.setMediaChannel(requireLength(trimToNull(mediaChannel), "媒体/栏目不能为空", "媒体/栏目长度不能超过100个字符", 100));
-        entity.setSubmitDepartment(requireLength(trimToNull(submitDepartment), "报送部门不能为空", "报送部门长度不能超过100个字符", 100));
+        entity.setSubmitDepartment(optionalLength(StrUtil.isEmpty(submitDepartment) ? StrUtil.EMPTY : StrUtil.trim(submitDepartment), "报送部门长度不能超过100个字符", 100));
         entity.setAuthorName(validateAuthorName(authorName));
         entity.setRemarkText(optionalLength(trimToNull(remark), "说明长度不能超过1000个字符", 1000));
         entity.setContentBody(requireLength(trimToNull(contentBody), "正文不能为空", "正文长度不能超过20000个字符", 20000));

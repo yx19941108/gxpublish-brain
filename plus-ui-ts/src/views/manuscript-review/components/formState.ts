@@ -1,5 +1,6 @@
 import type { LocationQuery } from 'vue-router';
 import type { ManuscriptReviewDetailVO, ManuscriptReviewResourceItemVO } from '@/api/manuscript-review/types';
+import { normalizeDetailViewModel } from '../detail.contract';
 
 export type ManuscriptReviewFormMode = 'create' | 'edit';
 export type ManuscriptReviewDraftResourceType = 'ATTACHMENT' | 'VIDEO';
@@ -105,10 +106,8 @@ export const buildFormPresentation = (mode: ManuscriptReviewFormMode): Manuscrip
   };
 };
 
-export const removeDraftUploadByOssId = (
-  items: ManuscriptReviewDraftUploadItem[],
-  ossId: string | number
-): ManuscriptReviewDraftUploadItem[] => items.filter((item) => String(item.ossId) !== String(ossId));
+export const removeDraftUploadByOssId = (items: ManuscriptReviewDraftUploadItem[], ossId: string | number): ManuscriptReviewDraftUploadItem[] =>
+  items.filter((item) => String(item.ossId) !== String(ossId));
 
 export const buildIntegratedSubmitPayload = (
   form: ManuscriptReviewDraftFormModel,
@@ -116,17 +115,16 @@ export const buildIntegratedSubmitPayload = (
   externalLinks: ManuscriptReviewDraftExternalLinkItem[]
 ) => ({
   ...form,
-  attachmentList: uploads.map((item) => ({
+  attachmentResources: uploads.map((item) => ({
     displayName: item.displayName,
     ossId: item.ossId,
     resourceType: item.resourceType
   })),
-  externalLinkList: externalLinks
+  externalLinks: externalLinks
     .filter((item) => item.displayName.trim() && item.externalUrl.trim())
     .map((item) => ({
       displayName: item.displayName.trim(),
-      externalUrl: item.externalUrl.trim(),
-      resourceType: 'EXTERNAL_LINK'
+      externalUrl: item.externalUrl.trim()
     }))
 });
 
@@ -170,3 +168,6 @@ export const createDraftStateFromDetail = (detail: ManuscriptReviewDetailVO): Ma
   draftUploads: [],
   draftExternalLinks: []
 });
+
+export const createDraftStateFromPayload = (payload: unknown): ManuscriptReviewEditDraftState =>
+  createDraftStateFromDetail(normalizeDetailViewModel(payload).detail);

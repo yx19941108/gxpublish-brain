@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 describe('T09_Frontend_DetailLayoutSpec', () => {
   it('contains the frozen detail layout sections and action split markers', () => {
-    const file = readFileSync(resolve(__dirname, './detail.vue'), 'utf-8');
+    const file = readFileSync(resolve(__dirname, './detail-page-shell.vue'), 'utf-8');
 
     expect(file).toContain('data-testid="manuscript-review-summary-cards"');
     expect(file).toContain('data-testid="manuscript-review-basic-info"');
@@ -18,7 +18,7 @@ describe('T09_Frontend_DetailLayoutSpec', () => {
   });
 
   it('uses frozen workflow detail API and keeps approve/resubmit split in detail', () => {
-    const file = readFileSync(resolve(__dirname, './detail.vue'), 'utf-8');
+    const file = readFileSync(resolve(__dirname, './detail-page-shell.vue'), 'utf-8');
 
     expect(file).toContain('getManuscriptReviewDetail(reviewId.value)');
     expect(file).not.toContain("request.get('/manuscript-review/readable/detail'");
@@ -27,7 +27,7 @@ describe('T09_Frontend_DetailLayoutSpec', () => {
   });
 
   it('does not expose debug-only permission or matrix copy in the user-facing detail page', () => {
-    const file = readFileSync(resolve(__dirname, './detail.vue'), 'utf-8');
+    const file = readFileSync(resolve(__dirname, './detail-page-shell.vue'), 'utf-8');
 
     expect(file).not.toContain('permissionMatrix 动作矩阵');
     expect(file).not.toContain('data-testid="manuscript-review-permission-matrix"');

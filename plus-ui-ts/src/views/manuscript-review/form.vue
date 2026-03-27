@@ -192,6 +192,7 @@ import {
   buildIntegratedSavePayload,
   buildIntegratedSubmitPayload,
   createDraftStateFromDetail,
+  createDraftStateFromPayload,
   readReviewIdFromQuery,
   removeDraftUploadByOssId,
   resolveFormMode,
@@ -200,6 +201,7 @@ import {
   type ManuscriptReviewDraftUploadItem,
   type ManuscriptReviewPersistedResourceView
 } from './components/formState';
+import { resolveEditBackTarget } from './detail-navigation';
 
 const route = useRoute();
 const router = useRouter();
@@ -278,7 +280,7 @@ const applyEditDraftState = async () => {
 
   try {
     const detail = await getManuscriptReviewDetail(reviewId.value);
-    const draftState = createDraftStateFromDetail(detail);
+    const draftState = createDraftStateFromPayload(detail);
     Object.assign(formModel, draftState.form);
     persistedResources.value = draftState.persistedResources;
     draftUploads.value = draftState.draftUploads;
@@ -348,7 +350,7 @@ const handleDeletePendingUpload = async (ossId: string | number) => {
 
 const handleBack = () => {
   if (mode.value === 'edit' && reviewId.value) {
-    void router.push({ path: '/manuscript/review/detail', query: { reviewId: reviewId.value } });
+    void router.push(resolveEditBackTarget(route.query, reviewId.value));
     return;
   }
   void router.push({ path: '/manuscript/review' });
@@ -384,7 +386,7 @@ const handlePrimaryAction = async () => {
       }
       await updateManuscriptReview(buildIntegratedSavePayload(reviewId.value, formModel, draftUploads.value, draftExternalLinks.value));
       ElMessage.success(presentation.value.successToast);
-      await router.push({ path: '/manuscript/review/detail', query: { reviewId: reviewId.value } });
+      await router.push(resolveEditBackTarget(route.query, reviewId.value));
       return;
     }
 

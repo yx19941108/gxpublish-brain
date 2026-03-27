@@ -29,13 +29,13 @@ describe('T07_Frontend_DetailActions_AndReadableDisplaySpec', () => {
       authorName: '张三',
       remark: '提交备注',
       contentBody: '正文内容',
-      attachmentList: [
+      attachmentResources: [
         {
           displayName: '送审单.pdf',
           ossId: 8001
         }
       ],
-      externalLinkList: [
+      externalLinks: [
         {
           displayName: '素材参考',
           externalUrl: 'https://example.com/ref'
@@ -52,13 +52,13 @@ describe('T07_Frontend_DetailActions_AndReadableDisplaySpec', () => {
       authorName: '张三',
       remark: '修改备注',
       contentBody: '正文内容',
-      attachmentList: [
+      attachmentResources: [
         {
           displayName: '补充附件.pdf',
           ossId: 8002
         }
       ],
-      externalLinkList: [
+      externalLinks: [
         {
           displayName: '补充外链',
           externalUrl: 'https://example.com/extra'
@@ -108,15 +108,15 @@ describe('T07_Frontend_DetailActions_AndReadableDisplaySpec', () => {
         processType: 'AUDIT',
         externalManuscriptCode: 'EXT-001',
         title: '审校稿件',
-        attachmentList: [{ displayName: '送审单.pdf', ossId: 8001 }],
-        externalLinkList: [{ displayName: '素材参考', externalUrl: 'https://example.com/ref' }]
+        attachmentResources: [{ displayName: '送审单.pdf', ossId: 8001 }],
+        externalLinks: [{ displayName: '素材参考', externalUrl: 'https://example.com/ref' }]
       })
     );
     expect(updateCall.data).toEqual(
       expect.objectContaining({
         id: 9001,
-        attachmentList: [{ displayName: '补充附件.pdf', ossId: 8002 }],
-        externalLinkList: [{ displayName: '补充外链', externalUrl: 'https://example.com/extra' }]
+        attachmentResources: [{ displayName: '补充附件.pdf', ossId: 8002 }],
+        externalLinks: [{ displayName: '补充外链', externalUrl: 'https://example.com/extra' }]
       })
     );
   });

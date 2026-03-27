@@ -33,8 +33,8 @@ export interface ManuscriptReviewExternalLinkDraftItem {
 }
 
 export interface ManuscriptReviewIntegratedSubmitCommand extends ManuscriptReviewSaveCommand {
-  attachmentList?: ManuscriptReviewAttachmentDraftItem[];
-  externalLinkList?: ManuscriptReviewExternalLinkDraftItem[];
+  attachmentResources?: ManuscriptReviewAttachmentDraftItem[];
+  externalLinks?: ManuscriptReviewExternalLinkDraftItem[];
 }
 
 export interface ManuscriptReviewReviewIdCommand {

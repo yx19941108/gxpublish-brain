@@ -1,5 +1,5 @@
 <template>
-  <ManuscriptReviewPageShell page-mode="detail" />
+  <ManuscriptReviewPageShell page-mode="approval" />
 </template>
 
 <script setup lang="ts">

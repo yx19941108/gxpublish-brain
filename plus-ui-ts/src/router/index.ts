@@ -115,7 +115,7 @@ export const constantRoutes: RouteRecordRaw[] = [
       },
       {
         path: 'review/approval',
-        component: () => import('@/views/manuscript-review/detail.vue'),
+        component: () => import('@/views/manuscript-review/approval.vue'),
         name: 'ManuscriptReviewApproval',
         meta: { title: '审校审批', activeMenu: '/manuscript/review' }
       }
