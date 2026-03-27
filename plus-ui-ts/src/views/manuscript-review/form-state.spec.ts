@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  BUSINESS_STATUS_OPTIONS,
   buildFormPresentation,
   buildIntegratedSavePayload,
   buildIntegratedSubmitPayload,
   createDraftStateFromDetail,
+  PROCESS_TYPE_OPTIONS,
   readReviewIdFromQuery,
   removeDraftUploadByOssId,
   resolveFormMode,
@@ -53,6 +55,21 @@ describe('T09_ManuscriptReview_FormStateSpec', () => {
     expect(resolveFormMode({ mode: 'create' })).toBe('create');
     expect(resolveFormMode({ mode: 'edit' })).toBe('edit');
     expect(readReviewIdFromQuery({ reviewId: '9001' })).toBe('9001');
+  });
+
+  it('exposes only frozen process type and business status option values', () => {
+    expect(PROCESS_TYPE_OPTIONS).toEqual([
+      { label: '审核流程', value: 'AUDIT' },
+      { label: '校对流程', value: 'PROOFREAD' }
+    ]);
+
+    expect(BUSINESS_STATUS_OPTIONS).toEqual([
+      { label: '审批中', value: 'WAITING' },
+      { label: '退回待修改', value: 'BACK' },
+      { label: '已完成', value: 'FINISH' },
+      { label: '发起人撤销', value: 'CANCEL' },
+      { label: '三级驳回终止', value: 'REJECT' }
+    ]);
   });
 
   it('builds create and edit presentations without approve or resubmit as primary actions', () => {

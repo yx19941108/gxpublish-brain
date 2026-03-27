@@ -251,7 +251,8 @@ describe('T07_Frontend_DetailActions_AndReadableDisplaySpec', () => {
         typeLabel: '外链',
         name: '素材参考',
         statusLabel: '当前有效',
-        note: 'https://example.com/ref'
+        note: 'https://example.com/ref',
+        href: 'https://example.com/ref'
       },
       {
         id: '3',
@@ -281,5 +282,39 @@ describe('T07_Frontend_DetailActions_AndReadableDisplaySpec', () => {
     expect(summaryText).not.toContain('permissionMatrix');
     expect(summaryText).not.toContain('tenantId');
     expect(summaryText).not.toContain('roleKey');
+  });
+
+  it('keeps external links clickable in readable resource items', () => {
+    const viewModel = normalizeDetailViewModel({
+      code: 200,
+      data: {
+        id: 9010,
+        manuscriptCode: 'SH20260321010',
+        title: '外链跳转测试',
+        submitDepartment: '',
+        businessStatusLabel: '审批中',
+        currentNodeLabel: '待一级审批',
+        externalLinkList: [
+          {
+            id: 201,
+            resourceType: 'EXTERNAL_LINK',
+            resourceTypeLabel: '外链',
+            displayName: '参考链接',
+            externalUrl: 'https://example.com/link'
+          }
+        ]
+      }
+    });
+
+    expect(viewModel.resourceItems).toEqual([
+      {
+        id: '201',
+        typeLabel: '外链',
+        name: '参考链接',
+        statusLabel: '当前有效',
+        note: 'https://example.com/link',
+        href: 'https://example.com/link'
+      }
+    ]);
   });
 });

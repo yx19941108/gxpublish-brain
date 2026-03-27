@@ -2,10 +2,14 @@
   <section class="manuscript-review-detail-shell">
     <header class="manuscript-review-detail-shell__header">
       <div class="manuscript-review-detail-shell__headline">
-        <p class="manuscript-review-detail-shell__eyebrow">MANUSCRIPT REVIEW / DETAIL</p>
-        <h1>审校详情</h1>
+        <p class="manuscript-review-detail-shell__eyebrow">{{ isApprovalPage ? 'MANUSCRIPT REVIEW / APPROVAL' : 'MANUSCRIPT REVIEW / DETAIL' }}</p>
+        <h1>{{ isApprovalPage ? '审校审批' : '审校详情' }}</h1>
         <p class="manuscript-review-detail-shell__description">
-          详情页是动作中枢，统一承载状态摘要、基本信息、当前有效资源、统一时间线，以及基于 permissionMatrix 的按钮分流。
+          {{
+            isApprovalPage
+              ? '审批页承接 BPM 办理动作，并保留审校单的状态摘要、基本信息、当前有效资源和统一时间线。'
+              : '详情页统一承载状态摘要、基本信息、当前有效资源和统一时间线，并提供与当前业务状态匹配的后置动作入口。'
+          }}
         </p>
       </div>
       <nav
@@ -55,11 +59,7 @@
           <header class="manuscript-review-detail-shell__section-header">
             <div>
               <h2 class="manuscript-review-detail-shell__section-title">基本信息与状态摘要</h2>
-              <p class="manuscript-review-detail-shell__section-desc">详情页负责看状态、看资源、看历史、做动作分流；当前页不承接审批表单。</p>
-            </div>
-            <div class="manuscript-review-detail-shell__section-tags">
-              <span class="manuscript-review-detail-shell__tag manuscript-review-detail-shell__tag--primary"> 动作来源：permissionMatrix </span>
-              <span class="manuscript-review-detail-shell__tag manuscript-review-detail-shell__tag--warning"> 去审批只跳 BPM 办理页 </span>
+              <p class="manuscript-review-detail-shell__section-desc">当前页用于查看业务信息、资源与历史，并承接修改、去审批、重新提交等后置动作入口。</p>
             </div>
           </header>
           <div class="manuscript-review-detail-shell__section-body">
@@ -69,14 +69,6 @@
                 <div class="manuscript-review-detail-shell__info-box">
                   {{ loading ? '加载中…' : item.value }}
                 </div>
-              </div>
-            </div>
-
-            <div class="manuscript-review-detail-shell__info-field manuscript-review-detail-shell__info-field--full">
-              <p class="manuscript-review-detail-shell__info-label">当前节点说明</p>
-              <div class="manuscript-review-detail-shell__info-box manuscript-review-detail-shell__info-box--multiline">
-                <template v-if="loading">正在加载流程上下文…</template>
-                <template v-else>{{ currentNodeExplanation }}</template>
               </div>
             </div>
           </div>
@@ -105,7 +97,16 @@
                 <ul v-else class="manuscript-review-detail-shell__resource-list" :aria-label="`${group.title}列表`">
                   <li v-for="item in group.items" :key="item.id" class="manuscript-review-detail-shell__resource-item">
                     <div class="manuscript-review-detail-shell__resource-main">
-                      <span class="manuscript-review-detail-shell__resource-name">{{ item.name }}</span>
+                      <a
+                        v-if="item.href"
+                        class="manuscript-review-detail-shell__resource-name manuscript-review-detail-shell__resource-link"
+                        :href="item.href"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        {{ item.name }}
+                      </a>
+                      <span v-else class="manuscript-review-detail-shell__resource-name">{{ item.name }}</span>
                       <span class="manuscript-review-detail-shell__resource-status">{{ item.statusLabel }}</span>
                     </div>
                     <div v-if="item.note" class="manuscript-review-detail-shell__resource-note">{{ item.note }}</div>
@@ -141,49 +142,8 @@
           </div>
         </section>
       </div>
-
-      <aside data-testid="manuscript-review-permission-matrix" class="manuscript-review-detail-shell__aside">
-        <section class="manuscript-review-detail-shell__section manuscript-review-detail-shell__section--tight">
-          <header class="manuscript-review-detail-shell__section-header">
-            <div>
-              <h2 class="manuscript-review-detail-shell__section-title">permissionMatrix 动作矩阵</h2>
-              <p class="manuscript-review-detail-shell__section-desc">按钮不是前端猜出来的，而是后端返回的动作矩阵投影。</p>
-            </div>
-          </header>
-          <div class="manuscript-review-detail-shell__section-body">
-            <ul class="manuscript-review-detail-shell__permission-list">
-              <li v-for="item in permissionMatrixItems" :key="item.label" class="manuscript-review-detail-shell__permission-item">
-                <span>{{ item.label }}</span>
-                <strong>{{ item.value }}</strong>
-              </li>
-            </ul>
-          </div>
-        </section>
-
-        <section class="manuscript-review-detail-shell__section manuscript-review-detail-shell__section--tight">
-          <header class="manuscript-review-detail-shell__section-header">
-            <div>
-              <h2 class="manuscript-review-detail-shell__section-title">按钮分流板</h2>
-              <p class="manuscript-review-detail-shell__section-desc">“去审批”和“重新提交”是两个独立后置流程动作，不能与修改保存混成一个动作。</p>
-            </div>
-          </header>
-          <div class="manuscript-review-detail-shell__section-body manuscript-review-detail-shell__guidance-list">
-            <article class="manuscript-review-detail-shell__guidance-card">
-              <h3>当前用户：{{ currentRoleLabel }}</h3>
-              <p>{{ currentRoleSummary }}</p>
-            </article>
-            <article class="manuscript-review-detail-shell__guidance-card manuscript-review-detail-shell__guidance-card--primary">
-              <h3>去审批</h3>
-              <p>当前详情页不直接审批；点击后只跳转 BPM 办理页，缺 formPath / taskId 时展示 blocker。</p>
-            </article>
-            <article class="manuscript-review-detail-shell__guidance-card manuscript-review-detail-shell__guidance-card--warning">
-              <h3>重新提交</h3>
-              <p>这是发起人在退回后的独立动作，修改保存完成后回到详情页再触发。</p>
-            </article>
-          </div>
-        </section>
-      </aside>
     </div>
+    <submitVerify ref="submitVerifyRef" :task-variables="{}" @submit-callback="handleApprovalSubmit" />
   </section>
 </template>
 
@@ -194,6 +154,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { getManuscriptReviewDetail, resubmitManuscriptReview } from '@/api/manuscript-review';
 import { flowHisTaskList, getInfo } from '@/api/workflow/instance';
 import { resolveManuscriptApproveAction, type ManuscriptReviewApproveActionResult } from '@/types/manuscript-review/detail';
+import SubmitVerify from '@/components/Process/submitVerify.vue';
 
 import {
   buildDetailActionBar,
@@ -212,7 +173,12 @@ const router = useRouter();
 const EMPTY_TEXT = '--';
 
 const reviewId = computed(() => {
-  const value = route.query.reviewId;
+  const value = route.query.reviewId ?? route.query.id;
+  return typeof value === 'string' ? value : Array.isArray(value) ? value[0] : '';
+});
+const isApprovalPage = computed(() => route.path === '/manuscript/review/approval');
+const routeTaskId = computed(() => {
+  const value = route.query.taskId;
   return typeof value === 'string' ? value : Array.isArray(value) ? value[0] : '';
 });
 
@@ -220,27 +186,24 @@ const loading = ref(false);
 const actionPendingKey = ref<ActionKey>('');
 const errorMessage = ref('');
 const viewModel = ref<ManuscriptReviewDetailReadableViewModel | null>(null);
+const submitVerifyRef = ref<InstanceType<typeof SubmitVerify>>();
 
 const detailSource = computed(() => viewModel.value?.detail ?? null);
-const actionBar = computed(() => buildDetailActionBar(viewModel.value?.actionRole ?? 'HISTORY_PARTICIPANT'));
+const actionBar = computed(() => {
+  if (isApprovalPage.value) {
+    return [
+      { key: 'approve', label: '审批办理' },
+      { key: 'back', label: '返回' }
+    ];
+  }
+
+  return buildDetailActionBar(viewModel.value?.actionRole ?? 'HISTORY_PARTICIPANT');
+});
 const historyItems = computed<ManuscriptReviewHistoryItem[]>(() => viewModel.value?.historyItems ?? []);
 const resourceItems = computed<ManuscriptReviewResourceItem[]>(() => viewModel.value?.resourceItems ?? []);
 
-const permissionMatrixItems = computed(() => {
-  const permissionMatrix = detailSource.value?.permissionMatrix;
-
-  return [
-    { label: '可查看', value: permissionMatrix?.canView ? '是' : '否' },
-    { label: '可修改', value: permissionMatrix?.canEdit ? '是' : '否' },
-    { label: '可重新提交', value: permissionMatrix?.canResubmit ? '是' : '否' },
-    { label: '可去审批', value: permissionMatrix?.canGotoApproval ? '是' : '否' },
-    { label: '当前审批人', value: permissionMatrix?.isCurrentApprover ? '是' : '否' }
-  ];
-});
-
 const summaryCards = computed(() => {
   const detail = detailSource.value;
-  const permissionMatrix = detail?.permissionMatrix;
 
   return [
     {
@@ -257,15 +220,6 @@ const summaryCards = computed(() => {
       label: '流程类型',
       value: detail?.processTypeLabel ?? EMPTY_TEXT,
       meta: detail?.manuscriptCode ?? EMPTY_TEXT
-    },
-    {
-      label: '动作矩阵',
-      value: 'permissionMatrix',
-      meta: permissionMatrix
-        ? `canEdit=${Boolean(permissionMatrix.canEdit)} / canResubmit=${Boolean(permissionMatrix.canResubmit)} / canGotoApproval=${Boolean(
-            permissionMatrix.canGotoApproval
-          )}`
-        : EMPTY_TEXT
     }
   ];
 });
@@ -308,39 +262,6 @@ const resourceGroups = computed(() => {
   }
 
   return groups;
-});
-
-const currentRoleLabel = computed(() => {
-  switch (viewModel.value?.actionRole) {
-    case 'CURRENT_APPROVER':
-      return '当前审批人';
-    case 'RETURNED_INITIATOR':
-      return '退回发起人';
-    default:
-      return '历史参与人';
-  }
-});
-
-const currentRoleSummary = computed(() => {
-  switch (viewModel.value?.actionRole) {
-    case 'CURRENT_APPROVER':
-      return '可修改后去审批；去审批是独立动作，当前页不内嵌审批表单。';
-    case 'RETURNED_INITIATOR':
-      return '可修改并在保存后返回详情页，再独立触发重新提交。';
-    default:
-      return '仅查看详情与时间线，不具备当前流程动作权限。';
-  }
-});
-
-const currentNodeExplanation = computed(() => {
-  const detail = detailSource.value;
-  const labels = actionBar.value.map((item) => item.label).join('、') || '返回';
-
-  if (!detail) {
-    return '请从台账进入详情页后查看当前节点说明。';
-  }
-
-  return `当前节点：${detail.currentNodeLabel ?? EMPTY_TEXT}。当前角色可见动作：${labels}。修改保存与“去审批 / 重新提交”严格分流，详情页只负责分流与追溯。`;
 });
 
 const fetchDetail = async () => {
@@ -387,6 +308,16 @@ const onAction = async (key: string) => {
   }
 
   if (key === 'approve') {
+    if (isApprovalPage.value) {
+      if (!routeTaskId.value) {
+        errorMessage.value = '当前缺少 taskId，无法打开审批办理弹窗。';
+        return;
+      }
+
+      submitVerifyRef.value?.openDialog(String(routeTaskId.value));
+      return;
+    }
+
     actionPendingKey.value = 'approve';
 
     try {
@@ -424,6 +355,18 @@ const onAction = async (key: string) => {
     } finally {
       actionPendingKey.value = '';
     }
+  }
+};
+
+const handleApprovalSubmit = async () => {
+  await fetchDetail();
+  if (reviewId.value) {
+    await router.replace({
+      path: '/manuscript/review/detail',
+      query: {
+        reviewId: reviewId.value
+      }
+    });
   }
 };
 

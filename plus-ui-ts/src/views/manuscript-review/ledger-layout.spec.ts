@@ -20,6 +20,16 @@ describe('manuscript review ledger layout shell', () => {
     expect(ledgerViewSource).toContain('showSearch');
   });
 
+  it('keeps query conditions aligned to frozen ledger filters and removes media channel selector', () => {
+    expect(ledgerViewSource).toContain('label="流程类型"');
+    expect(ledgerViewSource).toContain('label="业务状态"');
+    expect(ledgerViewSource).toContain('BUSINESS_STATUS_OPTIONS');
+    expect(ledgerViewSource).toContain('PROCESS_TYPE_OPTIONS');
+    expect(ledgerViewSource).not.toContain('<el-form-item label="媒体栏目"');
+    expect(ledgerViewSource).not.toContain('IN_PROGRESS');
+    expect(ledgerViewSource).not.toContain('VIDEO');
+  });
+
   it('keeps detail as the only row-level business action', () => {
     expect(ledgerViewSource).toContain('详情');
     expect(ledgerViewSource).not.toContain('去审批');

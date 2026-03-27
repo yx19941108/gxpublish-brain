@@ -3,6 +3,23 @@ import type { ManuscriptReviewDetailVO, ManuscriptReviewResourceItemVO } from '@
 
 export type ManuscriptReviewFormMode = 'create' | 'edit';
 export type ManuscriptReviewDraftResourceType = 'ATTACHMENT' | 'VIDEO';
+export interface ManuscriptReviewOptionItem {
+  label: string;
+  value: string;
+}
+
+export const PROCESS_TYPE_OPTIONS: ManuscriptReviewOptionItem[] = [
+  { label: '审核流程', value: 'AUDIT' },
+  { label: '校对流程', value: 'PROOFREAD' }
+];
+
+export const BUSINESS_STATUS_OPTIONS: ManuscriptReviewOptionItem[] = [
+  { label: '审批中', value: 'WAITING' },
+  { label: '退回待修改', value: 'BACK' },
+  { label: '已完成', value: 'FINISH' },
+  { label: '发起人撤销', value: 'CANCEL' },
+  { label: '三级驳回终止', value: 'REJECT' }
+];
 
 export interface ManuscriptReviewDraftFormModel {
   processType: string;

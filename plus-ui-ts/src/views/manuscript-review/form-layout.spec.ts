@@ -29,4 +29,13 @@ describe('manuscript review form layout shell', () => {
     expect(file).not.toContain('保存草稿');
     expect(file).not.toContain('草稿按钮');
   });
+
+  it('uses a fixed-select process type control and does not require submitDepartment', () => {
+    const file = readFileSync(resolve(__dirname, './form.vue'), 'utf-8');
+
+    expect(file).toContain('<el-select v-model="formModel.processType"');
+    expect(file).toContain('processTypeOptions');
+    expect(file).not.toContain('placeholder="请输入流程类型"');
+    expect(file).not.toContain("submitDepartment: [{ required: true");
+  });
 });

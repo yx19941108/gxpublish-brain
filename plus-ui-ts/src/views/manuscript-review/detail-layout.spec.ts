@@ -9,11 +9,9 @@ describe('T09_Frontend_DetailLayoutSpec', () => {
 
     expect(file).toContain('data-testid="manuscript-review-summary-cards"');
     expect(file).toContain('data-testid="manuscript-review-basic-info"');
-    expect(file).toContain('data-testid="manuscript-review-permission-matrix"');
     expect(file).toContain('data-testid="manuscript-review-resource-shell"');
     expect(file).toContain('data-testid="manuscript-review-history-shell"');
     expect(file).toContain('manuscript-review-detail-shell__action-panel');
-    expect(file).toContain('permissionMatrix');
     expect(file).toContain('去审批');
     expect(file).toContain('重新提交');
     expect(file).not.toContain('页内直接审批');
@@ -26,5 +24,15 @@ describe('T09_Frontend_DetailLayoutSpec', () => {
     expect(file).not.toContain("request.get('/manuscript-review/readable/detail'");
     expect(file).toContain("if (key === 'approve')");
     expect(file).toContain("if (key === 'resubmit')");
+  });
+
+  it('does not expose debug-only permission or matrix copy in the user-facing detail page', () => {
+    const file = readFileSync(resolve(__dirname, './detail.vue'), 'utf-8');
+
+    expect(file).not.toContain('permissionMatrix 动作矩阵');
+    expect(file).not.toContain('data-testid="manuscript-review-permission-matrix"');
+    expect(file).not.toContain('动作来源：permissionMatrix');
+    expect(file).not.toContain('当前节点说明');
+    expect(file).not.toContain('按钮分流板');
   });
 });

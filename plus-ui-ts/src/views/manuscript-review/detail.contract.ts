@@ -75,6 +75,7 @@ export interface ManuscriptReviewResourceItem {
   name: string;
   statusLabel?: string;
   note?: string;
+  href?: string;
 }
 
 export interface ManuscriptReviewDetailReadableViewModel {
@@ -279,7 +280,8 @@ const normalizeResourceItems = (detail: ManuscriptReviewDetailReadableSource): M
       typeLabel: link.resourceTypeLabel ?? '外链',
       name: link.displayName,
       statusLabel: '当前有效',
-      note: link.externalUrl
+      note: link.externalUrl,
+      href: link.externalUrl
     });
   }
 

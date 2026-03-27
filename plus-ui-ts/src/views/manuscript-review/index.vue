@@ -18,11 +18,6 @@
                 <el-option v-for="item in processTypeOptions" :key="item.value" :label="item.label" :value="item.value" />
               </el-select>
             </el-form-item>
-            <el-form-item label="媒体栏目" prop="mediaChannel">
-              <el-select v-model="queryParams.mediaChannel" placeholder="请选择媒体栏目" clearable style="width: 200px">
-                <el-option v-for="item in mediaChannelOptions" :key="item.value" :label="item.label" :value="item.value" />
-              </el-select>
-            </el-form-item>
             <el-form-item label="业务状态" prop="businessStatus">
               <el-select v-model="queryParams.businessStatus" placeholder="请选择业务状态" clearable style="width: 160px">
                 <el-option v-for="item in businessStatusOptions" :key="item.value" :label="item.label" :value="item.value" />
@@ -58,7 +53,6 @@
         <el-table-column label="系统稿件号" align="center" prop="manuscriptCode" min-width="160" :show-overflow-tooltip="true" />
         <el-table-column label="标题" align="left" prop="title" min-width="260" :show-overflow-tooltip="true" />
         <el-table-column label="流程类型" align="center" prop="processTypeLabel" min-width="140" :show-overflow-tooltip="true" />
-        <el-table-column label="媒体栏目" align="center" prop="mediaChannel" min-width="180" :show-overflow-tooltip="true" />
         <el-table-column label="业务状态" align="center" min-width="120">
           <template #default="scope">
             <el-tag :type="resolveStatusTagType(scope.row.businessStatusLabel)" effect="light">
@@ -99,6 +93,7 @@ import type { ComponentInternalInstance } from 'vue';
 import { useRouter } from 'vue-router';
 import { listManuscriptReview } from '@/api/manuscript-review';
 
+import { BUSINESS_STATUS_OPTIONS, PROCESS_TYPE_OPTIONS } from './components/formState';
 import { normalizeLedgerRows, type ManuscriptReviewLedgerRow } from './detail.contract';
 
 interface LedgerQueryParams {
@@ -106,7 +101,6 @@ interface LedgerQueryParams {
   pageSize: number;
   keyword?: string;
   processType?: string;
-  mediaChannel?: string;
   businessStatus?: string;
   currentNodeCode?: string;
 }
@@ -131,29 +125,13 @@ const queryParams = reactive<LedgerQueryParams>({
   pageSize: 10,
   keyword: undefined,
   processType: undefined,
-  mediaChannel: undefined,
   businessStatus: undefined,
   currentNodeCode: undefined
 });
 
-const processTypeOptions: OptionItem[] = [
-  { label: '稿件审校', value: 'AUDIT' },
-  { label: '校对审校', value: 'PROOFREAD' },
-  { label: '视频审校', value: 'VIDEO' }
-];
+const processTypeOptions: OptionItem[] = PROCESS_TYPE_OPTIONS;
 
-const mediaChannelOptions: OptionItem[] = [
-  { label: '客户端头条', value: 'CLIENT_HEADLINE' },
-  { label: '视频中心', value: 'VIDEO_CENTER' },
-  { label: '融媒专题', value: 'INTEGRATED_TOPIC' }
-];
-
-const businessStatusOptions: OptionItem[] = [
-  { label: '审批中', value: 'IN_PROGRESS' },
-  { label: '已退回', value: 'BACK' },
-  { label: '已完成', value: 'DONE' },
-  { label: '已撤销', value: 'CANCELLED' }
-];
+const businessStatusOptions: OptionItem[] = BUSINESS_STATUS_OPTIONS;
 
 const currentNodeOptions: OptionItem[] = [
   { label: '一级审批', value: 'LEVEL_1' },

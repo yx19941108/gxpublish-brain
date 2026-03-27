@@ -41,7 +41,9 @@
             <el-row :gutter="16">
               <el-col :span="12">
                 <el-form-item label="流程类型" prop="processType">
-                  <el-input v-model="formModel.processType" placeholder="请输入流程类型" />
+                  <el-select v-model="formModel.processType" placeholder="请选择流程类型" clearable>
+                    <el-option v-for="item in processTypeOptions" :key="item.value" :label="item.label" :value="item.value" />
+                  </el-select>
                 </el-form-item>
               </el-col>
               <el-col :span="12">
@@ -186,6 +188,7 @@ import { globalHeaders } from '@/utils/request';
 
 import {
   buildFormPresentation,
+  PROCESS_TYPE_OPTIONS,
   buildIntegratedSavePayload,
   buildIntegratedSubmitPayload,
   createDraftStateFromDetail,
@@ -226,12 +229,12 @@ const formModel = reactive<ManuscriptReviewDraftFormModel>({
 
 const uploadFileUrl = `${import.meta.env.VITE_APP_BASE_API}/resource/oss/upload`;
 const uploadHeaders = globalHeaders();
+const processTypeOptions = PROCESS_TYPE_OPTIONS;
 
 const rules: FormRules<ManuscriptReviewDraftFormModel> = {
-  processType: [{ required: true, message: '请输入流程类型', trigger: 'blur' }],
+  processType: [{ required: true, message: '请选择流程类型', trigger: 'change' }],
   title: [{ required: true, message: '请输入标题', trigger: 'blur' }],
   mediaChannel: [{ required: true, message: '请输入媒体栏目', trigger: 'blur' }],
-  submitDepartment: [{ required: true, message: '请输入报送部门', trigger: 'blur' }],
   contentBody: [{ required: true, message: '请输入正文内容', trigger: 'blur' }]
 };
 
