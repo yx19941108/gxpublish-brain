@@ -40,6 +40,11 @@ public class ManuscriptReviewSysOssEntity {
     private String url;
 
     /**
+     * OSS 服务标识。
+     */
+    private String service;
+
+    /**
      * 扩展字段 JSON。
      */
     private String ext1;

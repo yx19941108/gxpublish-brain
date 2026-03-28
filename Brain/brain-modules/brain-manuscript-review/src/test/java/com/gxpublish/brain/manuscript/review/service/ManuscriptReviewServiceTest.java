@@ -40,6 +40,7 @@ import com.gxpublish.brain.manuscript.review.domain.entity.ManuscriptReviewFlowC
 import com.gxpublish.brain.manuscript.review.domain.entity.ManuscriptReviewHistoryEntity;
 import com.gxpublish.brain.manuscript.review.domain.entity.ManuscriptReviewRecordEntity;
 import com.gxpublish.brain.manuscript.review.domain.entity.ManuscriptReviewSystemRoleEntity;
+import com.gxpublish.brain.manuscript.review.domain.entity.ManuscriptReviewSysOssEntity;
 import com.gxpublish.brain.manuscript.review.domain.entity.ManuscriptReviewSystemUserEntity;
 import com.gxpublish.brain.manuscript.review.domain.entity.ManuscriptReviewSystemUserRoleEntity;
 import com.gxpublish.brain.manuscript.review.domain.entity.ManuscriptReviewVideoMarkerEntity;
@@ -297,6 +298,7 @@ class ManuscriptReviewServiceTest {
         ManuscriptReviewRecordEntity record = buildRecord(9005L);
         record.setInitiatorUserId(1008L);
         when(fixture.recordMapper.selectById(9005L)).thenReturn(record);
+        when(fixture.sysOssMapper.selectById(8801L)).thenReturn(buildSysOss(8801L, "https://files.example/video.mp4", "video/mp4", 601));
 
         Long resourceId = fixture.service.addResource(AddManuscriptReviewResourceCommand.builder()
             .reviewId(9005L)
@@ -313,7 +315,9 @@ class ManuscriptReviewServiceTest {
         assertEquals(9005L, entity.getReviewId());
         assertEquals(8801L, entity.getOssId());
         assertEquals("样片.mp4", entity.getFileName());
+        assertEquals("https://files.example/video.mp4", entity.getFileUrl());
         assertEquals(Boolean.TRUE, entity.getIsVideo());
+        assertEquals(601, entity.getVideoDurationSeconds());
         assertEquals("1", entity.getEnabled());
 
         ArgumentCaptor<ManuscriptReviewHistoryEntity> historyCaptor = ArgumentCaptor.forClass(ManuscriptReviewHistoryEntity.class);
@@ -959,6 +963,14 @@ class ManuscriptReviewServiceTest {
         entity.setEndTime("00:01:10");
         entity.setMarkerNote("第一处问题");
         entity.setEnabled("1");
+        return entity;
+    }
+
+    private static ManuscriptReviewSysOssEntity buildSysOss(Long ossId, String url, String contentType, Integer videoDurationSeconds) {
+        ManuscriptReviewSysOssEntity entity = new ManuscriptReviewSysOssEntity();
+        entity.setOssId(ossId);
+        entity.setUrl(url);
+        entity.setExt1("{\"fileSize\":12345,\"contentType\":\"" + contentType + "\",\"videoDurationSeconds\":" + videoDurationSeconds + "}");
         return entity;
     }
 

@@ -53,6 +53,15 @@ public interface ISysOssService {
     SysOssVo upload(MultipartFile file);
 
     /**
+     * 上传 MultipartFile 到对象存储服务，并保存文件信息到数据库
+     *
+     * @param file 要上传的 MultipartFile 对象
+     * @param videoDurationSeconds 视频总时长（秒）
+     * @return 上传成功后的 SysOssVo 对象，包含文件信息
+     */
+    SysOssVo upload(MultipartFile file, Integer videoDurationSeconds);
+
+    /**
      * 上传文件到对象存储服务，并保存文件信息到数据库
      *
      * @param file 要上传的文件对象

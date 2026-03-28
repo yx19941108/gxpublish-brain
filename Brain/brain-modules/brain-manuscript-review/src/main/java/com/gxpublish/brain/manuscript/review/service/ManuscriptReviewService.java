@@ -28,7 +28,7 @@ import com.gxpublish.brain.common.core.domain.event.ProcessEvent;
 import com.gxpublish.brain.common.core.domain.event.ProcessTaskEvent;
 import com.gxpublish.brain.common.core.exception.ServiceException;
 import com.gxpublish.brain.common.core.service.WorkflowService;
-import com.gxpublish.brain.common.json.utils.JsonUtils;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gxpublish.brain.common.mybatis.utils.IdGeneratorUtil;
 import com.gxpublish.brain.manuscript.review.domain.command.AddManuscriptReviewResourceCommand;
 import com.gxpublish.brain.manuscript.review.domain.command.AddManuscriptReviewVideoMarkCommand;
@@ -72,6 +72,8 @@ import com.gxpublish.brain.workflow.service.IFlwInstanceService;
 
 @Service
 public class ManuscriptReviewService implements IManuscriptReviewService {
+
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private static final String DEFAULT_TENANT_ID = "000000";
     private static final String ENABLED = "1";
@@ -519,23 +521,14 @@ public class ManuscriptReviewService implements IManuscriptReviewService {
         if (sysOss == null) {
             throw new ServiceException("上传文件不存在或已被删除");
         }
-        ManuscriptReviewSysOssExt ossExt = trimToNull(sysOss.getExt1()) == null ? null : JsonUtils.parseObject(sysOss.getExt1(), ManuscriptReviewSysOssExt.class);
+        ManuscriptReviewSysOssExt ossExt = parseSysOssExt(sysOss.getExt1());
         ManuscriptReviewAttachmentEntity entity = new ManuscriptReviewAttachmentEntity();
         entity.setId(nextId());
         entity.setTenantId(normalizeTenantId(currentUserGateway.getCurrentTenantId()));
         entity.setReviewId(reviewId);
         entity.setOssId(ossId);
         entity.setFileName(requireLength(trimToNull(displayName), "资源名称不能为空", "资源名称长度不能超过255个字符", 255));
-        entity.setFileUrl(sysOss.getUrl());
-        entity.setFileSize(ossExt == null ? null : ossExt.getFileSize());
-        entity.setMimeType(ossExt == null ? null : trimToNull(ossExt.getContentType()));
-        entity.setIsVideo(resourceType.isVideo());
-
-        /**
-         * 当前 shared 上传返回结果里没有视频总时长。
-         * 这里不凭空推断 videoDurationSeconds，保持为空并作为缺口交由主控裁决。
-         */
-        entity.setVideoDurationSeconds(null);
+        populateAttachmentSnapshot(entity, sysOss, ossExt, resourceType.isVideo());
         entity.setEnabled(ManuscriptReviewEnabledStatusEnum.ENABLED.getCode());
         fillCreateAuditFields(entity);
         return entity;
@@ -850,19 +843,47 @@ public class ManuscriptReviewService implements IManuscriptReviewService {
         if (command.getOssId() == null) {
             throw new ServiceException("附件/视频资源必须提供ossId");
         }
+        ManuscriptReviewSysOssEntity sysOss = sysOssMapper.selectById(command.getOssId());
+        if (sysOss == null) {
+            throw new ServiceException("上传文件不存在或已被删除");
+        }
+        ManuscriptReviewSysOssExt ossExt = parseSysOssExt(sysOss.getExt1());
         ManuscriptReviewAttachmentEntity entity = new ManuscriptReviewAttachmentEntity();
         entity.setId(nextId());
         entity.setTenantId(normalizeTenantId(currentUserGateway.getCurrentTenantId()));
         entity.setReviewId(reviewId);
         entity.setOssId(command.getOssId());
         entity.setFileName(requireLength(trimToNull(command.getDisplayName()), "资源名称不能为空", "资源名称长度不能超过255个字符", 255));
-        entity.setIsVideo(video);
+        populateAttachmentSnapshot(entity, sysOss, ossExt, video);
         entity.setEnabled(ENABLED);
         fillCreateAuditFields(entity);
         attachmentMapper.insert(entity);
         insertActorHistory(reviewId, ManuscriptReviewHistoryActionTypeEnum.RESOURCE_ADD.getCode(),
             buildAttachmentAddHistoryText(entity));
         return entity.getId();
+    }
+
+    private void populateAttachmentSnapshot(ManuscriptReviewAttachmentEntity entity,
+                                            ManuscriptReviewSysOssEntity sysOss,
+                                            ManuscriptReviewSysOssExt ossExt,
+                                            boolean video) {
+        entity.setFileUrl(sysOss.getUrl());
+        entity.setFileSize(ossExt == null ? null : ossExt.getFileSize());
+        entity.setMimeType(ossExt == null ? null : trimToNull(ossExt.getContentType()));
+        entity.setIsVideo(video);
+        entity.setVideoDurationSeconds(video && ossExt != null ? ossExt.getVideoDurationSeconds() : null);
+    }
+
+    private ManuscriptReviewSysOssExt parseSysOssExt(String ext1Json) {
+        String ext1 = trimToNull(ext1Json);
+        if (ext1 == null) {
+            return null;
+        }
+        try {
+            return OBJECT_MAPPER.readValue(ext1, ManuscriptReviewSysOssExt.class);
+        } catch (Exception exception) {
+            throw new ServiceException("上传文件扩展信息解析失败");
+        }
     }
 
     private Long insertExternalLink(Long reviewId, AddManuscriptReviewResourceCommand command) {

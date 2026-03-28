@@ -97,6 +97,7 @@
             <div class="mb-[12px]">
               <el-upload
                 :action="uploadFileUrl"
+                :data="buildUploadData"
                 :headers="uploadHeaders"
                 :show-file-list="false"
                 :before-upload="handleBeforeUpload"
@@ -175,7 +176,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { ElMessage, type FormInstance, type FormRules, type UploadProps } from 'element-plus';
+import { ElMessage, type FormInstance, type FormRules, type UploadProps, type UploadRawFile } from 'element-plus';
 
 import {
   deletePendingOssResource,
@@ -217,6 +218,7 @@ const errorMessage = ref('');
 const draftUploads = ref<ManuscriptReviewDraftUploadItem[]>([]);
 const draftExternalLinks = ref<ManuscriptReviewDraftExternalLinkItem[]>([{ uid: 'link-1', displayName: '', externalUrl: '' }]);
 const persistedResources = ref<ManuscriptReviewPersistedResourceView[]>([]);
+const pendingVideoDurationSeconds = ref<Record<string, number>>({});
 
 const formModel = reactive<ManuscriptReviewDraftFormModel>({
   processType: '',
@@ -252,6 +254,7 @@ const resetDraftState = () => {
   draftUploads.value = [];
   draftExternalLinks.value = [{ uid: `link-${Date.now()}`, displayName: '', externalUrl: '' }];
   persistedResources.value = [];
+  pendingVideoDurationSeconds.value = {};
 };
 
 const ensureAtLeastOneLink = () => {
@@ -308,15 +311,65 @@ const applyCreateDefaultSubmitDepartment = async () => {
     // keep empty and rely on validation/runtime feedback if current user info is unavailable
   }
 };
-const handleBeforeUpload: UploadProps['beforeUpload'] = (rawFile) => {
+
+const isVideoUpload = (rawFile: UploadRawFile) => {
+  const mimeType = String(rawFile.type ?? '').toLowerCase();
+  if (mimeType.startsWith('video/')) {
+    return true;
+  }
+  return rawFile.name.toLowerCase().endsWith('.mp4');
+};
+
+const resolveVideoDurationSeconds = (rawFile: UploadRawFile): Promise<number | undefined> =>
+  new Promise((resolve) => {
+    const objectUrl = URL.createObjectURL(rawFile);
+    const video = document.createElement('video');
+    const cleanup = () => {
+      video.removeAttribute('src');
+      video.load();
+      URL.revokeObjectURL(objectUrl);
+    };
+
+    video.preload = 'metadata';
+    video.onloadedmetadata = () => {
+      const duration = Number.isFinite(video.duration) ? Math.ceil(video.duration) : NaN;
+      cleanup();
+      resolve(duration > 0 ? duration : undefined);
+    };
+    video.onerror = () => {
+      cleanup();
+      resolve(undefined);
+    };
+    video.src = objectUrl;
+  });
+
+const handleBeforeUpload: UploadProps['beforeUpload'] = async (rawFile) => {
   if (rawFile.name.includes(',')) {
     ElMessage.error('文件名不能包含英文逗号。');
     return false;
   }
+
+  delete pendingVideoDurationSeconds.value[String(rawFile.uid)];
+  if (!isVideoUpload(rawFile)) {
+    return true;
+  }
+
+  const durationSeconds = await resolveVideoDurationSeconds(rawFile);
+  if (!durationSeconds) {
+    ElMessage.error('无法识别视频总时长，请更换视频文件后重试。');
+    return false;
+  }
+  pendingVideoDurationSeconds.value[String(rawFile.uid)] = durationSeconds;
   return true;
 };
 
+const buildUploadData = async (rawFile: UploadRawFile) => {
+  const durationSeconds = pendingVideoDurationSeconds.value[String(rawFile.uid)];
+  return durationSeconds ? { videoDurationSeconds: String(durationSeconds) } : {};
+};
+
 const handleUploadSuccess: UploadProps['onSuccess'] = (response, uploadFile) => {
+  delete pendingVideoDurationSeconds.value[String(uploadFile.uid)];
   if (response?.code !== 200 || !response?.data?.ossId) {
     ElMessage.error(response?.msg ?? '上传失败，请重试。');
     return;
@@ -334,7 +387,8 @@ const handleUploadSuccess: UploadProps['onSuccess'] = (response, uploadFile) => 
   });
 };
 
-const handleUploadError: UploadProps['onError'] = () => {
+const handleUploadError: UploadProps['onError'] = (_, uploadFile) => {
+  delete pendingVideoDurationSeconds.value[String(uploadFile.uid)];
   ElMessage.error('上传失败，请重试。');
 };
 

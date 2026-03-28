@@ -1,5 +1,7 @@
 package com.gxpublish.brain.manuscript.review.domain.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 import lombok.Data;
 
 /**
@@ -12,6 +14,7 @@ import lombok.Data;
  * @since 2026-03-26
  */
 @Data
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class ManuscriptReviewSysOssExt {
 
     /**
@@ -23,4 +26,9 @@ public class ManuscriptReviewSysOssExt {
      * MIME 类型。
      */
     private String contentType;
+
+    /**
+     * 视频总时长（单位：秒）。
+     */
+    private Integer videoDurationSeconds;
 }

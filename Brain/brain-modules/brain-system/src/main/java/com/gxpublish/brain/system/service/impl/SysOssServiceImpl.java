@@ -192,6 +192,11 @@ public class SysOssServiceImpl implements ISysOssService, OssService {
      */
     @Override
     public SysOssVo upload(MultipartFile file) {
+        return upload(file, null);
+    }
+
+    @Override
+    public SysOssVo upload(MultipartFile file, Integer videoDurationSeconds) {
         if (ObjectUtil.isNull(file) || file.isEmpty()) {
             throw new ServiceException("上传文件不能为空");
         }
@@ -207,6 +212,7 @@ public class SysOssServiceImpl implements ISysOssService, OssService {
         SysOssExt ext1 = new SysOssExt();
         ext1.setFileSize(file.getSize());
         ext1.setContentType(file.getContentType());
+        ext1.setVideoDurationSeconds(videoDurationSeconds == null || videoDurationSeconds < 0 ? null : videoDurationSeconds);
         // 保存文件信息
         return buildResultEntity(originalfileName, suffix, storage.getConfigKey(), uploadResult, ext1);
     }

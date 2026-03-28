@@ -68,8 +68,9 @@ public class SysOssController extends BaseController {
     @SaCheckPermission("system:oss:upload")
     @Log(title = "OSS对象存储", businessType = BusinessType.INSERT)
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public R<SysOssUploadVo> upload(@RequestPart("file") MultipartFile file) {
-        SysOssVo oss = ossService.upload(file);
+    public R<SysOssUploadVo> upload(@RequestPart("file") MultipartFile file,
+                                    @RequestParam(value = "videoDurationSeconds", required = false) Integer videoDurationSeconds) {
+        SysOssVo oss = ossService.upload(file, videoDurationSeconds);
         SysOssUploadVo uploadVo = new SysOssUploadVo();
         uploadVo.setUrl(oss.getUrl());
         uploadVo.setFileName(oss.getOriginalName());

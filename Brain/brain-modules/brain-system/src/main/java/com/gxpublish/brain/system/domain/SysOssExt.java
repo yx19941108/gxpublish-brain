@@ -33,6 +33,11 @@ public class SysOssExt implements Serializable {
     private String contentType;
 
     /**
+     * 视频总时长（单位：秒）
+     */
+    private Integer videoDurationSeconds;
+
+    /**
      * 来源标识（如 userUpload、systemImport）
      */
     private String source;

@@ -1,5 +1,6 @@
 package com.gxpublish.brain.manuscript.review.service;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -15,11 +16,13 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gxpublish.brain.common.core.exception.ServiceException;
 import com.gxpublish.brain.common.mybatis.core.page.TableDataInfo;
+import com.gxpublish.brain.common.oss.factory.OssFactory;
 import com.gxpublish.brain.manuscript.review.controller.request.ManuscriptReviewLedgerQueryRequest;
 import com.gxpublish.brain.manuscript.review.controller.response.ManuscriptReviewDetailResponse;
 import com.gxpublish.brain.manuscript.review.controller.response.ManuscriptReviewLedgerItemResponse;
@@ -31,6 +34,7 @@ import com.gxpublish.brain.manuscript.review.domain.entity.ManuscriptReviewRecor
 import com.gxpublish.brain.manuscript.review.domain.entity.ManuscriptReviewSystemRoleEntity;
 import com.gxpublish.brain.manuscript.review.domain.entity.ManuscriptReviewSystemUserEntity;
 import com.gxpublish.brain.manuscript.review.domain.entity.ManuscriptReviewSystemUserRoleEntity;
+import com.gxpublish.brain.manuscript.review.domain.entity.ManuscriptReviewSysOssEntity;
 import com.gxpublish.brain.manuscript.review.domain.entity.ManuscriptReviewVideoMarkerEntity;
 import com.gxpublish.brain.manuscript.review.domain.enums.ManuscriptReviewDetailAction;
 import com.gxpublish.brain.manuscript.review.domain.enums.ManuscriptReviewNodeStatusEnum;
@@ -47,6 +51,7 @@ import com.gxpublish.brain.manuscript.review.mapper.ManuscriptReviewRecordMapper
 import com.gxpublish.brain.manuscript.review.mapper.ManuscriptReviewSystemRoleMapper;
 import com.gxpublish.brain.manuscript.review.mapper.ManuscriptReviewSystemUserMapper;
 import com.gxpublish.brain.manuscript.review.mapper.ManuscriptReviewSystemUserRoleMapper;
+import com.gxpublish.brain.manuscript.review.mapper.ManuscriptReviewSysOssMapper;
 import com.gxpublish.brain.manuscript.review.mapper.ManuscriptReviewVideoMarkerMapper;
 
 @Service
@@ -74,7 +79,33 @@ public class ManuscriptReviewReadableService {
     private final ManuscriptReviewSystemUserRoleMapper userRoleMapper;
     private final ManuscriptReviewSystemUserMapper userMapper;
     private final ManuscriptReviewCurrentUserGateway currentUserGateway;
+    private final ManuscriptReviewSysOssMapper sysOssMapper;
     private final ManuscriptReviewDetailPermissionPolicy permissionPolicy = new ManuscriptReviewDetailPermissionPolicy();
+
+    @Autowired
+    public ManuscriptReviewReadableService(ManuscriptReviewRecordMapper recordMapper,
+                                           ManuscriptReviewAttachmentMapper attachmentMapper,
+                                           ManuscriptReviewExternalLinkMapper externalLinkMapper,
+                                           ManuscriptReviewHistoryMapper historyMapper,
+                                           ManuscriptReviewVideoMarkerMapper videoMarkerMapper,
+                                           ManuscriptReviewFlowConfigMapper flowConfigMapper,
+                                           ManuscriptReviewSystemRoleMapper roleMapper,
+                                           ManuscriptReviewSystemUserRoleMapper userRoleMapper,
+                                           ManuscriptReviewSystemUserMapper userMapper,
+                                           ManuscriptReviewCurrentUserGateway currentUserGateway,
+                                           ManuscriptReviewSysOssMapper sysOssMapper) {
+        this.recordMapper = recordMapper;
+        this.attachmentMapper = attachmentMapper;
+        this.externalLinkMapper = externalLinkMapper;
+        this.historyMapper = historyMapper;
+        this.videoMarkerMapper = videoMarkerMapper;
+        this.flowConfigMapper = flowConfigMapper;
+        this.roleMapper = roleMapper;
+        this.userRoleMapper = userRoleMapper;
+        this.userMapper = userMapper;
+        this.currentUserGateway = currentUserGateway;
+        this.sysOssMapper = sysOssMapper;
+    }
 
     public ManuscriptReviewReadableService(ManuscriptReviewRecordMapper recordMapper,
                                            ManuscriptReviewAttachmentMapper attachmentMapper,
@@ -86,16 +117,8 @@ public class ManuscriptReviewReadableService {
                                            ManuscriptReviewSystemUserRoleMapper userRoleMapper,
                                            ManuscriptReviewSystemUserMapper userMapper,
                                            ManuscriptReviewCurrentUserGateway currentUserGateway) {
-        this.recordMapper = recordMapper;
-        this.attachmentMapper = attachmentMapper;
-        this.externalLinkMapper = externalLinkMapper;
-        this.historyMapper = historyMapper;
-        this.videoMarkerMapper = videoMarkerMapper;
-        this.flowConfigMapper = flowConfigMapper;
-        this.roleMapper = roleMapper;
-        this.userRoleMapper = userRoleMapper;
-        this.userMapper = userMapper;
-        this.currentUserGateway = currentUserGateway;
+        this(recordMapper, attachmentMapper, externalLinkMapper, historyMapper, videoMarkerMapper, flowConfigMapper,
+            roleMapper, userRoleMapper, userMapper, currentUserGateway, null);
     }
 
     public TableDataInfo<ManuscriptReviewLedgerItemResponse> listLedger(ManuscriptReviewLedgerQueryRequest request) {
@@ -144,6 +167,7 @@ public class ManuscriptReviewReadableService {
             videoMarkerMapper.selectList(new QueryWrapper<ManuscriptReviewVideoMarkerEntity>().eq("review_id", reviewId)),
             List.of()
         );
+        Map<Long, String> readableVideoUrls = buildReadableVideoUrlMap(attachments);
         if (!canViewRecord(record, histories)) {
             throw new ServiceException(VIEW_PERMISSION_DENIED_MESSAGE);
         }
@@ -197,7 +221,7 @@ public class ManuscriptReviewReadableService {
         response.setUpdateTime(formatDate(firstNonNull(record.getUpdateTime(), record.getCreateTime())));
         response.setAttachmentList(currentAttachments.stream().map(this::toAttachmentItem).toList());
         response.setExternalLinkList(currentExternalLinks.stream().map(this::toExternalLinkItem).toList());
-        response.setVideoList(currentVideos.stream().map(this::toVideoItem).toList());
+        response.setVideoList(currentVideos.stream().map(video -> toVideoItem(video, readableVideoUrls)).toList());
         response.setVideoMarkList(currentVideoMarks.stream().map(this::toVideoMarkItem).toList());
         response.setTimelineItems(buildTimelineItems(histories, attachments, externalLinks));
         response.setPermissionMatrix(buildPermissionMatrix(record, histories));
@@ -487,6 +511,19 @@ public class ManuscriptReviewReadableService {
             video.getFileUrl());
     }
 
+    private ManuscriptReviewDetailResponse.ResourceItemVO toVideoItem(ManuscriptReviewAttachmentEntity video,
+                                                                      Map<Long, String> readableVideoUrls) {
+        return new ManuscriptReviewDetailResponse.ResourceItemVO(
+            video.getId(),
+            video.getOssId(),
+            "VIDEO",
+            "视频",
+            video.getFileName(),
+            null,
+            formatDate(video.getCreateTime()),
+            readableVideoUrls.getOrDefault(video.getOssId(), video.getFileUrl()));
+    }
+
     private ManuscriptReviewDetailResponse.ResourceItemVO toExternalLinkItem(ManuscriptReviewExternalLinkEntity externalLink) {
         return new ManuscriptReviewDetailResponse.ResourceItemVO(
             externalLink.getId(),
@@ -747,6 +784,48 @@ public class ManuscriptReviewReadableService {
         }
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private Map<Long, String> buildReadableVideoUrlMap(List<ManuscriptReviewAttachmentEntity> attachments) {
+        if (sysOssMapper == null) {
+            return Collections.emptyMap();
+        }
+
+        List<Long> videoOssIds = attachments.stream()
+            .filter(attachment -> Boolean.TRUE.equals(attachment.getIsVideo()))
+            .map(ManuscriptReviewAttachmentEntity::getOssId)
+            .filter(Objects::nonNull)
+            .distinct()
+            .toList();
+        if (videoOssIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        List<ManuscriptReviewSysOssEntity> sysOssList = firstNonNull(sysOssMapper.selectByIds(videoOssIds), List.of());
+        Map<Long, String> readableUrlMap = new java.util.HashMap<>();
+        for (ManuscriptReviewSysOssEntity sysOss : sysOssList) {
+            String readableUrl = buildReadableVideoUrl(sysOss);
+            if (readableUrl != null && sysOss.getOssId() != null) {
+                readableUrlMap.put(sysOss.getOssId(), readableUrl);
+            }
+        }
+        return readableUrlMap;
+    }
+
+    private String buildReadableVideoUrl(ManuscriptReviewSysOssEntity sysOss) {
+        if (sysOss == null) {
+            return null;
+        }
+        String fileName = trimToNull(sysOss.getFileName());
+        String service = trimToNull(sysOss.getService());
+        if (fileName == null || service == null) {
+            return trimToNull(sysOss.getUrl());
+        }
+        try {
+            return OssFactory.instance(service).createPresignedGetUrl(fileName, Duration.ofHours(1));
+        } catch (Exception exception) {
+            return trimToNull(sysOss.getUrl());
+        }
     }
 
     private Long requireCurrentUserId() {
