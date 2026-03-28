@@ -47,7 +47,7 @@ Updated: 2026-03-23 17:05:00 +08:00
 2. 之前由外部执行的 4 个 SQL 已完成，不得再误报为“业务表不存在”：
    - `20260321_manuscript_review_ddl_v01.sql`
    - `20260321_manuscript_review_dml_v01.sql`
-   - `20260323_manuscript_review_dev_login_seed_v01.sql`
+   - `20260323_manuscript_review_dev_login_seed_v01-废弃 .sql`
    - `20260323_manuscript_review_readable_http_fixture_v01.sql`
 3. 当前 `brain_manuscript_review*` 七张业务表已存在：
    - `brain_manuscript_review`

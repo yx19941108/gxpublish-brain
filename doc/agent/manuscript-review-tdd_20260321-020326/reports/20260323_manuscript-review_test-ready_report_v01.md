@@ -23,7 +23,7 @@ Updated: 2026-03-23 09:53:28 +08:00
 ### 2.1 本轮新增成果
 
 - 新增 dev-only 登录补丁：
-  - `Brain/script/sql/update/20260323_manuscript_review_dev_login_seed_v01.sql`
+  - `Brain/script/sql/update/20260323_manuscript_review_dev_login_seed_v01-废弃 .sql`
   - 作用：仅更新既有 5 个 `mr_*` 账号的 `sys_user.password`
   - dev-only 明文口令：`666666`
 - 新增 readable HTTP 样例 fixture：
@@ -78,7 +78,7 @@ Updated: 2026-03-23 09:53:28 +08:00
 
 本轮应提交的边界内文件：
 
-- `Brain/script/sql/update/20260323_manuscript_review_dev_login_seed_v01.sql`
+- `Brain/script/sql/update/20260323_manuscript_review_dev_login_seed_v01-废弃 .sql`
 - `Brain/script/sql/update/20260323_manuscript_review_readable_http_fixture_v01.sql`
 - `plus-ui-ts/src/api/workflow/instance/index.ts`
 - `plus-ui-ts/src/api/workflow/instance/types.ts`

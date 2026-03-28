@@ -28,7 +28,7 @@ Updated: 2026-03-23 17:05:00 +08:00
 
 1. `Brain/script/sql/update/20260321_manuscript_review_ddl_v01.sql`
 2. `Brain/script/sql/update/20260321_manuscript_review_dml_v01.sql`
-3. `Brain/script/sql/update/20260323_manuscript_review_dev_login_seed_v01.sql`
+3. `Brain/script/sql/update/20260323_manuscript_review_dev_login_seed_v01-废弃 .sql`
 4. `Brain/script/sql/update/20260323_manuscript_review_readable_http_fixture_v01.sql`
 
 ### 2.3 本轮新增 SQL 口径

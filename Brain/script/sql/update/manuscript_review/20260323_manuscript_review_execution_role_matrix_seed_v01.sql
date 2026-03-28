@@ -6,7 +6,7 @@
 /* Apply after the already-executed baseline:                                 */
 /*   1) 20260321_manuscript_review_ddl_v01.sql                                */
 /*   2) 20260321_manuscript_review_dml_v01.sql                                */
-/*   3) 20260323_manuscript_review_dev_login_seed_v01.sql                     */
+/*   3) 20260323_manuscript_review_dev_login_seed_v01-废弃 .sql                     */
 /*   4) 20260323_manuscript_review_readable_http_fixture_v01.sql              */
 /* -------------------------------------------------------------------------- */
 

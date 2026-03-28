@@ -4,7 +4,7 @@
 /* Purpose: prepare one high-sample review for readable ledger/detail checks. */
 /* Apply after: 20260321_manuscript_review_ddl_v01.sql                        */
 /*             20260321_manuscript_review_dml_v01.sql                         */
-/*             20260323_manuscript_review_dev_login_seed_v01.sql              */
+/*             20260323_manuscript_review_dev_login_seed_v01-废弃 .sql              */
 /* -------------------------------------------------------------------------- */
 
 INSERT INTO brain_manuscript_review (

@@ -27,7 +27,7 @@ Updated: 2026-03-23 17:05:00 +08:00
 2. 4 个基础 SQL 已执行完成，不得再误报不存在业务表：
    - `20260321_manuscript_review_ddl_v01.sql`
    - `20260321_manuscript_review_dml_v01.sql`
-   - `20260323_manuscript_review_dev_login_seed_v01.sql`
+   - `20260323_manuscript_review_dev_login_seed_v01-废弃 .sql`
    - `20260323_manuscript_review_readable_http_fixture_v01.sql`
 3. 当前仍未闭环的重点不是“能否读到页面”，而是：
    - 角色矩阵是否补齐
@@ -90,7 +90,7 @@ Updated: 2026-03-23 17:05:00 +08:00
 - 以下 4 个 SQL 已由外部执行完成，不得误报未执行：
   - `Brain/script/sql/update/20260321_manuscript_review_ddl_v01.sql`
   - `Brain/script/sql/update/20260321_manuscript_review_dml_v01.sql`
-  - `Brain/script/sql/update/20260323_manuscript_review_dev_login_seed_v01.sql`
+  - `Brain/script/sql/update/20260323_manuscript_review_dev_login_seed_v01-废弃 .sql`
   - `Brain/script/sql/update/20260323_manuscript_review_readable_http_fixture_v01.sql`
 - 本轮新增待执行阶段参考 SQL：
   - `Brain/script/sql/update/20260323_manuscript_review_execution_role_matrix_seed_v01.sql`

@@ -8,7 +8,7 @@
 apply order
 1) 20260321_manuscript_review_ddl_v01.sql
 2) 20260321_manuscript_review_dml_v01.sql
-3) 20260323_manuscript_review_dev_login_seed_v01.sql
+3) 20260323_manuscript_review_dev_login_seed_v01-废弃 .sql
 4) 20260323_manuscript_review_execution_role_matrix_seed_v01.sql
 5) 20260325_manuscript_review_workflow_seed_v01.sql
 

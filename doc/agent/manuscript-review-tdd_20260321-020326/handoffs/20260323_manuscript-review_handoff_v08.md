@@ -28,7 +28,7 @@ Updated: 2026-03-23 09:53:28 +08:00
   - readable HTTP 样例 fixture 已落地
   - `去审批` 已推进到前端可测
 - 当前关键增量：
-  - `Brain/script/sql/update/20260323_manuscript_review_dev_login_seed_v01.sql`
+  - `Brain/script/sql/update/20260323_manuscript_review_dev_login_seed_v01-废弃 .sql`
   - `Brain/script/sql/update/20260323_manuscript_review_readable_http_fixture_v01.sql`
   - `plus-ui-ts/src/views/manuscript-review/detail.vue`
   - `plus-ui-ts/src/views/manuscript-review/detail-approve-jump.spec.ts`
@@ -92,7 +92,7 @@ Updated: 2026-03-23 09:53:28 +08:00
 
 1. `20260321_manuscript_review_ddl_v01.sql`
 2. `20260321_manuscript_review_dml_v01.sql`
-3. `20260323_manuscript_review_dev_login_seed_v01.sql`
+3. `20260323_manuscript_review_dev_login_seed_v01-废弃 .sql`
 4. `20260323_manuscript_review_readable_http_fixture_v01.sql`
 
 ### 4.2 建议运行时起点
@@ -134,7 +134,7 @@ Updated: 2026-03-23 09:53:28 +08:00
 - 展示必须业务可读：不要在 UI 里直出数据库 ID、枚举码、账号、role key、permission flag；`reviewId` 仅允许用于隐式定位。
 
 当前已确认状态：
-- dev-only 登录补丁已落地：`20260323_manuscript_review_dev_login_seed_v01.sql`
+- dev-only 登录补丁已落地：`20260323_manuscript_review_dev_login_seed_v01-废弃 .sql`
 - readable HTTP 高位样例 fixture 已落地：`20260323_manuscript_review_readable_http_fixture_v01.sql`
 - `去审批` 已推进到前端可测，成功分支会跳 `/workflow/approval/detail?id=<reviewId>&type=approval&taskId=<taskId>`，取不到实例/待办时会展示 blocker 文案。
 - fresh 验证已补齐：
