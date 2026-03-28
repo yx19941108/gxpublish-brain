@@ -135,16 +135,24 @@ class ManuscriptReviewSharedApiMvcTest {
             "2026-03-21 08:06:00", "2026-03-24 08:00:00"));
         fixture.storeAttachment(buildAttachment(9403L, 9301L, true, "样片.mp4", "https://files.example/video.mp4", "1",
             "2026-03-21 08:10:00", null));
+        fixture.storeAttachment(buildAttachment(9404L, 9301L, true, "补充样片.mp4", "https://files.example/video-2.mp4", "1",
+            "2026-03-21 08:11:00", null));
         fixture.storeExternalLink(buildExternalLink(9501L, 9301L, "素材参考", "https://example.com/ref", "1",
             "2026-03-21 08:12:00", null));
         fixture.storeExternalLink(buildExternalLink(9502L, 9301L, "停用外链", "https://example.com/old", "0",
             "2026-03-21 08:13:00", "2026-03-24 08:05:00"));
         fixture.storeVideoMarker(buildVideoMark(9601L, 9301L, 9403L, "00:00:05", "00:00:12", "当前标注", "1",
             "2026-03-21 08:20:00", null));
+        fixture.storeVideoMarker(buildVideoMark(9603L, 9301L, 9404L, "00:00:08", "00:00:15", "第二视频标注", "1",
+            "2026-03-21 08:21:00", null));
         fixture.storeVideoMarker(buildVideoMark(9602L, 9301L, 9403L, "00:00:15", null, "停用标注", "0",
             "2026-03-21 08:25:00", "2026-03-24 08:10:00"));
         fixture.storeHistory(buildHistory(9701L, 9301L, "CREATE", "张三新增了流程。", "张三", "2026-03-21 08:00:00"));
-        fixture.storeHistory(buildHistory(9702L, 9301L, "RETURN_TO_INITIATOR", "李四退回给发起人：请补充说明。", "李四",
+        fixture.storeHistory(buildHistory(9702L, 9301L, "RESOURCE_DISABLE", "李四停用了附件《停用附件.pdf》。", "李四",
+            "2026-03-24 08:00:00"));
+        fixture.storeHistory(buildHistory(9703L, 9301L, "RESOURCE_DISABLE", "李四停用了外链《停用外链》。", "李四",
+            "2026-03-24 08:05:00"));
+        fixture.storeHistory(buildHistory(9704L, 9301L, "RETURN_TO_INITIATOR", "李四退回给发起人：请补充说明。", "李四",
             "2026-03-24 09:00:00"));
 
         fixture.perform(get("/workflow/manuscript-review/{id}", 9301L))
@@ -166,17 +174,31 @@ class ManuscriptReviewSharedApiMvcTest {
             .andExpect(jsonPath("$.data.latestSubmitTime").value("2026-03-24 09:30:00"))
             .andExpect(jsonPath("$.data.attachmentList", hasSize(1)))
             .andExpect(jsonPath("$.data.attachmentList[0].id").value(9401L))
+            .andExpect(jsonPath("$.data.attachmentList[0].ossId").value(8801L))
             .andExpect(jsonPath("$.data.attachmentList[0].resourceUrl").value("https://files.example/current.pdf"))
             .andExpect(jsonPath("$.data.externalLinkList", hasSize(1)))
             .andExpect(jsonPath("$.data.externalLinkList[0].id").value(9501L))
             .andExpect(jsonPath("$.data.externalLinkList[0].externalUrl").value("https://example.com/ref"))
-            .andExpect(jsonPath("$.data.videoList", hasSize(1)))
+            .andExpect(jsonPath("$.data.videoList", hasSize(2)))
             .andExpect(jsonPath("$.data.videoList[0].id").value(9403L))
+            .andExpect(jsonPath("$.data.videoList[0].ossId").value(8803L))
             .andExpect(jsonPath("$.data.videoList[0].resourceUrl").value("https://files.example/video.mp4"))
-            .andExpect(jsonPath("$.data.videoMarkList", hasSize(1)))
+            .andExpect(jsonPath("$.data.videoList[1].id").value(9404L))
+            .andExpect(jsonPath("$.data.videoList[1].resourceUrl").value("https://files.example/video-2.mp4"))
+            .andExpect(jsonPath("$.data.videoMarkList", hasSize(2)))
             .andExpect(jsonPath("$.data.videoMarkList[0].id").value(9601L))
-            .andExpect(jsonPath("$.data.timelineItems", hasSize(2)))
+            .andExpect(jsonPath("$.data.videoMarkList[0].resourceId").value(9403L))
+            .andExpect(jsonPath("$.data.videoMarkList[1].id").value(9603L))
+            .andExpect(jsonPath("$.data.videoMarkList[1].resourceId").value(9404L))
+            .andExpect(jsonPath("$.data.timelineItems", hasSize(4)))
             .andExpect(jsonPath("$.data.timelineItems[0].eventText").value("张三新增了流程。"))
+            .andExpect(jsonPath("$.data.timelineItems[1].relatedResourceName").value("停用附件.pdf"))
+            .andExpect(jsonPath("$.data.timelineItems[1].relatedResourceType").value("ATTACHMENT"))
+            .andExpect(jsonPath("$.data.timelineItems[1].relatedResourceOssId").value(8802L))
+            .andExpect(jsonPath("$.data.timelineItems[1].relatedResourceUrl").value("https://files.example/disabled.pdf"))
+            .andExpect(jsonPath("$.data.timelineItems[2].relatedResourceName").value("停用外链"))
+            .andExpect(jsonPath("$.data.timelineItems[2].relatedResourceType").value("EXTERNAL_LINK"))
+            .andExpect(jsonPath("$.data.timelineItems[2].relatedExternalUrl").value("https://example.com/old"))
             .andExpect(jsonPath("$.data.permissionMatrix.canResubmit").value(true))
             .andExpect(jsonPath("$.data.permissionMatrix.canGotoApproval").value(false))
             .andExpect(content().string(not(containsString("旧媒体/旧栏目"))))
@@ -336,6 +358,7 @@ class ManuscriptReviewSharedApiMvcTest {
         entity.setTenantId("000000");
         entity.setReviewId(reviewId);
         entity.setFileName(fileName);
+        entity.setOssId(id - 600L);
         entity.setFileUrl(fileUrl);
         entity.setIsVideo(video);
         entity.setVideoDurationSeconds(video ? 600 : null);

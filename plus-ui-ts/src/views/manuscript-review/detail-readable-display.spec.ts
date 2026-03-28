@@ -1,6 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { buildDetailActionBar, buildReadableSummary, normalizeDetailViewModel } from './detail.contract';
+import {
+  buildDetailActionBar,
+  buildReadableSummary,
+  buildVideoPlaybackItems,
+  normalizeDetailViewModel,
+  parseVideoTimeTextToSeconds
+} from './detail.contract';
 
 const { requestInvoker } = vi.hoisted(() => ({
   requestInvoker: vi.fn(async (config: unknown) => config)
@@ -84,6 +90,10 @@ describe('T07_Frontend_DetailActions_AndReadableDisplaySpec', () => {
       endTimeText: '00:00:10',
       markContent: '第一处问题'
     });
+    await api.disableManuscriptReviewVideoMark({
+      markId: 7002,
+      disabledReason: '标注停用'
+    });
 
     expect(
       requestInvoker.mock.calls.map(([config]) => `${(config as { method: string }).method}:${(config as { url: string }).url}`)
@@ -96,7 +106,8 @@ describe('T07_Frontend_DetailActions_AndReadableDisplaySpec', () => {
       'put:/workflow/manuscript-review/cancelProcessApply',
       'post:/workflow/manuscript-review/resource',
       'put:/workflow/manuscript-review/resource/disable',
-      'post:/workflow/manuscript-review/video-mark'
+      'post:/workflow/manuscript-review/video-mark',
+      'put:/workflow/manuscript-review/video-mark/disable'
     ]);
 
     const [submitCall, updateCall] = requestInvoker.mock.calls
@@ -180,6 +191,7 @@ describe('T07_Frontend_DetailActions_AndReadableDisplaySpec', () => {
         attachmentList: [
           {
             id: 1,
+            ossId: 8001,
             resourceType: 'ATTACHMENT',
             resourceTypeLabel: '附件',
             displayName: '送审单.pdf',
@@ -198,6 +210,7 @@ describe('T07_Frontend_DetailActions_AndReadableDisplaySpec', () => {
         videoList: [
           {
             id: 3,
+            ossId: 8003,
             resourceType: 'VIDEO',
             resourceTypeLabel: '视频',
             displayName: '样片.mp4',
@@ -207,6 +220,7 @@ describe('T07_Frontend_DetailActions_AndReadableDisplaySpec', () => {
         videoMarkList: [
           {
             id: 4,
+            resourceId: 3,
             startTimeText: '00:00:05',
             endTimeText: '00:00:10',
             markContent: '第一处问题'
@@ -241,13 +255,17 @@ describe('T07_Frontend_DetailActions_AndReadableDisplaySpec', () => {
     expect(viewModel.resourceItems).toEqual([
       {
         id: '1',
+        resourceType: 'ATTACHMENT',
         typeLabel: '附件',
         name: '送审单.pdf',
         statusLabel: '当前有效',
-        note: 'https://files.example/a.pdf'
+        note: 'https://files.example/a.pdf',
+        resourceUrl: 'https://files.example/a.pdf',
+        ossId: '8001'
       },
       {
         id: '2',
+        resourceType: 'EXTERNAL_LINK',
         typeLabel: '外链',
         name: '素材参考',
         statusLabel: '当前有效',
@@ -256,17 +274,25 @@ describe('T07_Frontend_DetailActions_AndReadableDisplaySpec', () => {
       },
       {
         id: '3',
+        resourceType: 'VIDEO',
         typeLabel: '视频',
         name: '样片.mp4',
         statusLabel: '当前有效',
-        note: 'https://files.example/video.mp4'
+        note: 'https://files.example/video.mp4',
+        resourceUrl: 'https://files.example/video.mp4',
+        ossId: '8003'
       },
       {
         id: '4',
+        resourceType: 'VIDEO_MARK',
         typeLabel: '视频时间标注',
         name: '00:00:05',
         statusLabel: '当前有效',
-        note: '第一处问题'
+        note: '第一处问题',
+        resourceId: '3',
+        startTimeText: '00:00:05',
+        endTimeText: '00:00:10',
+        markContent: '第一处问题'
       }
     ]);
     expect(summary).toEqual(
@@ -309,6 +335,7 @@ describe('T07_Frontend_DetailActions_AndReadableDisplaySpec', () => {
     expect(viewModel.resourceItems).toEqual([
       {
         id: '201',
+        resourceType: 'EXTERNAL_LINK',
         typeLabel: '外链',
         name: '参考链接',
         statusLabel: '当前有效',
@@ -316,5 +343,166 @@ describe('T07_Frontend_DetailActions_AndReadableDisplaySpec', () => {
         href: 'https://example.com/link'
       }
     ]);
+  });
+
+  it('keeps disabled resource and external-link names clickable in timeline history', () => {
+    const viewModel = normalizeDetailViewModel({
+      code: 200,
+      data: {
+        id: 9011,
+        manuscriptCode: 'JD20260328001',
+        title: '停用历史跳转测试',
+        submitDepartment: '测试部',
+        businessStatusLabel: '审批中',
+        currentNodeLabel: '待一级审批',
+        timelineItems: [
+          {
+            eventTime: '2026-03-28 13:05:28',
+            eventCode: 'RESOURCE_DISABLE',
+            eventText: 'mr_approver_l1停用了附件《取证附件.pdf》。',
+            operatorName: 'mr_approver_l1',
+            relatedResourceName: '取证附件.pdf',
+            relatedResourceOssId: 9901,
+            relatedResourceType: 'ATTACHMENT',
+            relatedResourceUrl: 'https://files.example/proof.pdf'
+          },
+          {
+            eventTime: '2026-03-28 13:05:29',
+            eventCode: 'RESOURCE_DISABLE',
+            eventText: 'mr_approver_l1停用了外链《取证外链》。',
+            operatorName: 'mr_approver_l1',
+            relatedResourceName: '取证外链',
+            relatedResourceType: 'EXTERNAL_LINK',
+            relatedExternalUrl: 'https://example.com/proof'
+          }
+        ]
+      }
+    });
+
+    expect(viewModel.historyItems).toEqual([
+      {
+        id: 'timeline-1',
+        timeLabel: '2026-03-28 13:05:28',
+        actionLabel: 'mr_approver_l1停用了附件《取证附件.pdf》。',
+        operatorName: 'mr_approver_l1',
+        remark: undefined,
+        actionPrefix: 'mr_approver_l1停用了附件',
+        actionLinkLabel: '《取证附件.pdf》',
+        actionSuffix: '。',
+        actionLinkOssId: '9901',
+        actionLinkHref: 'https://files.example/proof.pdf'
+      },
+      {
+        id: 'timeline-2',
+        timeLabel: '2026-03-28 13:05:29',
+        actionLabel: 'mr_approver_l1停用了外链《取证外链》。',
+        operatorName: 'mr_approver_l1',
+        remark: undefined,
+        actionPrefix: 'mr_approver_l1停用了外链',
+        actionLinkLabel: '《取证外链》',
+        actionSuffix: '。',
+        actionLinkOssId: undefined,
+        actionLinkHref: 'https://example.com/proof'
+      }
+    ]);
+  });
+
+  it('groups video marks by resource and keeps them sortable for playback interaction', () => {
+    const playbackItems = buildVideoPlaybackItems({
+      id: 9012,
+      manuscriptCode: 'JD20260328002',
+      title: '多视频切换测试',
+      submitDepartment: '测试部',
+      businessStatusLabel: '审批中',
+      currentNodeLabel: '待一级审批',
+      videoList: [
+        {
+          id: 301,
+          resourceType: 'VIDEO',
+          resourceTypeLabel: '视频',
+          displayName: '样片一.mp4',
+          resourceUrl: 'https://files.example/video-1.mp4'
+        },
+        {
+          id: 302,
+          resourceType: 'VIDEO',
+          resourceTypeLabel: '视频',
+          displayName: '样片二.mp4',
+          resourceUrl: 'https://files.example/video-2.mp4'
+        }
+      ],
+      videoMarkList: [
+        {
+          id: 401,
+          resourceId: 302,
+          startTimeText: '00:00:08',
+          endTimeText: '00:00:10',
+          markContent: '第二视频标注'
+        },
+        {
+          id: 402,
+          resourceId: 301,
+          startTimeText: '00:00:05',
+          endTimeText: '00:00:12',
+          markContent: '第一视频标注'
+        },
+        {
+          id: 403,
+          resourceId: 301,
+          startTimeText: '00:00:02',
+          endTimeText: '00:00:04',
+          markContent: '第一视频更早标注'
+        }
+      ]
+    });
+
+    expect(playbackItems).toEqual([
+      {
+        id: '301',
+        name: '样片一.mp4',
+        resourceUrl: 'https://files.example/video-1.mp4',
+        ossId: undefined,
+        marks: [
+          {
+            id: '403',
+            resourceId: '301',
+            startTimeText: '00:00:02',
+            endTimeText: '00:00:04',
+            markContent: '第一视频更早标注',
+            startSeconds: 2
+          },
+          {
+            id: '402',
+            resourceId: '301',
+            startTimeText: '00:00:05',
+            endTimeText: '00:00:12',
+            markContent: '第一视频标注',
+            startSeconds: 5
+          }
+        ]
+      },
+      {
+        id: '302',
+        name: '样片二.mp4',
+        resourceUrl: 'https://files.example/video-2.mp4',
+        ossId: undefined,
+        marks: [
+          {
+            id: '401',
+            resourceId: '302',
+            startTimeText: '00:00:08',
+            endTimeText: '00:00:10',
+            markContent: '第二视频标注',
+            startSeconds: 8
+          }
+        ]
+      }
+    ]);
+  });
+
+  it('parses HH:mm:ss video mark time text into seconds', () => {
+    expect(parseVideoTimeTextToSeconds('00:00:05')).toBe(5);
+    expect(parseVideoTimeTextToSeconds('00:10:15')).toBe(615);
+    expect(parseVideoTimeTextToSeconds('3:7')).toBeUndefined();
   });
 });

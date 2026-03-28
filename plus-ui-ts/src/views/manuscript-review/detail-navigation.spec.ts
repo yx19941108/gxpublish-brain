@@ -1,11 +1,31 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildEditRouteLocation, resolveApprovalBackTarget, resolveApprovalSuccessTarget, resolveDetailBackTarget } from './detail-navigation';
+import {
+  buildEditRouteLocation,
+  buildWorkflowViewDetailRoute,
+  isManuscriptReviewFormPath,
+  resolveApprovalBackTarget,
+  resolveApprovalSuccessTarget,
+  resolveDetailBackTarget
+} from './detail-navigation';
 
 describe('T10_ManuscriptReview_DetailNavigationSpec', () => {
   it('routes detail back to waiting-task list when the page is opened from workflow waiting entry', () => {
     expect(resolveDetailBackTarget({ type: 'view', taskId: 'task-1001', id: 'review-1001' })).toEqual({
       path: '/workflow/task/taskWaiting'
+    });
+  });
+
+  it('routes detail back to the captured workflow list when the page is opened with returnTo', () => {
+    expect(
+      resolveDetailBackTarget({
+        reviewId: 'review-1001',
+        type: 'view',
+        taskId: 'task-1001',
+        returnTo: '/workflow/task/taskFinish'
+      })
+    ).toEqual({
+      path: '/workflow/task/taskFinish'
     });
   });
 
@@ -53,5 +73,22 @@ describe('T10_ManuscriptReview_DetailNavigationSpec', () => {
     expect(resolveApprovalSuccessTarget()).toEqual({
       path: '/manuscript/review'
     });
+  });
+
+  it('builds workflow manuscript-review view route with return target', () => {
+    expect(buildWorkflowViewDetailRoute('review-3001', 'task-3001', '/workflow/task/myDocument')).toEqual({
+      path: '/manuscript/review/detail',
+      query: {
+        reviewId: 'review-3001',
+        type: 'view',
+        taskId: 'task-3001',
+        returnTo: '/workflow/task/myDocument'
+      }
+    });
+  });
+
+  it('identifies manuscript-review approval form path only', () => {
+    expect(isManuscriptReviewFormPath('/manuscript/review/approval')).toBe(true);
+    expect(isManuscriptReviewFormPath('/workflow/leave/edit')).toBe(false);
   });
 });

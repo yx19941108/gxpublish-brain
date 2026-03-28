@@ -14,6 +14,15 @@ describe('T09_Frontend_DetailLayoutSpec', () => {
     expect(file).toContain('manuscript-review-detail-shell__action-panel');
     expect(file).toContain('去审批');
     expect(file).toContain('重新提交');
+    expect(file).toContain('停用');
+    expect(file).toContain('预览');
+    expect(file).toContain('下载');
+    expect(file).toContain('manuscript-review-detail-shell__timeline-link');
+    expect(file).toContain('data-testid="manuscript-review-video-player"');
+    expect(file).toContain('data-testid="manuscript-review-video-switcher"');
+    expect(file).toContain('data-testid="manuscript-review-video-mark-jump-list"');
+    expect(file).toContain('jumpToVideoMark');
+    expect(file).toContain('<video');
     expect(file).not.toContain('页内直接审批');
   });
 

@@ -75,6 +75,11 @@ public class ManuscriptReviewDetailResponse {
         private String operatorName;
         private String relatedNode;
         private String relatedResourceName;
+        private Long relatedResourceId;
+        private Long relatedResourceOssId;
+        private String relatedResourceType;
+        private String relatedResourceUrl;
+        private String relatedExternalUrl;
         private String statusLabel;
         private String diffSummary;
     }
@@ -87,6 +92,7 @@ public class ManuscriptReviewDetailResponse {
     public static class ResourceItemVO {
 
         private Long id;
+        private Long ossId;
         private String resourceType;
         private String resourceTypeLabel;
         private String displayName;
@@ -103,6 +109,7 @@ public class ManuscriptReviewDetailResponse {
     public static class VideoMarkItemVO {
 
         private Long id;
+        private Long resourceId;
         private String startTimeText;
         private String endTimeText;
         private String markContent;

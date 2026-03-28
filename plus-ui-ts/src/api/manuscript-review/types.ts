@@ -66,6 +66,11 @@ export interface ManuscriptReviewVideoMarkCreateCommand {
   markContent: string;
 }
 
+export interface ManuscriptReviewVideoMarkDisableCommand {
+  markId: string | number;
+  disabledReason?: string;
+}
+
 export interface ManuscriptReviewPermissionMatrixVO {
   isInitiator?: boolean;
   isCurrentApprover?: boolean;
@@ -80,6 +85,7 @@ export interface ManuscriptReviewPermissionMatrixVO {
 
 export interface ManuscriptReviewResourceItemVO {
   id: string | number;
+  ossId?: string | number;
   resourceType?: string;
   resourceTypeLabel?: string;
   displayName: string;
@@ -90,6 +96,7 @@ export interface ManuscriptReviewResourceItemVO {
 
 export interface ManuscriptReviewVideoMarkItemVO {
   id: string | number;
+  resourceId?: string | number;
   startTimeText: string;
   endTimeText?: string;
   markContent: string;
@@ -104,6 +111,11 @@ export interface ManuscriptReviewTimelineItemVO {
   operatorName?: string;
   relatedNode?: string;
   relatedResourceName?: string;
+  relatedResourceId?: string | number;
+  relatedResourceOssId?: string | number;
+  relatedResourceType?: string;
+  relatedResourceUrl?: string;
+  relatedExternalUrl?: string;
   statusLabel?: string;
   diffSummary?: string;
 }

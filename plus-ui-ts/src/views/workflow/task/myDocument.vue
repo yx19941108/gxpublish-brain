@@ -109,6 +109,7 @@ import { CategoryTreeVO } from '@/api/workflow/category/types';
 import { FlowInstanceQuery, FlowInstanceVO } from '@/api/workflow/instance/types';
 import workflowCommon from '@/api/workflow/workflowCommon';
 import { RouterJumpVo } from '@/api/workflow/workflowCommon/types';
+import { buildWorkflowViewDetailRoute, isManuscriptReviewFormPath } from '@/views/manuscript-review/detail-navigation';
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
 const { wf_business_status } = toRefs<any>(proxy?.useDict('wf_business_status'));
 const queryFormRef = ref<ElFormInstance>();
@@ -234,6 +235,12 @@ const handleCancelProcessApply = async (businessId: string) => {
 
 //办理
 const handleOpen = async (row, type) => {
+  if (type === 'view' && isManuscriptReviewFormPath(row.formPath)) {
+    proxy?.$tab.closePage(proxy?.$route);
+    proxy?.$router.push(buildWorkflowViewDetailRoute(String(row.businessId), row.id, '/workflow/task/myDocument'));
+    return;
+  }
+
   const routerJumpVo = reactive<RouterJumpVo>({
     businessId: row.businessId,
     taskId: row.id,

@@ -133,15 +133,16 @@ class ManuscriptReviewApiControllerTest {
         detail.setLatestSubmitTime("2026-03-23 11:22:33");
         detail.setUpdateTime("2026-03-23 11:22:33");
         detail.setAttachmentList(List.of(new ManuscriptReviewDetailResponse.ResourceItemVO(
-            1L, "ATTACHMENT", "附件", "送审单.pdf", null, "2026-03-23 11:10:00", "https://files.example/a.pdf")));
+            1L, 8001L, "ATTACHMENT", "附件", "送审单.pdf", null, "2026-03-23 11:10:00", "https://files.example/a.pdf")));
         detail.setExternalLinkList(List.of(new ManuscriptReviewDetailResponse.ResourceItemVO(
-            2L, "EXTERNAL_LINK", "外链", "素材参考", "https://example.com/ref", "2026-03-23 11:11:00", null)));
+            2L, null, "EXTERNAL_LINK", "外链", "素材参考", "https://example.com/ref", "2026-03-23 11:11:00", null)));
         detail.setVideoList(List.of(new ManuscriptReviewDetailResponse.ResourceItemVO(
-            3L, "VIDEO", "视频", "样片.mp4", null, "2026-03-23 11:12:00", "https://files.example/video.mp4")));
+            3L, 8003L, "VIDEO", "视频", "样片.mp4", null, "2026-03-23 11:12:00", "https://files.example/video.mp4")));
         detail.setVideoMarkList(List.of(new ManuscriptReviewDetailResponse.VideoMarkItemVO(
-            4L, "00:00:05", "00:00:10", "第一处问题")));
+            4L, 3L, "00:00:05", "00:00:10", "第一处问题")));
         detail.setTimelineItems(List.of(new ManuscriptReviewDetailResponse.TimelineItemVO(
-            "2026-03-23 11:20:00", "WORKFLOW", "流程", "CREATE", "张三新增了流程。", "张三", null, null, null, null)));
+            "2026-03-23 11:20:00", "WORKFLOW", "流程", "CREATE", "张三新增了流程。", "张三",
+            null, null, null, null, null, null, null, null, null)));
         detail.setPermissionMatrix(new ManuscriptReviewDetailResponse.PermissionMatrixVO(
             true, false, false, true, true, true, false, false, null));
 
@@ -151,8 +152,10 @@ class ManuscriptReviewApiControllerTest {
         assertTrue(responseJson.contains("\"submitDepartment\":\"总编室\""));
         assertTrue(responseJson.contains("\"permissionMatrix\":"));
         assertTrue(responseJson.contains("\"currentNodeStatus\":\"RETURN_TO_INITIATOR\""));
+        assertTrue(responseJson.contains("\"ossId\":8001"));
         assertTrue(responseJson.contains("\"resourceUrl\":\"https://files.example/a.pdf\""));
         assertTrue(responseJson.contains("\"resourceUrl\":\"https://files.example/video.mp4\""));
+        assertTrue(responseJson.contains("\"resourceId\":3"));
         assertTrue(responseJson.contains("\"externalUrl\":\"https://example.com/ref\""));
         assertFalse(responseJson.contains("\"summaryCard\":"));
         assertFalse(responseJson.contains("\"manuscriptCard\":"));

@@ -84,11 +84,71 @@
             </div>
           </header>
           <div class="manuscript-review-detail-shell__section-body manuscript-review-detail-shell__section-body--resource">
-            <div class="manuscript-review-detail-shell__video-panel">
-              <div class="manuscript-review-detail-shell__video-placeholder">
-                <strong>视频播放器区</strong>
-                <span>多视频场景采用“视频列表 + 单播放器”结构，这里只承载详情态的信息表达。</span>
-              </div>
+            <div class="manuscript-review-detail-shell__video-panel" data-testid="manuscript-review-video-panel">
+              <template v-if="loading">
+                <p class="manuscript-review-detail-shell__section-hint">正在加载视频数据…</p>
+              </template>
+              <template v-else-if="!activeVideo">
+                <div class="manuscript-review-detail-shell__video-placeholder">
+                  <strong>视频播放器区</strong>
+                  <span>当前暂无可播放视频，待视频资源入库后在此承载“视频列表 + 单播放器”的详情联动。</span>
+                </div>
+              </template>
+              <template v-else>
+                <div class="manuscript-review-detail-shell__video-stage">
+                  <video
+                    ref="videoPlayerRef"
+                    :key="activeVideo.id"
+                    data-testid="manuscript-review-video-player"
+                    class="manuscript-review-detail-shell__video-player"
+                    :src="activeVideo.resourceUrl"
+                    controls
+                    preload="metadata"
+                    @loadedmetadata="onVideoLoadedMetadata"
+                  />
+                  <div class="manuscript-review-detail-shell__video-meta">
+                    <div>
+                      <p class="manuscript-review-detail-shell__video-title">{{ activeVideo.name }}</p>
+                      <p class="manuscript-review-detail-shell__video-note">
+                        当前命中 {{ activeVideoMarks.length }} 条有效标注
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div v-if="videoPlaybackItems.length > 1" class="manuscript-review-detail-shell__video-switcher" data-testid="manuscript-review-video-switcher">
+                  <button
+                    v-for="item in videoPlaybackItems"
+                    :key="item.id"
+                    type="button"
+                    class="manuscript-review-detail-shell__video-switch"
+                    :class="{ 'manuscript-review-detail-shell__video-switch--active': item.id === activeVideo.id }"
+                    @click="selectVideo(item.id)"
+                  >
+                    <span>{{ item.name }}</span>
+                    <span>{{ item.marks.length }} 条标注</span>
+                  </button>
+                </div>
+
+                <div class="manuscript-review-detail-shell__video-marks" data-testid="manuscript-review-video-mark-jump-list">
+                  <p class="manuscript-review-detail-shell__video-marks-title">当前视频标注</p>
+                  <p v-if="activeVideoMarks.length === 0" class="manuscript-review-detail-shell__section-hint">当前视频暂无有效标注。</p>
+                  <div v-else class="manuscript-review-detail-shell__video-mark-list">
+                    <button
+                      v-for="item in activeVideoMarks"
+                      :key="item.id"
+                      type="button"
+                      class="manuscript-review-detail-shell__video-mark"
+                      @click="jumpToVideoMark(item.resourceId, item.startSeconds)"
+                    >
+                      <span class="manuscript-review-detail-shell__video-mark-time">
+                        {{ item.startTimeText }}<template v-if="item.endTimeText"> - {{ item.endTimeText }}</template>
+                      </span>
+                      <span class="manuscript-review-detail-shell__video-mark-content">{{ item.markContent }}</span>
+                    </button>
+                  </div>
+                </div>
+              </template>
             </div>
 
             <div class="manuscript-review-detail-shell__resource-groups">
@@ -108,10 +168,30 @@
                       >
                         {{ item.name }}
                       </a>
+                      <button
+                        v-else-if="item.resourceType === 'VIDEO_MARK' && item.resourceId && item.startTimeText"
+                        type="button"
+                        class="manuscript-review-detail-shell__resource-name manuscript-review-detail-shell__timeline-link"
+                        @click="jumpToVideoMark(item.resourceId, parseVideoMarkStartSeconds(item))"
+                      >
+                        {{ item.name }}
+                      </button>
                       <span v-else class="manuscript-review-detail-shell__resource-name">{{ item.name }}</span>
                       <span class="manuscript-review-detail-shell__resource-status">{{ item.statusLabel }}</span>
                     </div>
                     <div v-if="item.note" class="manuscript-review-detail-shell__resource-note">{{ item.note }}</div>
+                    <div v-if="!loading" class="manuscript-review-detail-shell__resource-actions">
+                      <button
+                        v-for="action in resolveResourceActions(item)"
+                        :key="`${item.id}-${action.key}`"
+                        type="button"
+                        class="manuscript-review-detail-shell__resource-action"
+                        :disabled="resourcePendingKey === `${item.id}:${action.key}`"
+                        @click="onResourceAction(item, action.key)"
+                      >
+                        {{ action.label }}
+                      </button>
+                    </div>
                   </li>
                 </ul>
               </article>
@@ -133,7 +213,20 @@
               <li v-for="item in historyItems" :key="item.id" class="manuscript-review-detail-shell__timeline-item">
                 <div class="manuscript-review-detail-shell__timeline-time">{{ item.timeLabel }}</div>
                 <div class="manuscript-review-detail-shell__timeline-content">
-                  <div class="manuscript-review-detail-shell__timeline-title">{{ item.actionLabel }}</div>
+                  <div class="manuscript-review-detail-shell__timeline-title">
+                    <template v-if="item.actionLinkLabel && (item.actionLinkHref || item.actionLinkOssId)">
+                      {{ item.actionPrefix }}
+                      <button
+                        type="button"
+                        class="manuscript-review-detail-shell__timeline-link"
+                        @click="onHistoryAction(item)"
+                      >
+                        {{ item.actionLinkLabel }}
+                      </button>
+                      {{ item.actionSuffix }}
+                    </template>
+                    <template v-else>{{ item.actionLabel }}</template>
+                  </div>
                   <div v-if="item.operatorName" class="manuscript-review-detail-shell__timeline-operator">
                     {{ item.operatorName }}
                   </div>
@@ -150,20 +243,29 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, getCurrentInstance, nextTick, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
-import { getManuscriptReviewDetail, resubmitManuscriptReview } from '@/api/manuscript-review';
+import {
+  disableManuscriptReviewResource,
+  disableManuscriptReviewVideoMark,
+  getManuscriptReviewDetail,
+  resubmitManuscriptReview
+} from '@/api/manuscript-review';
 import { flowHisTaskList, getInfo } from '@/api/workflow/instance';
 import { resolveManuscriptApproveAction, type ManuscriptReviewApproveActionResult } from '@/types/manuscript-review/detail';
 import SubmitVerify from '@/components/Process/submitVerify.vue';
 
 import {
+  buildVideoPlaybackItems,
   buildDetailActionBar,
   normalizeDetailViewModel,
+  parseVideoTimeTextToSeconds,
   type ManuscriptReviewDetailReadableViewModel,
   type ManuscriptReviewHistoryItem,
-  type ManuscriptReviewResourceItem
+  type ManuscriptReviewResourceItem,
+  type ManuscriptReviewVideoPlaybackItem,
+  type ManuscriptReviewVideoPlaybackMarkItem
 } from './detail.contract';
 import {
   buildApprovalRouteLocation,
@@ -174,11 +276,13 @@ import {
 } from './detail-navigation';
 
 type ActionKey = 'edit' | 'approve' | 'resubmit' | 'back' | '';
+type ResourceActionKey = 'disable' | 'preview' | 'download' | 'open';
 
 const props = defineProps<{
   pageMode: 'detail' | 'approval';
 }>();
 
+const { proxy } = getCurrentInstance() as ComponentInternalInstance;
 const route = useRoute();
 const router = useRouter();
 
@@ -196,9 +300,13 @@ const routeTaskId = computed(() => {
 
 const loading = ref(false);
 const actionPendingKey = ref<ActionKey>('');
+const resourcePendingKey = ref('');
 const errorMessage = ref('');
 const viewModel = ref<ManuscriptReviewDetailReadableViewModel | null>(null);
 const submitVerifyRef = ref<InstanceType<typeof SubmitVerify>>();
+const videoPlayerRef = ref<HTMLVideoElement | null>(null);
+const activeVideoId = ref('');
+const pendingSeekSeconds = ref<number | null>(null);
 
 const detailSource = computed(() => viewModel.value?.detail ?? null);
 const actionBar = computed(() => {
@@ -213,6 +321,15 @@ const actionBar = computed(() => {
 });
 const historyItems = computed<ManuscriptReviewHistoryItem[]>(() => viewModel.value?.historyItems ?? []);
 const resourceItems = computed<ManuscriptReviewResourceItem[]>(() => viewModel.value?.resourceItems ?? []);
+const videoPlaybackItems = computed(() => buildVideoPlaybackItems(detailSource.value ?? {}));
+const activeVideo = computed<ManuscriptReviewVideoPlaybackItem | undefined>(() => {
+  const currentId = activeVideoId.value.trim();
+  if (currentId) {
+    return videoPlaybackItems.value.find((item) => item.id === currentId);
+  }
+  return videoPlaybackItems.value[0];
+});
+const activeVideoMarks = computed<ManuscriptReviewVideoPlaybackMarkItem[]>(() => activeVideo.value?.marks ?? []);
 
 const summaryCards = computed(() => {
   const detail = detailSource.value;
@@ -275,6 +392,56 @@ const resourceGroups = computed(() => {
 
   return groups;
 });
+
+const canManageResources = computed(() => Boolean(detailSource.value?.permissionMatrix?.canEdit));
+
+watch(
+  videoPlaybackItems,
+  (items) => {
+    if (items.length === 0) {
+      activeVideoId.value = '';
+      pendingSeekSeconds.value = null;
+      return;
+    }
+
+    if (!items.some((item) => item.id === activeVideoId.value)) {
+      activeVideoId.value = items[0].id;
+    }
+  },
+  { immediate: true }
+);
+
+const resolveResourceActions = (item: ManuscriptReviewResourceItem) => {
+  const actions: Array<{ key: ResourceActionKey; label: string }> = [];
+
+  if (item.resourceType === 'EXTERNAL_LINK') {
+    if (canManageResources.value) {
+      actions.push({ key: 'disable', label: '停用' });
+    }
+    if (item.href) {
+      actions.push({ key: 'open', label: '打开链接' });
+    }
+    return actions;
+  }
+
+  if (item.resourceType === 'VIDEO_MARK') {
+    if (canManageResources.value) {
+      actions.push({ key: 'disable', label: '停用' });
+    }
+    return actions;
+  }
+
+  if (canManageResources.value) {
+    actions.push({ key: 'disable', label: '停用' });
+  }
+  if (item.resourceUrl) {
+    actions.push({ key: 'preview', label: '预览' });
+  }
+  if (item.ossId) {
+    actions.push({ key: 'download', label: '下载' });
+  }
+  return actions;
+};
 
 const fetchDetail = async () => {
   if (!reviewId.value) {
@@ -366,6 +533,107 @@ const onAction = async (key: string) => {
     } finally {
       actionPendingKey.value = '';
     }
+  }
+};
+
+const openExternalTarget = (href?: string) => {
+  if (!href) {
+    errorMessage.value = '当前资源缺少可访问地址。';
+    return;
+  }
+
+  window.open(href, '_blank', 'noopener,noreferrer');
+};
+
+const parseVideoMarkStartSeconds = (item: ManuscriptReviewResourceItem): number | undefined =>
+  parseVideoTimeTextToSeconds(item.startTimeText);
+
+const applyPendingVideoSeek = () => {
+  const player = videoPlayerRef.value;
+  if (!player || pendingSeekSeconds.value == null) {
+    return;
+  }
+
+  player.currentTime = pendingSeekSeconds.value;
+  pendingSeekSeconds.value = null;
+};
+
+const onVideoLoadedMetadata = () => {
+  applyPendingVideoSeek();
+};
+
+const selectVideo = (videoId: string) => {
+  activeVideoId.value = videoId;
+};
+
+const jumpToVideoMark = async (videoId: string, seconds?: number) => {
+  if (!videoId || seconds == null) {
+    errorMessage.value = '当前标注缺少有效时间信息，无法跳转。';
+    return;
+  }
+
+  errorMessage.value = '';
+  pendingSeekSeconds.value = seconds;
+  activeVideoId.value = videoId;
+  await nextTick();
+
+  const player = videoPlayerRef.value;
+  if (player && player.readyState >= 1) {
+    applyPendingVideoSeek();
+  }
+};
+
+const onHistoryAction = (item: ManuscriptReviewHistoryItem) => {
+  if (item.actionLinkOssId) {
+    proxy?.$download.oss(item.actionLinkOssId);
+    return;
+  }
+  if (item.actionLinkHref) {
+    openExternalTarget(item.actionLinkHref);
+  }
+};
+
+const onResourceAction = async (item: ManuscriptReviewResourceItem, key: ResourceActionKey) => {
+  if (key === 'preview') {
+    openExternalTarget(item.resourceUrl);
+    return;
+  }
+
+  if (key === 'download') {
+    if (!item.ossId) {
+      errorMessage.value = '当前资源缺少 ossId，无法发起下载。';
+      return;
+    }
+    proxy?.$download.oss(item.ossId);
+    return;
+  }
+
+  if (key === 'open') {
+    openExternalTarget(item.href);
+    return;
+  }
+
+  if (key !== 'disable') {
+    return;
+  }
+
+  resourcePendingKey.value = `${item.id}:${key}`;
+
+  try {
+    await proxy?.$modal.confirm(item.resourceType === 'VIDEO_MARK' ? '确定停用该视频标注吗？' : '确定停用该资源吗？');
+    if (item.resourceType === 'VIDEO_MARK') {
+      await disableManuscriptReviewVideoMark({ markId: item.id });
+    } else {
+      await disableManuscriptReviewResource({ resourceId: item.id });
+    }
+    proxy?.$modal.msgSuccess('停用成功');
+    await fetchDetail();
+  } catch (error) {
+    if (error !== 'cancel') {
+      errorMessage.value = item.resourceType === 'VIDEO_MARK' ? '停用视频标注失败，请稍后重试。' : '停用资源失败，请稍后重试。';
+    }
+  } finally {
+    resourcePendingKey.value = '';
   }
 };
 
@@ -625,6 +893,8 @@ onMounted(() => {
   border-radius: 16px;
   background: linear-gradient(180deg, #fbfdff 0%, #f5f8fd 100%);
   padding: 18px;
+  display: grid;
+  gap: 16px;
 }
 
 .manuscript-review-detail-shell__video-placeholder {
@@ -638,6 +908,104 @@ onMounted(() => {
 .manuscript-review-detail-shell__video-placeholder strong {
   color: var(--el-text-color-primary);
   font-size: 16px;
+}
+
+.manuscript-review-detail-shell__video-stage {
+  display: grid;
+  gap: 12px;
+}
+
+.manuscript-review-detail-shell__video-player {
+  width: 100%;
+  max-height: 420px;
+  border-radius: 14px;
+  background: #0f172a;
+}
+
+.manuscript-review-detail-shell__video-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.manuscript-review-detail-shell__video-title,
+.manuscript-review-detail-shell__video-note,
+.manuscript-review-detail-shell__video-marks-title {
+  margin: 0;
+}
+
+.manuscript-review-detail-shell__video-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--el-text-color-primary);
+}
+
+.manuscript-review-detail-shell__video-note {
+  margin-top: 4px;
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+}
+
+.manuscript-review-detail-shell__video-switcher,
+.manuscript-review-detail-shell__video-mark-list {
+  display: grid;
+  gap: 10px;
+}
+
+.manuscript-review-detail-shell__video-switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--el-border-color);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--el-text-color-primary);
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.manuscript-review-detail-shell__video-switch--active {
+  border-color: var(--el-color-primary);
+  background: var(--el-color-primary-light-9);
+}
+
+.manuscript-review-detail-shell__video-marks {
+  display: grid;
+  gap: 10px;
+}
+
+.manuscript-review-detail-shell__video-mark {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid rgba(29, 78, 216, 0.16);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--el-text-color-primary);
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.manuscript-review-detail-shell__video-mark:hover,
+.manuscript-review-detail-shell__video-switch:hover,
+.manuscript-review-detail-shell__resource-action:hover:not(:disabled) {
+  background: rgba(59, 130, 246, 0.08);
+}
+
+.manuscript-review-detail-shell__video-mark-time {
+  color: #1d4ed8;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.manuscript-review-detail-shell__video-mark-content {
+  line-height: 1.5;
 }
 
 .manuscript-review-detail-shell__resource-groups {
@@ -708,6 +1076,28 @@ onMounted(() => {
   word-break: break-word;
 }
 
+.manuscript-review-detail-shell__resource-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.manuscript-review-detail-shell__resource-action {
+  padding: 6px 12px;
+  border: 1px solid rgba(59, 130, 246, 0.16);
+  border-radius: 999px;
+  background: var(--el-color-white);
+  color: #1d4ed8;
+  font: inherit;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.manuscript-review-detail-shell__resource-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 .manuscript-review-detail-shell__timeline {
   display: grid;
   gap: 12px;
@@ -740,6 +1130,20 @@ onMounted(() => {
 .manuscript-review-detail-shell__timeline-title {
   font-weight: 600;
   color: var(--el-text-color-primary);
+}
+
+.manuscript-review-detail-shell__timeline-link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--el-color-primary);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.manuscript-review-detail-shell__timeline-link:hover {
+  text-decoration: underline;
 }
 
 .manuscript-review-detail-shell__timeline-operator,

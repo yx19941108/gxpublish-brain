@@ -67,15 +67,44 @@ export interface ManuscriptReviewHistoryItem {
   actionLabel: string;
   operatorName: string;
   remark?: string;
+  actionPrefix?: string;
+  actionLinkLabel?: string;
+  actionSuffix?: string;
+  actionLinkOssId?: string;
+  actionLinkHref?: string;
 }
 
 export interface ManuscriptReviewResourceItem {
   id: string;
+  resourceType: string;
   typeLabel: string;
   name: string;
   statusLabel?: string;
   note?: string;
   href?: string;
+  resourceUrl?: string;
+  ossId?: string;
+  resourceId?: string;
+  startTimeText?: string;
+  endTimeText?: string;
+  markContent?: string;
+}
+
+export interface ManuscriptReviewVideoPlaybackMarkItem {
+  id: string;
+  resourceId: string;
+  startTimeText: string;
+  endTimeText?: string;
+  markContent: string;
+  startSeconds: number;
+}
+
+export interface ManuscriptReviewVideoPlaybackItem {
+  id: string;
+  name: string;
+  resourceUrl?: string;
+  ossId?: string;
+  marks: ManuscriptReviewVideoPlaybackMarkItem[];
 }
 
 export interface ManuscriptReviewDetailReadableViewModel {
@@ -215,6 +244,11 @@ const normalizeTimelinePayload = (source: UnknownRecord): ManuscriptReviewTimeli
       operatorName: pickMaybeText(timelineItem, ['operatorName']),
       relatedNode: pickMaybeText(timelineItem, ['relatedNode']),
       relatedResourceName: pickMaybeText(timelineItem, ['relatedResourceName']),
+      relatedResourceId: pickMaybeText(timelineItem, ['relatedResourceId']),
+      relatedResourceOssId: pickMaybeText(timelineItem, ['relatedResourceOssId']),
+      relatedResourceType: pickMaybeText(timelineItem, ['relatedResourceType']),
+      relatedResourceUrl: pickMaybeText(timelineItem, ['relatedResourceUrl']),
+      relatedExternalUrl: pickMaybeText(timelineItem, ['relatedExternalUrl']),
       statusLabel: pickMaybeText(timelineItem, ['statusLabel']),
       diffSummary: pickMaybeText(timelineItem, ['diffSummary', 'remark'])
     };
@@ -225,6 +259,7 @@ const normalizeVideoMarkList = (payload: unknown): ManuscriptReviewVideoMarkItem
     const marker = isRecord(item) ? item : {};
     return {
       id: pickText(marker, ['id', 'markerId'], `video-mark-${index + 1}`),
+      resourceId: pickMaybeText(marker, ['resourceId', 'videoAttachmentId', 'attachmentId']),
       startTimeText: pickText(marker, ['startTimeText', 'startTime']),
       endTimeText: pickMaybeText(marker, ['endTimeText', 'endTime']),
       markContent: pickText(marker, ['markContent', 'markerNote', 'note'])
@@ -240,6 +275,7 @@ const normalizeResourceList = (
     const resource = isRecord(item) ? item : {};
     return {
       id: pickText(resource, ['id', 'resourceId'], `${fallbackType}-${index + 1}`),
+      ossId: pickMaybeText(resource, ['ossId']),
       resourceType: pickMaybeText(resource, ['resourceType']) ?? fallbackType,
       resourceTypeLabel: pickMaybeText(resource, ['resourceTypeLabel']) ?? fallbackType,
       displayName: pickText(resource, ['displayName', 'fileName', 'linkTitle', 'name'], `${fallbackType}-${index + 1}`),
@@ -249,15 +285,46 @@ const normalizeResourceList = (
     };
   });
 
+const splitTimelineActionLink = (timelineItem: ManuscriptReviewTimelineItemVO) => {
+  const resourceName = timelineItem.relatedResourceName;
+  if (!resourceName) {
+    return undefined;
+  }
+  const quotedName = `《${resourceName}》`;
+  const actionText = timelineItem.eventText ?? '';
+  const nameIndex = actionText.indexOf(quotedName);
+  if (nameIndex < 0) {
+    return undefined;
+  }
+  const actionLinkHref = timelineItem.relatedExternalUrl ?? timelineItem.relatedResourceUrl;
+  const actionLinkOssId = timelineItem.relatedResourceOssId == null ? undefined : String(timelineItem.relatedResourceOssId);
+  if (!actionLinkHref && !actionLinkOssId) {
+    return undefined;
+  }
+  return {
+    actionPrefix: actionText.slice(0, nameIndex),
+    actionLinkLabel: quotedName,
+    actionSuffix: actionText.slice(nameIndex + quotedName.length),
+    actionLinkHref,
+    actionLinkOssId
+  };
+};
+
 const normalizeHistoryItems = (detail: ManuscriptReviewDetailReadableSource): ManuscriptReviewHistoryItem[] =>
   (detail.timelineItems ?? []).map((item, index) => {
     const timelineItem = item as ManuscriptReviewTimelineItemVO;
+    const actionLink = splitTimelineActionLink(timelineItem);
     return {
       id: `timeline-${index + 1}`,
       timeLabel: timelineItem.eventTime,
       actionLabel: timelineItem.eventText,
       operatorName: timelineItem.operatorName ?? '',
-      remark: timelineItem.diffSummary
+      remark: timelineItem.diffSummary,
+      actionPrefix: actionLink?.actionPrefix,
+      actionLinkLabel: actionLink?.actionLinkLabel,
+      actionSuffix: actionLink?.actionSuffix,
+      actionLinkOssId: actionLink?.actionLinkOssId,
+      actionLinkHref: actionLink?.actionLinkHref
     };
   });
 
@@ -267,16 +334,20 @@ const normalizeResourceItems = (detail: ManuscriptReviewDetailReadableSource): M
   for (const attachment of detail.attachmentList ?? []) {
     resources.push({
       id: String(attachment.id),
+      resourceType: attachment.resourceType ?? 'ATTACHMENT',
       typeLabel: attachment.resourceTypeLabel ?? '附件',
       name: attachment.displayName,
       statusLabel: '当前有效',
-      note: attachment.resourceUrl
+      note: attachment.resourceUrl,
+      resourceUrl: attachment.resourceUrl,
+      ossId: attachment.ossId == null ? undefined : String(attachment.ossId)
     });
   }
 
   for (const link of detail.externalLinkList ?? []) {
     resources.push({
       id: String(link.id),
+      resourceType: link.resourceType ?? 'EXTERNAL_LINK',
       typeLabel: link.resourceTypeLabel ?? '外链',
       name: link.displayName,
       statusLabel: '当前有效',
@@ -288,24 +359,92 @@ const normalizeResourceItems = (detail: ManuscriptReviewDetailReadableSource): M
   for (const video of detail.videoList ?? []) {
     resources.push({
       id: String(video.id),
+      resourceType: video.resourceType ?? 'VIDEO',
       typeLabel: video.resourceTypeLabel ?? '视频',
       name: video.displayName,
       statusLabel: '当前有效',
-      note: video.resourceUrl
+      note: video.resourceUrl,
+      resourceUrl: video.resourceUrl,
+      ossId: video.ossId == null ? undefined : String(video.ossId)
     });
   }
 
   for (const marker of detail.videoMarkList ?? []) {
     resources.push({
       id: String(marker.id),
+      resourceType: 'VIDEO_MARK',
       typeLabel: '视频时间标注',
       name: marker.startTimeText,
       statusLabel: '当前有效',
-      note: marker.markContent
+      note: marker.markContent,
+      resourceId: marker.resourceId == null ? undefined : String(marker.resourceId),
+      startTimeText: marker.startTimeText,
+      endTimeText: marker.endTimeText,
+      markContent: marker.markContent
     });
   }
 
   return resources;
+};
+
+export const parseVideoTimeTextToSeconds = (value?: string): number | undefined => {
+  if (!value) {
+    return undefined;
+  }
+
+  const match = value.trim().match(/^(\d{2}):(\d{2}):(\d{2})$/);
+  if (!match) {
+    return undefined;
+  }
+
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  const seconds = Number(match[3]);
+
+  if ([hours, minutes, seconds].some((part) => Number.isNaN(part))) {
+    return undefined;
+  }
+
+  return hours * 3600 + minutes * 60 + seconds;
+};
+
+export const buildVideoPlaybackItems = (
+  detail: ManuscriptReviewDetailReadableSource
+): ManuscriptReviewVideoPlaybackItem[] => {
+  const markMap = new Map<string, ManuscriptReviewVideoPlaybackMarkItem[]>();
+
+  for (const marker of detail.videoMarkList ?? []) {
+    const resourceId = marker.resourceId == null ? undefined : String(marker.resourceId);
+    const startSeconds = parseVideoTimeTextToSeconds(marker.startTimeText);
+    if (!resourceId || startSeconds == null) {
+      continue;
+    }
+
+    const markItem: ManuscriptReviewVideoPlaybackMarkItem = {
+      id: String(marker.id),
+      resourceId,
+      startTimeText: marker.startTimeText,
+      endTimeText: marker.endTimeText,
+      markContent: marker.markContent,
+      startSeconds
+    };
+    const currentMarks = markMap.get(resourceId) ?? [];
+    currentMarks.push(markItem);
+    markMap.set(resourceId, currentMarks);
+  }
+
+  return (detail.videoList ?? []).map((video) => {
+    const id = String(video.id);
+    const marks = (markMap.get(id) ?? []).sort((left, right) => left.startSeconds - right.startSeconds);
+
+    return {
+      id,
+      name: video.displayName,
+      resourceUrl: video.resourceUrl,
+      ossId: video.ossId == null ? undefined : String(video.ossId),
+      marks
+    };
+  });
 };
 
 const resolveDetailViewRole = (

@@ -12,6 +12,7 @@ import type {
   ManuscriptReviewResourceItemVO,
   ManuscriptReviewReviewIdCommand,
   ManuscriptReviewSaveCommand,
+  ManuscriptReviewVideoMarkDisableCommand,
   ManuscriptReviewVideoMarkCreateCommand,
   ManuscriptReviewVideoMarkItemVO
 } from '@/api/manuscript-review/types';
@@ -108,6 +109,16 @@ export const addManuscriptReviewVideoMark = (
   return request({
     url: '/workflow/manuscript-review/video-mark',
     method: 'post',
+    data
+  });
+};
+
+export const disableManuscriptReviewVideoMark = (
+  data: ManuscriptReviewVideoMarkDisableCommand
+): AxiosPromise<void> => {
+  return request({
+    url: '/workflow/manuscript-review/video-mark/disable',
+    method: 'put',
     data
   });
 };

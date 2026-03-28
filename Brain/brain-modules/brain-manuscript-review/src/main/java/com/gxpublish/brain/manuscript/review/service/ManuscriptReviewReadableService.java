@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
@@ -165,8 +166,10 @@ public class ManuscriptReviewReadableService {
             ? List.of()
             : videoMarkers.stream()
                 .filter(this::isEnabled)
-                .filter(marker -> Objects.equals(marker.getVideoAttachmentId(), currentVideos.get(0).getId()))
-                .sorted(Comparator.comparing(ManuscriptReviewVideoMarkerEntity::getStartSeconds, Comparator.nullsLast(Integer::compareTo)))
+                .filter(marker -> currentVideos.stream().anyMatch(video -> Objects.equals(video.getId(), marker.getVideoAttachmentId())))
+                .sorted(Comparator.comparing(ManuscriptReviewVideoMarkerEntity::getVideoAttachmentId, Comparator.nullsLast(Long::compareTo))
+                    .thenComparing(ManuscriptReviewVideoMarkerEntity::getStartSeconds, Comparator.nullsLast(Integer::compareTo))
+                    .thenComparing(ManuscriptReviewVideoMarkerEntity::getCreateTime, Comparator.nullsLast(Date::compareTo)))
                 .toList();
 
         ManuscriptReviewDetailResponse response = new ManuscriptReviewDetailResponse();
@@ -196,7 +199,7 @@ public class ManuscriptReviewReadableService {
         response.setExternalLinkList(currentExternalLinks.stream().map(this::toExternalLinkItem).toList());
         response.setVideoList(currentVideos.stream().map(this::toVideoItem).toList());
         response.setVideoMarkList(currentVideoMarks.stream().map(this::toVideoMarkItem).toList());
-        response.setTimelineItems(buildTimelineItems(histories));
+        response.setTimelineItems(buildTimelineItems(histories, attachments, externalLinks));
         response.setPermissionMatrix(buildPermissionMatrix(record, histories));
         return response;
     }
@@ -299,21 +302,128 @@ public class ManuscriptReviewReadableService {
         return response;
     }
 
-    private List<ManuscriptReviewDetailResponse.TimelineItemVO> buildTimelineItems(List<ManuscriptReviewHistoryEntity> histories) {
+    private List<ManuscriptReviewDetailResponse.TimelineItemVO> buildTimelineItems(List<ManuscriptReviewHistoryEntity> histories,
+                                                                                   List<ManuscriptReviewAttachmentEntity> attachments,
+                                                                                   List<ManuscriptReviewExternalLinkEntity> externalLinks) {
         return histories.stream()
             .sorted(this::compareTimelineHistory)
-            .map(history -> new ManuscriptReviewDetailResponse.TimelineItemVO(
-                formatDate(history.getCreateTime()),
-                "WORKFLOW",
-                "流程",
-                trimToNull(history.getActionType()),
-                normalizeText(history.getActionText()),
-                trimToNull(history.getActorName()),
-                null,
-                null,
-                null,
-                null))
+            .map(history -> toTimelineItem(history, attachments, externalLinks))
             .toList();
+    }
+
+    private ManuscriptReviewDetailResponse.TimelineItemVO toTimelineItem(ManuscriptReviewHistoryEntity history,
+                                                                         List<ManuscriptReviewAttachmentEntity> attachments,
+                                                                         List<ManuscriptReviewExternalLinkEntity> externalLinks) {
+        TimelineResourceReference reference = resolveTimelineResourceReference(history, attachments, externalLinks);
+        return new ManuscriptReviewDetailResponse.TimelineItemVO(
+            formatDate(history.getCreateTime()),
+            "WORKFLOW",
+            "流程",
+            trimToNull(history.getActionType()),
+            normalizeText(history.getActionText()),
+            trimToNull(history.getActorName()),
+            null,
+            reference == null ? null : reference.displayName(),
+            reference == null ? null : reference.resourceId(),
+            reference == null ? null : reference.ossId(),
+            reference == null ? null : reference.resourceType(),
+            reference == null ? null : reference.resourceUrl(),
+            reference == null ? null : reference.externalUrl(),
+            null,
+            null);
+    }
+
+    private TimelineResourceReference resolveTimelineResourceReference(ManuscriptReviewHistoryEntity history,
+                                                                      List<ManuscriptReviewAttachmentEntity> attachments,
+                                                                      List<ManuscriptReviewExternalLinkEntity> externalLinks) {
+        if (!Objects.equals(trimToNull(history.getActionType()), "RESOURCE_DISABLE")) {
+            return null;
+        }
+        String actionText = trimToNull(history.getActionText());
+        if (actionText == null) {
+            return null;
+        }
+
+        String resourceName = extractFirstQuotedResourceName(actionText);
+        if (resourceName == null) {
+            return null;
+        }
+
+        List<TimelineResourceReference> candidates = new ArrayList<>();
+        if (actionText.contains("附件")) {
+            attachments.stream()
+                .filter(attachment -> !Boolean.TRUE.equals(attachment.getIsVideo()))
+                .filter(attachment -> Objects.equals(trimToNull(attachment.getFileName()), resourceName))
+                .map(attachment -> new TimelineResourceReference(
+                    attachment.getId(),
+                    attachment.getOssId(),
+                    "ATTACHMENT",
+                    attachment.getFileName(),
+                    attachment.getFileUrl(),
+                    null,
+                    firstNonNull(attachment.getDisabledTime(), attachment.getCreateTime())))
+                .forEach(candidates::add);
+        }
+        if (actionText.contains("视频")) {
+            attachments.stream()
+                .filter(attachment -> Boolean.TRUE.equals(attachment.getIsVideo()))
+                .filter(attachment -> Objects.equals(trimToNull(attachment.getFileName()), resourceName))
+                .map(attachment -> new TimelineResourceReference(
+                    attachment.getId(),
+                    attachment.getOssId(),
+                    "VIDEO",
+                    attachment.getFileName(),
+                    attachment.getFileUrl(),
+                    null,
+                    firstNonNull(attachment.getDisabledTime(), attachment.getCreateTime())))
+                .forEach(candidates::add);
+        }
+        if (actionText.contains("外链")) {
+            externalLinks.stream()
+                .filter(externalLink -> Objects.equals(trimToNull(externalLink.getLinkTitle()), resourceName))
+                .map(externalLink -> new TimelineResourceReference(
+                    externalLink.getId(),
+                    null,
+                    "EXTERNAL_LINK",
+                    externalLink.getLinkTitle(),
+                    null,
+                    externalLink.getLinkUrl(),
+                    firstNonNull(externalLink.getDisabledTime(), externalLink.getCreateTime())))
+                .forEach(candidates::add);
+        }
+        if (candidates.isEmpty()) {
+            return null;
+        }
+
+        Date historyTime = history.getCreateTime();
+        return candidates.stream()
+            .sorted((left, right) -> compareTimelineReference(left, right, historyTime))
+            .findFirst()
+            .orElse(null);
+    }
+
+    private int compareTimelineReference(TimelineResourceReference left, TimelineResourceReference right, Date historyTime) {
+        return Comparator
+            .comparing((TimelineResourceReference reference) -> referenceTimeDistance(reference.matchTime(), historyTime))
+            .thenComparing(TimelineResourceReference::matchTime, Comparator.nullsLast(Date::compareTo))
+            .thenComparing(TimelineResourceReference::resourceId, Comparator.nullsLast(Long::compareTo))
+            .compare(left, right);
+    }
+
+    private long referenceTimeDistance(Date referenceTime, Date historyTime) {
+        if (referenceTime == null || historyTime == null) {
+            return Long.MAX_VALUE;
+        }
+        return Math.abs(referenceTime.getTime() - historyTime.getTime());
+    }
+
+    private String extractFirstQuotedResourceName(String actionText) {
+        int startIndex = actionText.indexOf('《');
+        int endIndex = actionText.indexOf('》', startIndex + 1);
+        if (startIndex < 0 || endIndex <= startIndex + 1) {
+            return null;
+        }
+        return trimToNull(actionText.substring(startIndex + 1, endIndex));
     }
 
     private ManuscriptReviewDetailResponse.PermissionMatrixVO buildPermissionMatrix(ManuscriptReviewRecordEntity record,
@@ -356,6 +466,7 @@ public class ManuscriptReviewReadableService {
     private ManuscriptReviewDetailResponse.ResourceItemVO toAttachmentItem(ManuscriptReviewAttachmentEntity attachment) {
         return new ManuscriptReviewDetailResponse.ResourceItemVO(
             attachment.getId(),
+            attachment.getOssId(),
             "ATTACHMENT",
             "附件",
             attachment.getFileName(),
@@ -367,6 +478,7 @@ public class ManuscriptReviewReadableService {
     private ManuscriptReviewDetailResponse.ResourceItemVO toVideoItem(ManuscriptReviewAttachmentEntity video) {
         return new ManuscriptReviewDetailResponse.ResourceItemVO(
             video.getId(),
+            video.getOssId(),
             "VIDEO",
             "视频",
             video.getFileName(),
@@ -378,6 +490,7 @@ public class ManuscriptReviewReadableService {
     private ManuscriptReviewDetailResponse.ResourceItemVO toExternalLinkItem(ManuscriptReviewExternalLinkEntity externalLink) {
         return new ManuscriptReviewDetailResponse.ResourceItemVO(
             externalLink.getId(),
+            null,
             "EXTERNAL_LINK",
             "外链",
             externalLink.getLinkTitle(),
@@ -389,6 +502,7 @@ public class ManuscriptReviewReadableService {
     private ManuscriptReviewDetailResponse.VideoMarkItemVO toVideoMarkItem(ManuscriptReviewVideoMarkerEntity marker) {
         return new ManuscriptReviewDetailResponse.VideoMarkItemVO(
             marker.getId(),
+            marker.getVideoAttachmentId(),
             marker.getStartTime(),
             marker.getEndTime(),
             marker.getMarkerNote());
@@ -651,5 +765,16 @@ public class ManuscriptReviewReadableService {
             }
         }
         return null;
+    }
+
+    private record TimelineResourceReference(
+        Long resourceId,
+        Long ossId,
+        String resourceType,
+        String displayName,
+        String resourceUrl,
+        String externalUrl,
+        Date matchTime
+    ) {
     }
 }

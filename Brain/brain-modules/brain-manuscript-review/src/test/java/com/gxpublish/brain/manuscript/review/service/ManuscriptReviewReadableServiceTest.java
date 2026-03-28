@@ -68,10 +68,17 @@ class ManuscriptReviewReadableServiceTest {
     void shouldAssembleReadableDetailWithFrozenFieldsAndCurrentResources() {
         ReadableFixture fixture = new ReadableFixture(3003L);
         when(fixture.recordMapper.selectById(9002L)).thenReturn(buildReviewRecord());
-        when(fixture.attachmentMapper.selectList(any())).thenReturn(List.of(buildCurrentAttachment(), buildCurrentVideo(), buildHistoryAttachment()));
+        when(fixture.attachmentMapper.selectList(any())).thenReturn(List.of(
+            buildCurrentAttachment(),
+            buildCurrentVideo(),
+            buildSecondCurrentVideo(),
+            buildHistoryAttachment()));
         when(fixture.externalLinkMapper.selectList(any())).thenReturn(List.of(buildCurrentLink(), buildHistoryLink()));
         when(fixture.historyMapper.selectList(any())).thenReturn(List.of(buildCreateHistory(), buildReturnHistory()));
-        when(fixture.videoMarkerMapper.selectList(any())).thenReturn(List.of(buildCurrentMarker(), buildHistoryMarker()));
+        when(fixture.videoMarkerMapper.selectList(any())).thenReturn(List.of(
+            buildCurrentMarker(),
+            buildSecondCurrentMarker(),
+            buildHistoryMarker()));
 
         ManuscriptReviewDetailResponse detail = fixture.readableService.getDetail(9002L);
 
@@ -87,8 +94,10 @@ class ManuscriptReviewReadableServiceTest {
         assertEquals("2026-03-21 09:00:00", detail.getFirstSubmitTime());
         assertEquals(1, detail.getAttachmentList().size());
         assertEquals(1, detail.getExternalLinkList().size());
-        assertEquals(1, detail.getVideoList().size());
-        assertEquals(1, detail.getVideoMarkList().size());
+        assertEquals(2, detail.getVideoList().size());
+        assertEquals(2, detail.getVideoMarkList().size());
+        assertEquals(2L, detail.getVideoMarkList().get(0).getResourceId());
+        assertEquals(4L, detail.getVideoMarkList().get(1).getResourceId());
         assertEquals(2, detail.getTimelineItems().size());
         assertEquals("张三新增了流程。", detail.getTimelineItems().get(0).getEventText());
         assertTrue(detail.getPermissionMatrix().isCanResubmit());
@@ -206,6 +215,19 @@ class ManuscriptReviewReadableServiceTest {
         return entity;
     }
 
+    private static ManuscriptReviewAttachmentEntity buildSecondCurrentVideo() {
+        ManuscriptReviewAttachmentEntity entity = new ManuscriptReviewAttachmentEntity();
+        entity.setId(4L);
+        entity.setReviewId(9002L);
+        entity.setFileName("补充样片.mp4");
+        entity.setFileUrl("https://files.example/video-2.mp4");
+        entity.setEnabled("1");
+        entity.setIsVideo(true);
+        entity.setVideoDurationSeconds(720);
+        entity.setCreateTime(new Date(1774234920000L));
+        return entity;
+    }
+
     private static ManuscriptReviewExternalLinkEntity buildCurrentLink() {
         ManuscriptReviewExternalLinkEntity entity = new ManuscriptReviewExternalLinkEntity();
         entity.setId(10L);
@@ -306,6 +328,19 @@ class ManuscriptReviewReadableServiceTest {
         entity.setEnabled("0");
         entity.setCreateTime(new Date(1774236120000L));
         entity.setDisabledTime(new Date(1774236180000L));
+        return entity;
+    }
+
+    private static ManuscriptReviewVideoMarkerEntity buildSecondCurrentMarker() {
+        ManuscriptReviewVideoMarkerEntity entity = new ManuscriptReviewVideoMarkerEntity();
+        entity.setId(22L);
+        entity.setReviewId(9002L);
+        entity.setVideoAttachmentId(4L);
+        entity.setStartTime("00:00:08");
+        entity.setEndTime("00:00:15");
+        entity.setMarkerNote("第二处问题");
+        entity.setEnabled("1");
+        entity.setCreateTime(new Date(1774236090000L));
         return entity;
     }
 

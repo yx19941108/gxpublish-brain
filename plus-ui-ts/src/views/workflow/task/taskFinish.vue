@@ -88,6 +88,7 @@ import { pageByTaskFinish } from '@/api/workflow/task';
 import { TaskQuery, FlowTaskVO } from '@/api/workflow/task/types';
 import workflowCommon from '@/api/workflow/workflowCommon';
 import { RouterJumpVo } from '@/api/workflow/workflowCommon/types';
+import { buildWorkflowViewDetailRoute, isManuscriptReviewFormPath } from '@/views/manuscript-review/detail-navigation';
 //审批记录组件
 const queryFormRef = ref<ElFormInstance>();
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
@@ -155,6 +156,12 @@ const getFinishList = () => {
 };
 /** 查看按钮操作 */
 const handleView = (row: FlowTaskVO) => {
+  if (isManuscriptReviewFormPath(row.formPath)) {
+    proxy?.$tab.closePage(proxy?.$route);
+    proxy?.$router.push(buildWorkflowViewDetailRoute(String(row.businessId), row.id, '/workflow/task/taskFinish'));
+    return;
+  }
+
   const routerJumpVo = reactive<RouterJumpVo>({
     businessId: row.businessId,
     taskId: row.id,
