@@ -87,8 +87,8 @@ INSERT INTO flow_node
  `any_node_skip`, `listener_type`, `listener_path`, `form_custom`, `form_path`, `version`, `create_time`, `create_by`,
  `update_time`, `update_by`, `ext`, `del_flag`, `tenant_id`)
 SELECT 2026032500000001103, 1, @audit_definition_id, 'first-review-node', '一级审批', '${manuscriptReviewFirstLevelApprover}',
-       '0.000', '420,200|420,200', NULL, NULL, NULL, 'N', @form_path, '1', NOW(), @operator, NOW(), @operator,
-       '[{\"code\":\"ButtonPermissionEnum\",\"value\":\"back,termination,transfer,file\"}]', '0', @tenant_id
+       '0.000', '420,200|420,200', 'applicant-node', NULL, NULL, 'N', @form_path, '1', NOW(), @operator, NOW(), @operator,
+       '[{\"code\":\"ButtonPermissionEnum\",\"value\":\"back\"}]', '0', @tenant_id
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM flow_node WHERE definition_id = @audit_definition_id AND node_code = 'first-review-node' AND del_flag = '0');
 
@@ -97,8 +97,8 @@ INSERT INTO flow_node
  `any_node_skip`, `listener_type`, `listener_path`, `form_custom`, `form_path`, `version`, `create_time`, `create_by`,
  `update_time`, `update_by`, `ext`, `del_flag`, `tenant_id`)
 SELECT 2026032500000001104, 1, @audit_definition_id, 'second-review-node', '二级审批', '${manuscriptReviewSecondLevelApprover}',
-       '0.000', '600,200|600,200', NULL, NULL, NULL, 'N', @form_path, '1', NOW(), @operator, NOW(), @operator,
-       '[{\"code\":\"ButtonPermissionEnum\",\"value\":\"back,termination,transfer,file\"}]', '0', @tenant_id
+       '0.000', '600,200|600,200', 'applicant-node', NULL, NULL, 'N', @form_path, '1', NOW(), @operator, NOW(), @operator,
+       '[{\"code\":\"ButtonPermissionEnum\",\"value\":\"back\"}]', '0', @tenant_id
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM flow_node WHERE definition_id = @audit_definition_id AND node_code = 'second-review-node' AND del_flag = '0');
 
@@ -107,8 +107,8 @@ INSERT INTO flow_node
  `any_node_skip`, `listener_type`, `listener_path`, `form_custom`, `form_path`, `version`, `create_time`, `create_by`,
  `update_time`, `update_by`, `ext`, `del_flag`, `tenant_id`)
 SELECT 2026032500000001105, 1, @audit_definition_id, 'final-review-node', '三级审批', '${manuscriptReviewThirdLevelApprover}',
-       '0.000', '780,200|780,200', NULL, NULL, NULL, 'N', @form_path, '1', NOW(), @operator, NOW(), @operator,
-       '[{\"code\":\"ButtonPermissionEnum\",\"value\":\"back,termination,transfer,file\"}]', '0', @tenant_id
+       '0.000', '780,200|780,200', 'applicant-node', NULL, NULL, 'N', @form_path, '1', NOW(), @operator, NOW(), @operator,
+       '[{\"code\":\"ButtonPermissionEnum\",\"value\":\"back,termination\"}]', '0', @tenant_id
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM flow_node WHERE definition_id = @audit_definition_id AND node_code = 'final-review-node' AND del_flag = '0');
 
@@ -336,8 +336,8 @@ INSERT INTO flow_node
  `any_node_skip`, `listener_type`, `listener_path`, `form_custom`, `form_path`, `version`, `create_time`, `create_by`,
  `update_time`, `update_by`, `ext`, `del_flag`, `tenant_id`)
 SELECT 2026032500000001203, 1, @proof_definition_id, 'first-review-node', '一级审批', '${manuscriptReviewFirstLevelApprover}',
-       '0.000', '420,200|420,200', NULL, NULL, NULL, 'N', @form_path, '1', NOW(), @operator, NOW(), @operator,
-       '[{\"code\":\"ButtonPermissionEnum\",\"value\":\"back,termination,transfer,file\"}]', '0', @tenant_id
+       '0.000', '420,200|420,200', 'applicant-node', NULL, NULL, 'N', @form_path, '1', NOW(), @operator, NOW(), @operator,
+       '[{\"code\":\"ButtonPermissionEnum\",\"value\":\"back\"}]', '0', @tenant_id
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM flow_node WHERE definition_id = @proof_definition_id AND node_code = 'first-review-node' AND del_flag = '0');
 
@@ -346,8 +346,8 @@ INSERT INTO flow_node
  `any_node_skip`, `listener_type`, `listener_path`, `form_custom`, `form_path`, `version`, `create_time`, `create_by`,
  `update_time`, `update_by`, `ext`, `del_flag`, `tenant_id`)
 SELECT 2026032500000001204, 1, @proof_definition_id, 'second-review-node', '二级审批', '${manuscriptReviewSecondLevelApprover}',
-       '0.000', '600,200|600,200', NULL, NULL, NULL, 'N', @form_path, '1', NOW(), @operator, NOW(), @operator,
-       '[{\"code\":\"ButtonPermissionEnum\",\"value\":\"back,termination,transfer,file\"}]', '0', @tenant_id
+       '0.000', '600,200|600,200', 'applicant-node', NULL, NULL, 'N', @form_path, '1', NOW(), @operator, NOW(), @operator,
+       '[{\"code\":\"ButtonPermissionEnum\",\"value\":\"back\"}]', '0', @tenant_id
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM flow_node WHERE definition_id = @proof_definition_id AND node_code = 'second-review-node' AND del_flag = '0');
 
@@ -356,8 +356,8 @@ INSERT INTO flow_node
  `any_node_skip`, `listener_type`, `listener_path`, `form_custom`, `form_path`, `version`, `create_time`, `create_by`,
  `update_time`, `update_by`, `ext`, `del_flag`, `tenant_id`)
 SELECT 2026032500000001205, 1, @proof_definition_id, 'final-review-node', '三级审批', '${manuscriptReviewThirdLevelApprover}',
-       '0.000', '780,200|780,200', NULL, NULL, NULL, 'N', @form_path, '1', NOW(), @operator, NOW(), @operator,
-       '[{\"code\":\"ButtonPermissionEnum\",\"value\":\"back,termination,transfer,file\"}]', '0', @tenant_id
+       '0.000', '780,200|780,200', 'applicant-node', NULL, NULL, 'N', @form_path, '1', NOW(), @operator, NOW(), @operator,
+       '[{\"code\":\"ButtonPermissionEnum\",\"value\":\"back,termination\"}]', '0', @tenant_id
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM flow_node WHERE definition_id = @proof_definition_id AND node_code = 'final-review-node' AND del_flag = '0');
 

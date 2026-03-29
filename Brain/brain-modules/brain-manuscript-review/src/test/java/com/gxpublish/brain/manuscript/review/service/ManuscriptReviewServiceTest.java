@@ -770,6 +770,35 @@ class ManuscriptReviewServiceTest {
     }
 
     @Test
+    void shouldCancelReturnedReviewAndWriteHistory() {
+        ServiceFixture fixture = new ServiceFixture(1030L, "000000", 2001L, "张三");
+        ManuscriptReviewRecordEntity record = buildRecord(9024L);
+        record.setInitiatorUserId(1030L);
+        record.setFlowStatusLabel("已退回");
+        record.setCurrentNodeLabel("待发起人处理");
+        when(fixture.recordMapper.selectById(9024L)).thenReturn(record);
+
+        fixture.service.cancelProcessApply(9024L, "退回后主动撤销");
+
+        ArgumentCaptor<ManuscriptReviewRecordEntity> recordCaptor = ArgumentCaptor.forClass(ManuscriptReviewRecordEntity.class);
+        verify(fixture.recordMapper).updateById(recordCaptor.capture());
+        ManuscriptReviewRecordEntity updated = recordCaptor.getValue();
+        assertEquals("已取消", updated.getFlowStatusLabel());
+        assertEquals("流程已取消", updated.getCurrentNodeLabel());
+        assertEquals("退回后主动撤销", updated.getRemark());
+
+        ArgumentCaptor<FlowCancelBo> cancelCaptor = ArgumentCaptor.forClass(FlowCancelBo.class);
+        verify(fixture.flwInstanceService).cancelProcessApply(cancelCaptor.capture());
+        assertEquals("9024", cancelCaptor.getValue().getBusinessId());
+        assertEquals("退回后主动撤销", cancelCaptor.getValue().getMessage());
+
+        ArgumentCaptor<ManuscriptReviewHistoryEntity> historyCaptor = ArgumentCaptor.forClass(ManuscriptReviewHistoryEntity.class);
+        verify(fixture.historyMapper).insert(historyCaptor.capture());
+        assertEquals("CANCEL", historyCaptor.getValue().getActionType());
+        assertEquals("张三撤销了审校流程单。", historyCaptor.getValue().getActionText());
+    }
+
+    @Test
     void shouldRejectCancelWhenFlowIsNotWaiting() {
         ServiceFixture fixture = new ServiceFixture(1030L, "000000", 2001L, "张三");
         ManuscriptReviewRecordEntity record = buildRecord(9023L);
@@ -780,7 +809,7 @@ class ManuscriptReviewServiceTest {
 
         ServiceException exception = assertThrows(ServiceException.class, () -> fixture.service.cancelProcessApply(9023L, "重复撤销"));
 
-        assertEquals("仅审批中的流程可撤销", exception.getMessage());
+        assertEquals("仅审批中或已退回的流程可撤销", exception.getMessage());
         verify(fixture.recordMapper, never()).updateById(any(ManuscriptReviewRecordEntity.class));
         verify(fixture.historyMapper, never()).insert(any(ManuscriptReviewHistoryEntity.class));
     }

@@ -70,8 +70,14 @@ describe('T10_ManuscriptReview_DetailNavigationSpec', () => {
   });
 
   it('routes approval success to manuscript-review ledger instead of reloading protected detail', () => {
-    expect(resolveApprovalSuccessTarget()).toEqual({
+    expect(resolveApprovalSuccessTarget({ returnTo: '/manuscript/review/detail?reviewId=review-2001&type=view' })).toEqual({
       path: '/manuscript/review'
+    });
+  });
+
+  it('routes approval success back to the dedicated waiting page when returnTo points there', () => {
+    expect(resolveApprovalSuccessTarget({ returnTo: '/manuscript/review/task-waiting' })).toEqual({
+      path: '/manuscript/review/task-waiting'
     });
   });
 

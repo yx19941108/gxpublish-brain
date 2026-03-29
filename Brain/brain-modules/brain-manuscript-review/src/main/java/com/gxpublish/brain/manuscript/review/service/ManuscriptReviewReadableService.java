@@ -473,7 +473,7 @@ public class ManuscriptReviewReadableService {
         String businessStatus = mapBusinessStatusCode(record.getFlowStatusLabel());
         boolean canGotoApproval = permissionResult.getAllowedActions().contains(ManuscriptReviewDetailAction.GO_APPROVE);
         boolean canResubmit = permissionResult.getAllowedActions().contains(ManuscriptReviewDetailAction.RESUBMIT);
-        boolean canCancel = isInitiator && !isCurrentApprover && "WAITING".equals(businessStatus);
+        boolean canCancel = isInitiator && !isCurrentApprover && ("WAITING".equals(businessStatus) || "BACK".equals(businessStatus));
         String buttonReason = resolveButtonReason(businessStatus, canView, isHistoryParticipant);
         return new ManuscriptReviewDetailResponse.PermissionMatrixVO(
             isInitiator,

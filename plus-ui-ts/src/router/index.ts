@@ -102,6 +102,24 @@ export const constantRoutes: RouteRecordRaw[] = [
         meta: { title: '审校台账', activeMenu: '/manuscript/review' }
       },
       {
+        path: 'review/my-document',
+        component: () => import('@/views/manuscript-review/my-document.vue'),
+        name: 'ManuscriptReviewMyDocument',
+        meta: { title: '审校我发起', activeMenu: '/manuscript/review/my-document' }
+      },
+      {
+        path: 'review/task-waiting',
+        component: () => import('@/views/manuscript-review/task-waiting.vue'),
+        name: 'ManuscriptReviewTaskWaiting',
+        meta: { title: '审校我的待办', activeMenu: '/manuscript/review/task-waiting' }
+      },
+      {
+        path: 'review/task-finish',
+        component: () => import('@/views/manuscript-review/task-finish.vue'),
+        name: 'ManuscriptReviewTaskFinish',
+        meta: { title: '审校我的已办', activeMenu: '/manuscript/review/task-finish' }
+      },
+      {
         path: 'review/form',
         component: () => import('@/views/manuscript-review/form.vue'),
         name: 'ManuscriptReviewForm',

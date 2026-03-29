@@ -93,6 +93,12 @@ export const resolveDetailBackTarget = (query: LocationQuery): RouteLocationRaw 
   return { path: MANUSCRIPT_REVIEW_LEDGER_PATH };
 };
 
-export const resolveApprovalSuccessTarget = (): RouteLocationRaw => ({
-  path: MANUSCRIPT_REVIEW_LEDGER_PATH
-});
+export const resolveApprovalSuccessTarget = (query?: LocationQuery): RouteLocationRaw => {
+  const returnTo = query ? readQueryText(query.returnTo) : undefined;
+  if (returnTo && !returnTo.startsWith(MANUSCRIPT_REVIEW_DETAIL_PATH)) {
+    return parseRouteLocation(returnTo);
+  }
+  return {
+    path: MANUSCRIPT_REVIEW_LEDGER_PATH
+  };
+};

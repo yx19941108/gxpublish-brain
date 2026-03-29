@@ -94,7 +94,7 @@ public class ManuscriptReviewService implements IManuscriptReviewService {
     private static final String EXTERNAL_LINK_PROTOCOL_INVALID_MESSAGE = "外链只允许http/https协议";
     private static final String EXTERNAL_LINK_DUPLICATE_MESSAGE = "同一流程内URL不允许重复";
     private static final String CANCEL_ONLY_INITIATOR_MESSAGE = "仅发起人本人可撤销";
-    private static final String CANCEL_ONLY_WAITING_MESSAGE = "仅审批中的流程可撤销";
+    private static final String CANCEL_ONLY_WAITING_MESSAGE = "仅审批中或已退回的流程可撤销";
     private static final String RESUBMIT_ONLY_RETURNED_MESSAGE = "仅退回给发起人的流程可再次提交";
     private static final String UPDATE_PERMISSION_DENIED_MESSAGE = "当前用户无权修改该流程";
     private static final String FLOW_CONFIG_MISSING_MESSAGE = "审校流程审批链配置缺失";
@@ -405,7 +405,9 @@ public class ManuscriptReviewService implements IManuscriptReviewService {
         if (!Objects.equals(currentUserId, existing.getInitiatorUserId())) {
             throw new ServiceException(CANCEL_ONLY_INITIATOR_MESSAGE);
         }
-        if (!ManuscriptReviewFlowStatusEnum.WAITING.getLabel().equals(trimToNull(existing.getFlowStatusLabel()))) {
+        String flowStatusLabel = trimToNull(existing.getFlowStatusLabel());
+        if (!ManuscriptReviewFlowStatusEnum.WAITING.getLabel().equals(flowStatusLabel)
+            && !ManuscriptReviewFlowStatusEnum.BACK.getLabel().equals(flowStatusLabel)) {
             throw new ServiceException(CANCEL_ONLY_WAITING_MESSAGE);
         }
         FlowCancelBo flowCancelBo = new FlowCancelBo();

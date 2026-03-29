@@ -638,7 +638,7 @@ const onResourceAction = async (item: ManuscriptReviewResourceItem, key: Resourc
 };
 
 const handleApprovalSubmit = async () => {
-  await router.replace(resolveApprovalSuccessTarget());
+  await router.replace(resolveApprovalSuccessTarget(route.query));
 };
 
 onMounted(() => {

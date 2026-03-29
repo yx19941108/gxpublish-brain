@@ -101,6 +101,7 @@ class ManuscriptReviewReadableServiceTest {
         assertEquals(2, detail.getTimelineItems().size());
         assertEquals("张三新增了流程。", detail.getTimelineItems().get(0).getEventText());
         assertTrue(detail.getPermissionMatrix().isCanResubmit());
+        assertTrue(detail.getPermissionMatrix().isCanCancel());
     }
 
     @Test
