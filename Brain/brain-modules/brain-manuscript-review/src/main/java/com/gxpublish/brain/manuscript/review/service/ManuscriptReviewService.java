@@ -109,6 +109,7 @@ public class ManuscriptReviewService implements IManuscriptReviewService {
     private static final String LEVEL_TWO_NODE = ManuscriptReviewNodeStatusEnum.LEVEL_2.getLabel();
     private static final String LEVEL_THREE_NODE = ManuscriptReviewNodeStatusEnum.LEVEL_3.getLabel();
     private static final String ROLE_KEY_CERTIFIED_INITIATOR = "manuscript_review_certified_initiator";
+    private static final int UPDATE_HISTORY_BODY_PREVIEW_LIMIT = 60;
     private static final ZoneId BUSINESS_ZONE_ID = ZoneId.of("Asia/Shanghai");
 
     private final ManuscriptReviewRecordMapper recordMapper;
@@ -1553,9 +1554,7 @@ public class ManuscriptReviewService implements IManuscriptReviewService {
         appendTextDiff(diffItems, "媒体/栏目", existing.getMediaChannel(), incoming.getMediaChannel());
         appendTextDiff(diffItems, "作者", existing.getAuthorName(), incoming.getAuthorName());
         appendOptionalTextDiff(diffItems, "说明", existing.getRemarkText(), incoming.getRemarkText());
-        if (!Objects.equals(trimToNull(existing.getContentBody()), trimToNull(incoming.getContentBody()))) {
-            diffItems.add("正文已更新");
-        }
+        appendBodyDiff(diffItems, existing.getContentBody(), incoming.getContentBody());
         if (!resourceSummary.attachmentNames().isEmpty()) {
             diffItems.add("新增附件" + joinResourceNames(resourceSummary.attachmentNames()));
         }
@@ -1617,6 +1616,26 @@ public class ManuscriptReviewService implements IManuscriptReviewService {
             }
             diffItems.add(fieldLabel + "由“" + normalizedOld + "”改为“" + normalizedNew + "”");
         }
+    }
+
+    private void appendBodyDiff(List<String> diffItems, String oldValue, String newValue) {
+        String normalizedOld = trimToNull(oldValue);
+        String normalizedNew = trimToNull(newValue);
+        if (!Objects.equals(normalizedOld, normalizedNew)) {
+            diffItems.add("正文由“" + toBodyHistoryPreview(normalizedOld) + "”改为“" + toBodyHistoryPreview(normalizedNew) + "”");
+        }
+    }
+
+    private String toBodyHistoryPreview(String value) {
+        String normalized = trimToNull(value);
+        if (normalized == null) {
+            return "未填写";
+        }
+        String singleLine = normalized.replaceAll("\\s+", " ");
+        if (singleLine.length() <= UPDATE_HISTORY_BODY_PREVIEW_LIMIT) {
+            return singleLine;
+        }
+        return singleLine.substring(0, UPDATE_HISTORY_BODY_PREVIEW_LIMIT - 3) + "...";
     }
 
     private String buildAttachmentAddHistoryText(ManuscriptReviewAttachmentEntity entity) {

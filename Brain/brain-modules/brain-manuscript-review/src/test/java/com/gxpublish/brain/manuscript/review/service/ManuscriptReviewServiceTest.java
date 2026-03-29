@@ -174,7 +174,7 @@ class ManuscriptReviewServiceTest {
         assertEquals("UPDATE", historyCaptor.getValue().getActionType());
         assertTrue(historyCaptor.getValue().getActionText().contains("标题由“旧标题”改为“新标题”"));
         assertTrue(historyCaptor.getValue().getActionText().contains("媒体/栏目由“旧栏目”改为“新栏目”"));
-        assertTrue(historyCaptor.getValue().getActionText().contains("正文已更新"));
+        assertTrue(historyCaptor.getValue().getActionText().contains("正文由“旧正文”改为“新正文”"));
     }
 
     @Test
