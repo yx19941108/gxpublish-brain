@@ -91,7 +91,7 @@ export const buildFormPresentation = (mode: ManuscriptReviewFormMode): Manuscrip
     return {
       mode,
       title: '修改审校单',
-      description: '修改页只负责保存资料与本次追加资源，保存后回详情，不推进 BPM。',
+      description: '修改页只负责保存资料与本次追加资源，保存后回详情，不推动流程。',
       primaryActionLabel: '保存',
       successToast: '保存成功，已返回详情页。'
     };

@@ -24,6 +24,9 @@ describe('T09_Frontend_DetailLayoutSpec', () => {
     expect(file).toContain('jumpToVideoMark');
     expect(file).toContain('<video');
     expect(file).not.toContain('页内直接审批');
+    expect(file).not.toContain('MANUSCRIPT REVIEW / DETAIL');
+    expect(file).not.toContain('MANUSCRIPT REVIEW / APPROVAL');
+    expect(file).not.toContain('BPM 办理动作');
   });
 
   it('uses frozen workflow detail API and keeps approve/resubmit split in detail', () => {

@@ -4,12 +4,12 @@
       <template #header>
         <div class="manuscript-review-form-page__hero">
           <div>
-            <div class="manuscript-review-form-page__eyebrow">{{ presentation.mode === 'create' ? 'CREATE / SUBMIT ONLY' : 'EDIT / SAVE ONLY' }}</div>
+            <div class="manuscript-review-form-page__eyebrow">{{ presentation.mode === 'create' ? '新增提交页' : '修改保存页' }}</div>
             <h1 class="manuscript-review-form-page__title">{{ presentation.title }}</h1>
             <p class="manuscript-review-form-page__desc">{{ presentation.description }}</p>
           </div>
           <el-tag type="primary" effect="light">{{
-            presentation.mode === 'create' ? '冻结口径：新增提交是一体化动作' : '冻结口径：修改保存不推 BPM'
+            presentation.mode === 'create' ? '冻结口径：新增提交是一体化动作' : '冻结口径：修改保存不推动流程'
           }}</el-tag>
         </div>
       </template>
@@ -31,8 +31,8 @@
                 <span class="manuscript-review-form-page__section-tip">
                   {{
                     presentation.mode === 'create'
-                      ? 'create 模式：提交时整表单 + 暂存资源一次性发送'
-                      : 'edit 模式：保存时主表 + 本次追加资源一次性发送'
+                      ? '新增提交时会一次性带上整张表单和本次暂存资源。'
+                      : '修改保存时会一次性带上主表信息和本次追加资源。'
                   }}
                 </span>
               </div>
@@ -88,9 +88,7 @@
             <template #header>
               <div class="manuscript-review-form-page__section-head">
                 <span>上传暂存区</span>
-                <span class="manuscript-review-form-page__section-tip">
-                  上传后仅暂存在表单态；未提交附件删除走 deletePendingOssResource / DELETE /resource/oss/{ossId}
-                </span>
+                <span class="manuscript-review-form-page__section-tip">上传后仅暂存在当前表单；提交前可删除，不会写入正式资源。</span>
               </div>
             </template>
 
@@ -114,7 +112,7 @@
               <div v-for="item in draftUploads" :key="item.uid" class="manuscript-review-form-page__draft-item">
                 <div>
                   <div class="manuscript-review-form-page__draft-name">{{ item.displayName }}</div>
-                  <div class="manuscript-review-form-page__draft-meta">{{ item.resourceType }} / ossId={{ item.ossId }}</div>
+                  <div class="manuscript-review-form-page__draft-meta">{{ resolveDraftUploadTypeLabel(item.resourceType) }}待提交</div>
                 </div>
                 <el-button link type="danger" @click="handleDeletePendingUpload(item.ossId)">删除</el-button>
               </div>
@@ -125,7 +123,7 @@
             <template #header>
               <div class="manuscript-review-form-page__section-head">
                 <span>外链录入区</span>
-                <span class="manuscript-review-form-page__section-tip">外链与附件至少一种，空行不会进入最终 payload。</span>
+                <span class="manuscript-review-form-page__section-tip">外链与附件至少保留一种，空行不会进入最终提交内容。</span>
               </div>
             </template>
 
@@ -143,7 +141,7 @@
             <template #header>
               <div class="manuscript-review-form-page__section-head">
                 <span>当前已入库资源</span>
-                <span class="manuscript-review-form-page__section-tip">edit 模式只展示已入库资源，不把它们混入本次草稿资源。</span>
+                <span class="manuscript-review-form-page__section-tip">修改页只展示已入库资源，不把它们混入本次草稿资源。</span>
               </div>
             </template>
 
@@ -235,6 +233,9 @@ const uploadFileUrl = `${import.meta.env.VITE_APP_BASE_API}/resource/oss/upload`
 const uploadHeaders = globalHeaders();
 const processTypeOptions = PROCESS_TYPE_OPTIONS;
 
+const resolveDraftUploadTypeLabel = (resourceType: ManuscriptReviewDraftUploadItem['resourceType']) =>
+  resourceType === 'VIDEO' ? '视频' : '附件';
+
 const rules: FormRules<ManuscriptReviewDraftFormModel> = {
   processType: [{ required: true, message: '请选择流程类型', trigger: 'change' }],
   title: [{ required: true, message: '请输入标题', trigger: 'blur' }],
@@ -274,7 +275,7 @@ const removeExternalLink = (uid: string) => {
 
 const applyEditDraftState = async () => {
   if (!reviewId.value) {
-    errorMessage.value = 'edit 模式缺少 reviewId，无法回填表单。';
+    errorMessage.value = '修改页缺少 reviewId，无法回填表单。';
     return;
   }
 
@@ -454,7 +455,7 @@ const handlePrimaryAction = async () => {
     await router.push({ path: '/manuscript/review' });
   } catch (error) {
     if (error instanceof Error && error.message === 'MISSING_REVIEW_ID') {
-      errorMessage.value = 'edit 模式缺少 reviewId，无法执行保存。';
+      errorMessage.value = '修改页缺少 reviewId，无法执行保存。';
     } else {
       errorMessage.value = `${presentation.value.primaryActionLabel}失败，请根据提示修正后重试。`;
     }

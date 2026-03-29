@@ -2,12 +2,12 @@
   <section class="manuscript-review-detail-shell">
     <header class="manuscript-review-detail-shell__header">
       <div class="manuscript-review-detail-shell__headline">
-        <p class="manuscript-review-detail-shell__eyebrow">{{ isApprovalPage ? 'MANUSCRIPT REVIEW / APPROVAL' : 'MANUSCRIPT REVIEW / DETAIL' }}</p>
+        <p class="manuscript-review-detail-shell__eyebrow">{{ isApprovalPage ? '审校审批页' : '审校详情页' }}</p>
         <h1>{{ isApprovalPage ? '审校审批' : '审校详情' }}</h1>
         <p class="manuscript-review-detail-shell__description">
           {{
             isApprovalPage
-              ? '审批页承接 BPM 办理动作，并保留审校单的状态摘要、基本信息、当前有效资源和统一时间线。'
+              ? '审批页承接流程办理动作，并保留审校单的状态摘要、基本信息、当前有效资源和统一时间线。'
               : '详情页统一承载状态摘要、基本信息、当前有效资源和统一时间线，并提供与当前业务状态匹配的后置动作入口。'
           }}
         </p>

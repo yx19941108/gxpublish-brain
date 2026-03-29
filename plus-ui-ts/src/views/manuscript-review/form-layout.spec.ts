@@ -16,6 +16,8 @@ describe('manuscript review form layout shell', () => {
     expect(file).toContain('deletePendingOssResource');
     expect(file).not.toContain('去审批');
     expect(file).not.toContain('重新提交');
+    expect(file).not.toContain('CREATE / SUBMIT ONLY');
+    expect(file).not.toContain('EDIT / SAVE ONLY');
   });
 
   it('keeps submitDepartment readonly and keeps create/edit as submit-save only actions', () => {
@@ -28,6 +30,10 @@ describe('manuscript review form layout shell', () => {
     expect(file).not.toContain('保存并提交');
     expect(file).not.toContain('保存草稿');
     expect(file).not.toContain('草稿按钮');
+    expect(file).not.toContain('create 模式');
+    expect(file).not.toContain('edit 模式');
+    expect(file).not.toContain('ossId={{ item.ossId }}');
+    expect(file).not.toContain('DELETE /resource/oss/{ossId}');
   });
 
   it('uses a fixed-select process type control and does not require submitDepartment', () => {
