@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest';
 import {
   buildEditRouteLocation,
   buildWorkflowViewDetailRoute,
-  isManuscriptReviewFormPath,
   resolveApprovalBackTarget,
   resolveApprovalSuccessTarget,
   resolveDetailBackTarget
@@ -93,8 +92,4 @@ describe('T10_ManuscriptReview_DetailNavigationSpec', () => {
     });
   });
 
-  it('identifies manuscript-review approval form path only', () => {
-    expect(isManuscriptReviewFormPath('/manuscript/review/approval')).toBe(true);
-    expect(isManuscriptReviewFormPath('/workflow/leave/edit')).toBe(false);
-  });
 });

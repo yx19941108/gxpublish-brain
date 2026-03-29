@@ -2,7 +2,6 @@ import type { LocationQuery, RouteLocationRaw } from 'vue-router';
 
 const MANUSCRIPT_REVIEW_LEDGER_PATH = '/manuscript/review';
 const MANUSCRIPT_REVIEW_DETAIL_PATH = '/manuscript/review/detail';
-const MANUSCRIPT_REVIEW_APPROVAL_PATH = '/manuscript/review/approval';
 const MANUSCRIPT_REVIEW_FORM_PATH = '/manuscript/review/form';
 const WORKFLOW_TASK_WAITING_PATH = '/workflow/task/taskWaiting';
 
@@ -26,9 +25,6 @@ const parseRouteLocation = (target: string): RouteLocationRaw => {
     query: Object.fromEntries(new URLSearchParams(queryString))
   };
 };
-
-export const isManuscriptReviewFormPath = (formPath?: string | null): boolean =>
-  typeof formPath === 'string' && formPath.trim() === MANUSCRIPT_REVIEW_APPROVAL_PATH;
 
 export const buildWorkflowViewDetailRoute = (
   reviewId: string,

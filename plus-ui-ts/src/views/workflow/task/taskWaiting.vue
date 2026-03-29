@@ -63,15 +63,6 @@
         <el-table-column align="center" prop="createTime" label="创建时间" width="160"></el-table-column>
         <el-table-column label="操作" align="center" width="200">
           <template #default="scope">
-            <el-button
-              v-if="isManuscriptReviewFormPath(scope.row.formPath)"
-              type="primary"
-              size="small"
-              icon="View"
-              @click="handleView(scope.row)"
-            >
-              查看
-            </el-button>
             <el-button type="primary" size="small" icon="Edit" @click="handleOpen(scope.row)">办理</el-button>
           </template>
         </el-table-column>
@@ -94,7 +85,6 @@ import { pageByTaskWait } from '@/api/workflow/task';
 import { TaskQuery, FlowTaskVO } from '@/api/workflow/task/types';
 import workflowCommon from '@/api/workflow/workflowCommon';
 import { RouterJumpVo } from '@/api/workflow/workflowCommon/types';
-import { buildWorkflowViewDetailRoute, isManuscriptReviewFormPath } from '@/views/manuscript-review/detail-navigation';
 
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
 const { wf_business_status } = toRefs<any>(proxy?.useDict('wf_business_status'));
@@ -164,10 +154,6 @@ const getWaitingList = () => {
     total.value = resp.total;
     loading.value = false;
   });
-};
-const handleView = async (row: FlowTaskVO) => {
-  proxy?.$tab.closePage(proxy?.$route);
-  await proxy?.$router.push(buildWorkflowViewDetailRoute(String(row.businessId), row.id, '/workflow/task/taskWaiting'));
 };
 //办理
 const handleOpen = async (row: FlowTaskVO) => {
