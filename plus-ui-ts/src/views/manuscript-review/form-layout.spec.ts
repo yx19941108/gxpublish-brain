@@ -12,6 +12,8 @@ describe('manuscript review form layout shell', () => {
     expect(file).toContain('data-testid="manuscript-review-form-upload-section"');
     expect(file).toContain('data-testid="manuscript-review-form-external-links"');
     expect(file).toContain('data-testid="manuscript-review-form-persisted-resources"');
+    expect(file).toContain('manuscript-review-form-page__link-preview');
+    expect(file).toContain('isClickableExternalUrl');
     expect(file).toContain('buildFormPresentation');
     expect(file).toContain('deletePendingOssResource');
     expect(file).not.toContain('去审批');
@@ -41,6 +43,8 @@ describe('manuscript review form layout shell', () => {
 
     expect(file).toContain('<el-select v-model="formModel.processType"');
     expect(file).toContain('processTypeOptions');
+    expect(file).toContain('target="_blank"');
+    expect(file).toContain('rel="noopener noreferrer"');
     expect(file).not.toContain('placeholder="请输入流程类型"');
     expect(file).not.toContain("submitDepartment: [{ required: true");
   });

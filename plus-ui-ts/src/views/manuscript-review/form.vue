@@ -132,6 +132,15 @@
                 <el-input v-model="item.displayName" placeholder="链接标题" />
                 <el-input v-model="item.externalUrl" placeholder="https://example.com/ref" />
                 <el-button link type="danger" @click="removeExternalLink(item.uid)">移除</el-button>
+                <a
+                  v-if="isClickableExternalUrl(item.externalUrl)"
+                  class="manuscript-review-form-page__link-preview"
+                  :href="item.externalUrl.trim()"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  预览跳转
+                </a>
               </div>
             </div>
             <el-button plain @click="appendExternalLink">新增外链</el-button>
@@ -151,7 +160,20 @@
                 <div>
                   <div class="manuscript-review-form-page__draft-name">{{ item.displayName }}</div>
                   <div class="manuscript-review-form-page__draft-meta">
-                    {{ item.typeLabel }}<span v-if="item.note"> / {{ item.note }}</span>
+                    {{ item.typeLabel }}
+                    <span v-if="item.note">
+                      /
+                      <a
+                        v-if="item.typeLabel.includes('外链') && isClickableExternalUrl(item.note)"
+                        class="manuscript-review-form-page__link-preview"
+                        :href="item.note.trim()"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        {{ item.note }}
+                      </a>
+                      <template v-else>{{ item.note }}</template>
+                    </span>
                   </div>
                 </div>
                 <el-tag size="small" type="success" effect="light">已入库</el-tag>
@@ -235,6 +257,11 @@ const processTypeOptions = PROCESS_TYPE_OPTIONS;
 
 const resolveDraftUploadTypeLabel = (resourceType: ManuscriptReviewDraftUploadItem['resourceType']) =>
   resourceType === 'VIDEO' ? '视频' : '附件';
+
+const isClickableExternalUrl = (value: string | undefined) => {
+  const normalized = String(value ?? '').trim();
+  return normalized.startsWith('http://') || normalized.startsWith('https://');
+};
 
 const rules: FormRules<ManuscriptReviewDraftFormModel> = {
   processType: [{ required: true, message: '请选择流程类型', trigger: 'change' }],
@@ -515,6 +542,13 @@ onMounted(() => {
     color: var(--el-text-color-secondary);
     font-size: 12px;
     font-weight: 400;
+  }
+
+  &__link-preview {
+    justify-self: start;
+    color: var(--el-color-primary);
+    font-size: 12px;
+    text-decoration: underline;
   }
 
   &__footer {
