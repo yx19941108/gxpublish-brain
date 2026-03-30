@@ -23,9 +23,9 @@
           AND u.type IN ('1', '2', '3')
           AND u.processed_by = #{currentUserId}
           AND i.flow_status = 'WAITING'
-          AND d.flow_code = 'manuscript_review_'
+          AND d.flow_code IN ('manuscript_review_audit_flow', 'manuscript_review_proofread_flow')
           AND i.business_id IS NOT NULL
-          AND TRIM(i.business_id) <> ''
+          AND TRIM(i.business_id) <![CDATA[ <> ]]> ''
     </select>
 
     <select id="selectFinishedBusinessIds" resultType="java.lang.String">
@@ -38,9 +38,9 @@
           AND i.del_flag = '0'
           AND d.del_flag = '0'
           AND h.approver = #{currentUserId}
-          AND d.flow_code = 'manuscript_review_'
+          AND d.flow_code IN ('manuscript_review_audit_flow', 'manuscript_review_proofread_flow')
           AND i.business_id IS NOT NULL
-          AND TRIM(i.business_id) <> ''
+          AND TRIM(i.business_id) <![CDATA[ <> ]]> ''
     </select>
 
     <select id="customSelectVisibleLedgerPage" resultType="com.gxpublish.brain.manuscript.review.domain.entity.ManuscriptReviewRecordEntity">
