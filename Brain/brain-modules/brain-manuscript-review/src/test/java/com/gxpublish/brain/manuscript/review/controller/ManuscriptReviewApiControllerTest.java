@@ -5,10 +5,13 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.List;
 
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 
 import cn.dev33.satoken.annotation.SaCheckPermission;
@@ -38,6 +41,27 @@ class ManuscriptReviewApiControllerTest {
         assertPermission("update", "manuscript:review:edit", ManuscriptReviewSubmitRequest.class);
         assertPermission("submitAndFlowStart", "manuscript:review:submit", ManuscriptReviewSubmitRequest.class);
         assertPermission("resubmit", "manuscript:review:resubmit", ReviewIdRequest.class);
+    }
+
+    @Test
+    void shouldExposeSecondRoundPendingDeleteAndPreviewEndpoints() {
+        Method pendingDeleteMethod = Arrays.stream(ManuscriptReviewApiController.class.getDeclaredMethods())
+            .filter(method -> "deletePendingResource".equals(method.getName()))
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("deletePendingResource endpoint should exist for round-2 issue 1"));
+        DeleteMapping pendingDeleteMapping = pendingDeleteMethod.getAnnotation(DeleteMapping.class);
+        assertTrue(pendingDeleteMapping != null && pendingDeleteMapping.value().length > 0
+                && "/resource/pending/{ossId}".equals(pendingDeleteMapping.value()[0]),
+            "deletePendingResource should map to /resource/pending/{ossId}");
+
+        Method previewMethod = Arrays.stream(ManuscriptReviewReadableApiController.class.getDeclaredMethods())
+            .filter(method -> "previewResource".equals(method.getName()))
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("previewResource endpoint should exist for round-2 issues 8/4"));
+        GetMapping previewMapping = previewMethod.getAnnotation(GetMapping.class);
+        assertTrue(previewMapping != null && previewMapping.value().length > 0
+                && "/resource/preview/{resourceId}".equals(previewMapping.value()[0]),
+            "previewResource should map to /resource/preview/{resourceId}");
     }
 
     @Test

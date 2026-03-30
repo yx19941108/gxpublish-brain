@@ -14,6 +14,7 @@ import static org.mockito.Mockito.when;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
@@ -64,6 +65,17 @@ import com.gxpublish.brain.workflow.service.IFlwInstanceService;
 class ManuscriptReviewServiceTest {
 
     private static final ZoneId BUSINESS_ZONE_ID = ZoneId.of("Asia/Shanghai");
+
+    @Test
+    void shouldExposePendingResourceDeletionMethodForSecondRoundIssueOne() {
+        assertTrue(
+            Arrays.stream(ManuscriptReviewService.class.getDeclaredMethods())
+                .anyMatch(method -> "deletePendingResource".equals(method.getName())
+                    && method.getParameterCount() == 1
+                    && Long.class.equals(method.getParameterTypes()[0])),
+            "round-2 issue 1 should be implemented through ManuscriptReviewService.deletePendingResource(Long)"
+        );
+    }
 
     @Test
     void shouldPersistCreateRecordWithFrozenWriteFieldsOnly() {

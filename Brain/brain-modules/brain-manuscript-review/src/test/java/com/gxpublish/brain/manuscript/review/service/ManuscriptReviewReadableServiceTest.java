@@ -95,6 +95,9 @@ class ManuscriptReviewReadableServiceTest {
         assertEquals(1, detail.getAttachmentList().size());
         assertEquals(1, detail.getExternalLinkList().size());
         assertEquals(2, detail.getVideoList().size());
+        assertEquals("/workflow/manuscript-review/resource/preview/1", detail.getAttachmentList().get(0).getResourceUrl());
+        assertEquals("/workflow/manuscript-review/resource/preview/2", detail.getVideoList().get(0).getResourceUrl());
+        assertEquals("/workflow/manuscript-review/resource/preview/4", detail.getVideoList().get(1).getResourceUrl());
         assertEquals(2, detail.getVideoMarkList().size());
         assertEquals(2L, detail.getVideoMarkList().get(0).getResourceId());
         assertEquals(4L, detail.getVideoMarkList().get(1).getResourceId());
