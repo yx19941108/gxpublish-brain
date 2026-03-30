@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -45,13 +46,14 @@ class ManuscriptReviewReadableServiceTest {
     @Test
     void shouldReturnEmptyReadableLedgerWhenDatabaseHasNoRows() {
         ReadableFixture fixture = new ReadableFixture(3001L);
-        when(fixture.recordMapper.selectList(any())).thenReturn(List.of());
+        when(fixture.recordMapper.selectWaitingBusinessIds(3001L)).thenReturn(List.of());
+        when(fixture.recordMapper.selectFinishedBusinessIds(3001L)).thenReturn(List.of());
 
         TableDataInfo<ManuscriptReviewLedgerItemResponse> ledger = fixture.readableService.listLedger(new ManuscriptReviewLedgerQueryRequest());
 
         assertEquals(0, ledger.getTotal());
         assertTrue(ledger.getRows().isEmpty());
-        verify(fixture.recordMapper).selectList(any());
+        verify(fixture.recordMapper, never()).customSelectVisibleLedgerPage(any(), any(), any(), any(), any());
     }
 
     @Test
@@ -120,10 +122,8 @@ class ManuscriptReviewReadableServiceTest {
         when(fixture.externalLinkMapper.selectList(any())).thenReturn(List.of());
         when(fixture.historyMapper.selectList(any())).thenReturn(List.of(buildCreateHistory()));
         when(fixture.videoMarkerMapper.selectList(any())).thenReturn(List.of());
-        when(fixture.flowConfigMapper.selectOne(any())).thenReturn(buildFlowConfig());
-        when(fixture.roleMapper.selectList(any())).thenReturn(List.of(buildApproverRole()));
-        when(fixture.userRoleMapper.selectList(any())).thenReturn(List.of(buildUserRole()));
-        when(fixture.userMapper.selectList(any())).thenReturn(List.of(buildEnabledUser()));
+        when(fixture.recordMapper.selectWaitingBusinessIds(4002L)).thenReturn(List.of("9002"));
+        when(fixture.recordMapper.selectFinishedBusinessIds(4002L)).thenReturn(List.of());
 
         ManuscriptReviewDetailResponse detail = fixture.readableService.getDetail(9002L);
 

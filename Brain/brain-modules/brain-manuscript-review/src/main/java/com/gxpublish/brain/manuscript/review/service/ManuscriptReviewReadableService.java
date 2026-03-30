@@ -129,13 +129,15 @@ public class ManuscriptReviewReadableService {
     public TableDataInfo<ManuscriptReviewLedgerItemResponse> listLedger(ManuscriptReviewLedgerQueryRequest request) {
         ManuscriptReviewLedgerQueryRequest safeRequest = request == null ? new ManuscriptReviewLedgerQueryRequest() : request;
         LedgerVisibilityScope scope = resolveLedgerVisibilityScope();
+        List<Long> visibleReviewIds = resolveVisibleReviewIds(scope);
+        if (visibleReviewIds.isEmpty()) {
+            return new TableDataInfo<>(List.of(), 0);
+        }
         Page<ManuscriptReviewRecordEntity> page = new PageQuery(safePageSize(safeRequest.getPageSize()), safePageNum(safeRequest.getPageNum())).build();
         Page<ManuscriptReviewRecordEntity> result = recordMapper.customSelectVisibleLedgerPage(
             page,
             safeRequest,
-            scope.currentUserId(),
-            scope.allowInitiator(),
-            scope.approverNodeStatuses(),
+            visibleReviewIds,
             toDate(parseDateTime(safeRequest.getStartTimeFrom())),
             toDate(parseDateTime(safeRequest.getStartTimeTo()))
         );
@@ -168,7 +170,8 @@ public class ManuscriptReviewReadableService {
             List.of()
         );
         Map<Long, String> readableVideoUrls = buildReadableVideoUrlMap(attachments);
-        if (!canViewRecord(record, histories)) {
+        DetailAccessScope accessScope = resolveDetailAccessScope(record);
+        if (!accessScope.canView()) {
             throw new ServiceException(VIEW_PERMISSION_DENIED_MESSAGE);
         }
 
@@ -224,7 +227,7 @@ public class ManuscriptReviewReadableService {
         response.setVideoList(currentVideos.stream().map(video -> toVideoItem(video, readableVideoUrls)).toList());
         response.setVideoMarkList(currentVideoMarks.stream().map(this::toVideoMarkItem).toList());
         response.setTimelineItems(buildTimelineItems(histories, attachments, externalLinks));
-        response.setPermissionMatrix(buildPermissionMatrix(record, histories));
+        response.setPermissionMatrix(buildPermissionMatrix(record, accessScope));
         return response;
     }
 
@@ -391,34 +394,29 @@ public class ManuscriptReviewReadableService {
     }
 
     private ManuscriptReviewDetailResponse.PermissionMatrixVO buildPermissionMatrix(ManuscriptReviewRecordEntity record,
-                                                                                    List<ManuscriptReviewHistoryEntity> histories) {
-        Set<Long> historyParticipantUserIds = histories.stream()
-            .map(ManuscriptReviewHistoryEntity::getActorUserId)
-            .filter(Objects::nonNull)
-            .collect(Collectors.toSet());
-        Long currentUserId = requireCurrentUserId();
+                                                                                    DetailAccessScope accessScope) {
         ManuscriptReviewDetailPermissionResult permissionResult = permissionPolicy.resolve(
             ManuscriptReviewDetailPermissionContext.builder()
-                .currentUserId(currentUserId)
+                .currentUserId(accessScope.currentUserId())
                 .initiatorUserId(record.getInitiatorUserId())
-                .currentApproverUserIds(resolveCurrentApproverUserIds(record))
-                .historyParticipantUserIds(historyParticipantUserIds)
+                .currentApproverUserIds(accessScope.waitingApprover() ? Set.of(accessScope.currentUserId()) : Set.of())
+                .historyParticipantUserIds(Set.of())
                 .returnedToInitiator(isReturnedToInitiator(record))
                 .build()
         );
-        boolean isInitiator = Objects.equals(currentUserId, record.getInitiatorUserId());
-        boolean isCurrentApprover = permissionResult.getAllowedActions().contains(ManuscriptReviewDetailAction.GO_APPROVE);
-        boolean isHistoryParticipant = historyParticipantUserIds.contains(currentUserId);
-        boolean canView = isInitiator || isCurrentApprover || isHistoryParticipant;
+        boolean isInitiator = accessScope.initiator();
+        boolean isCurrentApprover = accessScope.waitingApprover();
+        boolean isFinishedApprover = accessScope.finishedApprover();
+        boolean canView = accessScope.canView();
         String businessStatus = mapBusinessStatusCode(record.getFlowStatusLabel());
         boolean canGotoApproval = permissionResult.getAllowedActions().contains(ManuscriptReviewDetailAction.GO_APPROVE);
         boolean canResubmit = permissionResult.getAllowedActions().contains(ManuscriptReviewDetailAction.RESUBMIT);
         boolean canCancel = isInitiator && !isCurrentApprover && ("WAITING".equals(businessStatus) || "BACK".equals(businessStatus));
-        String buttonReason = resolveButtonReason(businessStatus, canView, isHistoryParticipant);
+        String buttonReason = resolveButtonReason(businessStatus, canView, isFinishedApprover);
         return new ManuscriptReviewDetailResponse.PermissionMatrixVO(
             isInitiator,
             isCurrentApprover,
-            isHistoryParticipant,
+            false,
             canView,
             permissionResult.canModify(),
             canResubmit,
@@ -485,18 +483,14 @@ public class ManuscriptReviewReadableService {
             marker.getMarkerNote());
     }
 
-    private boolean canViewRecord(ManuscriptReviewRecordEntity record, List<ManuscriptReviewHistoryEntity> histories) {
+    private DetailAccessScope resolveDetailAccessScope(ManuscriptReviewRecordEntity record) {
         Long currentUserId = requireCurrentUserId();
-        if (Objects.equals(currentUserId, record.getInitiatorUserId())) {
-            return true;
-        }
-        if (resolveCurrentApproverUserIds(record).contains(currentUserId)) {
-            return true;
-        }
-        return histories.stream()
-            .map(ManuscriptReviewHistoryEntity::getActorUserId)
-            .filter(Objects::nonNull)
-            .anyMatch(currentUserId::equals);
+        boolean initiator = Objects.equals(currentUserId, record.getInitiatorUserId());
+        List<Long> waitingReviewIds = parseWorkflowBusinessIds(recordMapper.selectWaitingBusinessIds(currentUserId));
+        List<Long> finishedReviewIds = parseWorkflowBusinessIds(recordMapper.selectFinishedBusinessIds(currentUserId));
+        boolean waitingApprover = waitingReviewIds.contains(record.getId());
+        boolean finishedApprover = finishedReviewIds.contains(record.getId());
+        return new DetailAccessScope(currentUserId, initiator, waitingApprover, finishedApprover);
     }
 
     private boolean isReturnedToInitiator(ManuscriptReviewRecordEntity record) {
@@ -515,7 +509,7 @@ public class ManuscriptReviewReadableService {
             .distinct()
             .toList();
         if (currentRoleIds.isEmpty()) {
-            return new LedgerVisibilityScope(currentUserId, false, List.of());
+            return new LedgerVisibilityScope(currentUserId, false);
         }
         Set<String> currentRoleKeys = firstNonNull(roleMapper.selectList(
             new QueryWrapper<ManuscriptReviewSystemRoleEntity>()
@@ -529,23 +523,43 @@ public class ManuscriptReviewReadableService {
             .filter(Objects::nonNull)
             .collect(Collectors.toSet());
         boolean allowInitiator = currentRoleKeys.contains(ROLE_KEY_INITIATOR) || currentRoleKeys.contains(ROLE_KEY_CERTIFIED_INITIATOR);
-        Set<String> approverNodeStatuses = new LinkedHashSet<>();
-        firstNonNull(flowConfigMapper.selectList(
-            new QueryWrapper<ManuscriptReviewFlowConfigEntity>()
-                .eq("tenant_id", tenantId)
-                .eq("status", ACTIVE)), List.<ManuscriptReviewFlowConfigEntity>of())
-            .forEach(config -> {
-                if (currentRoleKeys.contains(trimToNull(config.getLevelOneRoleKey()))) {
-                    approverNodeStatuses.add(ManuscriptReviewNodeStatusEnum.LEVEL_1.getCode());
-                }
-                if (currentRoleKeys.contains(trimToNull(config.getLevelTwoRoleKey()))) {
-                    approverNodeStatuses.add(ManuscriptReviewNodeStatusEnum.LEVEL_2.getCode());
-                }
-                if (currentRoleKeys.contains(trimToNull(config.getLevelThreeRoleKey()))) {
-                    approverNodeStatuses.add(ManuscriptReviewNodeStatusEnum.LEVEL_3.getCode());
-                }
-            });
-        return new LedgerVisibilityScope(currentUserId, allowInitiator, List.copyOf(approverNodeStatuses));
+        return new LedgerVisibilityScope(currentUserId, allowInitiator);
+    }
+
+    private List<Long> resolveVisibleReviewIds(LedgerVisibilityScope scope) {
+        LinkedHashSet<Long> visibleReviewIds = new LinkedHashSet<>();
+        if (scope.allowInitiator()) {
+            visibleReviewIds.addAll(firstNonNull(recordMapper.selectInitiatedReviewIds(scope.currentUserId()), List.<Long>of()));
+        }
+        visibleReviewIds.addAll(parseWorkflowBusinessIds(recordMapper.selectWaitingBusinessIds(scope.currentUserId())));
+        visibleReviewIds.addAll(parseWorkflowBusinessIds(recordMapper.selectFinishedBusinessIds(scope.currentUserId())));
+        return List.copyOf(visibleReviewIds);
+    }
+
+    private List<Long> parseWorkflowBusinessIds(List<String> rawBusinessIds) {
+        if (rawBusinessIds == null || rawBusinessIds.isEmpty()) {
+            return List.of();
+        }
+        LinkedHashSet<Long> reviewIds = new LinkedHashSet<>();
+        for (String rawBusinessId : rawBusinessIds) {
+            Long reviewId = parseReviewId(rawBusinessId);
+            if (reviewId != null) {
+                reviewIds.add(reviewId);
+            }
+        }
+        return List.copyOf(reviewIds);
+    }
+
+    private Long parseReviewId(String rawBusinessId) {
+        String normalized = trimToNull(rawBusinessId);
+        if (normalized == null) {
+            return null;
+        }
+        try {
+            return Long.valueOf(normalized);
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
     }
 
     private Set<Long> resolveCurrentApproverUserIds(ManuscriptReviewRecordEntity record) {
@@ -618,7 +632,7 @@ public class ManuscriptReviewReadableService {
         return normalized.length() <= 200 ? normalized : normalized.substring(0, 200);
     }
 
-    private String resolveButtonReason(String businessStatus, boolean canView, boolean isHistoryParticipant) {
+    private String resolveButtonReason(String businessStatus, boolean canView, boolean isFinishedApprover) {
         if (!canView) {
             return "当前用户无权查看该流程";
         }
@@ -631,8 +645,8 @@ public class ManuscriptReviewReadableService {
         if ("FINISH".equals(businessStatus)) {
             return "流程已完成，不可继续操作";
         }
-        if (isHistoryParticipant) {
-            return "当前用户仅可查看历史参与记录";
+        if (isFinishedApprover) {
+            return "当前记录来自我的已办，仅可查看";
         }
         return null;
     }
@@ -845,6 +859,16 @@ public class ManuscriptReviewReadableService {
     ) {
     }
 
-    private record LedgerVisibilityScope(Long currentUserId, boolean allowInitiator, List<String> approverNodeStatuses) {
+    private record DetailAccessScope(Long currentUserId,
+                                     boolean initiator,
+                                     boolean waitingApprover,
+                                     boolean finishedApprover) {
+
+        private boolean canView() {
+            return initiator || waitingApprover || finishedApprover;
+        }
+    }
+
+    private record LedgerVisibilityScope(Long currentUserId, boolean allowInitiator) {
     }
 }

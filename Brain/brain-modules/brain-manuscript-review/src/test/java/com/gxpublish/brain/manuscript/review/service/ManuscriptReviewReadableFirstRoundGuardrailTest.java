@@ -33,14 +33,15 @@ class ManuscriptReviewReadableFirstRoundGuardrailTest {
     @Test
     void shouldAvoidFullTableRecordAndHistoryScansWhenListingLedger() {
         ReadableFixture fixture = new ReadableFixture(4001L);
-        when(fixture.recordMapper.selectList(any())).thenReturn(List.of());
-        when(fixture.historyMapper.selectList(any())).thenReturn(List.of());
+        when(fixture.recordMapper.selectWaitingBusinessIds(4001L)).thenReturn(List.of());
+        when(fixture.recordMapper.selectFinishedBusinessIds(4001L)).thenReturn(List.of());
 
         TableDataInfo<ManuscriptReviewLedgerItemResponse> ledger = fixture.readableService.listLedger(new ManuscriptReviewLedgerQueryRequest());
 
         assertEquals(0, ledger.getTotal());
         assertTrue(ledger.getRows().isEmpty());
         verify(fixture.recordMapper, never()).selectList(any());
+        verify(fixture.recordMapper, never()).customSelectVisibleLedgerPage(any(), any(), any(), any(), any());
         verify(fixture.historyMapper, never()).selectList(any());
     }
 

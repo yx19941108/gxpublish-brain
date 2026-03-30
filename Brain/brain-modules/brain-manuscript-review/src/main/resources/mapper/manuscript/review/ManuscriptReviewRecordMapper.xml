@@ -4,40 +4,55 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.gxpublish.brain.manuscript.review.mapper.ManuscriptReviewRecordMapper">
 
+    <select id="selectInitiatedReviewIds" resultType="java.lang.Long">
+        SELECT r.id
+        FROM brain_manuscript_review r
+        WHERE r.initiator_user_id = #{currentUserId}
+        ORDER BY r.id
+    </select>
+
+    <select id="selectWaitingBusinessIds" resultType="java.lang.String">
+        SELECT DISTINCT TRIM(i.business_id)
+        FROM flow_task t
+                 INNER JOIN flow_user u ON u.associated = t.id
+                 INNER JOIN flow_instance i ON t.instance_id = i.id
+                 INNER JOIN flow_definition d ON t.definition_id = d.id
+        WHERE t.node_type = 1
+          AND t.del_flag = '0'
+          AND u.del_flag = '0'
+          AND u.type IN ('1', '2', '3')
+          AND u.processed_by = #{currentUserId}
+          AND i.flow_status = 'WAITING'
+          AND d.flow_code = 'manuscript_review_'
+          AND i.business_id IS NOT NULL
+          AND TRIM(i.business_id) <> ''
+    </select>
+
+    <select id="selectFinishedBusinessIds" resultType="java.lang.String">
+        SELECT DISTINCT TRIM(i.business_id)
+        FROM flow_his_task h
+                 INNER JOIN flow_instance i ON h.instance_id = i.id
+                 INNER JOIN flow_definition d ON h.definition_id = d.id
+        WHERE h.node_type = 1
+          AND h.del_flag = '0'
+          AND i.del_flag = '0'
+          AND d.del_flag = '0'
+          AND h.approver = #{currentUserId}
+          AND d.flow_code = 'manuscript_review_'
+          AND i.business_id IS NOT NULL
+          AND TRIM(i.business_id) <> ''
+    </select>
+
     <select id="customSelectVisibleLedgerPage" resultType="com.gxpublish.brain.manuscript.review.domain.entity.ManuscriptReviewRecordEntity">
         SELECT r.*
         FROM brain_manuscript_review r
         <where>
-            AND (
-                EXISTS (
-                     SELECT 1
-                    FROM brain_manuscript_review_history h
-                    WHERE h.review_id = r.id
-                      AND h.actor_user_id = #{currentUserId}
-                )
-                <if test="allowInitiator">
-                    OR r.initiator_user_id = #{currentUserId}
-                </if>
-                <if test="approverNodeStatuses != null and approverNodeStatuses.size() > 0">
-                    OR
-                    <foreach item="status" collection="approverNodeStatuses" open="(" separator=" OR " close=")">
-                        <choose>
-                            <when test="status == 'LEVEL_1'">
-                                r.current_node_status = 'LEVEL_1'
-                                OR r.current_node_label IN ('待一级审批', '一级审批')
-                            </when>
-                            <when test="status == 'LEVEL_2'">
-                                r.current_node_status = 'LEVEL_2'
-                                OR r.current_node_label IN ('待二级审批', '二级审批')
-                            </when>
-                            <when test="status == 'LEVEL_3'">
-                                r.current_node_status = 'LEVEL_3'
-                                OR r.current_node_label IN ('待三级审批', '三级审批', '终审')
-                            </when>
-                        </choose>
-                    </foreach>
-                </if>
-            )
+            <if test="visibleReviewIds != null and visibleReviewIds.size() > 0">
+                AND r.id IN
+                <foreach item="reviewId" collection="visibleReviewIds" open="(" separator="," close=")">
+                    #{reviewId}
+                </foreach>
+            </if>
             <if test="query != null and query.keyword != null and query.keyword != ''">
                 AND (
                     r.manuscript_code LIKE concat('%', #{query.keyword}, '%')

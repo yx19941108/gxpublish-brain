@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -45,31 +45,46 @@ import com.gxpublish.brain.manuscript.review.mapper.ManuscriptReviewVideoMarkerM
 class ManuscriptReviewReadableVisibilityTest {
 
     @Test
-    void shouldOnlyReturnVisibleRecordsInLedger() {
+    void shouldUnionInitiatedWaitingAndFinishedReviewIdsWhenListingLedger() {
         ReadableFixture fixture = new ReadableFixture(4001L);
+        when(fixture.userRoleMapper.selectList(any())).thenReturn(List.of(buildUserRole(4001L, 7101L)));
+        when(fixture.roleMapper.selectList(any())).thenReturn(List.of(buildRole(7101L, "manuscript_review_initiator")));
+        when(fixture.recordMapper.selectInitiatedReviewIds(4001L)).thenReturn(List.of(9301L));
+        when(fixture.recordMapper.selectWaitingBusinessIds(4001L)).thenReturn(List.of("9302", "9303"));
+        when(fixture.recordMapper.selectFinishedBusinessIds(4001L)).thenReturn(List.of("9303", "9304", "not-a-review-id"));
         Page<ManuscriptReviewRecordEntity> page = new Page<>(1, 10);
         page.setRecords(List.of(
+            buildRecord(9304L, 3004L, "已完成", "流程完成"),
             buildRecord(9303L, 3003L, "已完成", "流程完成"),
             buildRecord(9302L, 3002L, "审批中", "待二级审批"),
             buildRecord(9301L, 4001L, "审批中", "待一级审批")));
-        page.setTotal(3);
-        when(fixture.recordMapper.customSelectVisibleLedgerPage(any(), any(), any(), anyBoolean(), any(), any(), any())).thenReturn(page);
+        page.setTotal(4);
+        when(fixture.recordMapper.customSelectVisibleLedgerPage(
+            any(),
+            any(),
+            argThat(reviewIds -> reviewIds != null && reviewIds.equals(List.of(9301L, 9302L, 9303L, 9304L))),
+            any(),
+            any()))
+            .thenReturn(page);
 
         TableDataInfo<ManuscriptReviewLedgerItemResponse> ledger = fixture.readableService.listLedger(new ManuscriptReviewLedgerQueryRequest());
 
-        assertEquals(3, ledger.getTotal());
-        assertEquals(List.of(9303L, 9302L, 9301L), ledger.getRows().stream().map(ManuscriptReviewLedgerItemResponse::getId).toList());
+        assertEquals(4, ledger.getTotal());
+        assertEquals(List.of(9304L, 9303L, 9302L, 9301L), ledger.getRows().stream().map(ManuscriptReviewLedgerItemResponse::getId).toList());
     }
 
     @Test
     void shouldAvoidFullTableRecordAndHistoryScansWhenListingLedger() {
         ReadableFixture fixture = new ReadableFixture(4001L);
+        when(fixture.recordMapper.selectWaitingBusinessIds(4001L)).thenReturn(List.of());
+        when(fixture.recordMapper.selectFinishedBusinessIds(4001L)).thenReturn(List.of());
 
         TableDataInfo<ManuscriptReviewLedgerItemResponse> ledger = fixture.readableService.listLedger(new ManuscriptReviewLedgerQueryRequest());
 
         assertEquals(0, ledger.getTotal());
         assertTrue(ledger.getRows().isEmpty());
         verify(fixture.recordMapper, never()).selectList(any());
+        verify(fixture.recordMapper, never()).customSelectVisibleLedgerPage(any(), any(), any(), any(), any());
         verify(fixture.historyMapper, never()).selectList(any());
     }
 
@@ -87,6 +102,22 @@ class ManuscriptReviewReadableVisibilityTest {
         when(fixture.userMapper.selectList(any())).thenReturn(List.of(buildEnabledUser(4001L)));
 
         ServiceException exception = assertThrows(ServiceException.class, () -> fixture.readableService.getDetail(9305L));
+
+        assertEquals("当前用户无权查看该流程", exception.getMessage());
+    }
+
+    @Test
+    void shouldRejectDetailWhenUserIsOnlyHistoryParticipant() {
+        ReadableFixture fixture = new ReadableFixture(4009L);
+        when(fixture.recordMapper.selectById(9310L)).thenReturn(buildRecord(9310L, 3010L, "审批中", "待一级审批"));
+        when(fixture.attachmentMapper.selectList(any())).thenReturn(List.of());
+        when(fixture.externalLinkMapper.selectList(any())).thenReturn(List.of());
+        when(fixture.historyMapper.selectList(any())).thenReturn(List.of(buildHistory(9310L, 4009L, "李四审批通过了流程。")));
+        when(fixture.videoMarkerMapper.selectList(any())).thenReturn(List.of());
+        when(fixture.recordMapper.selectWaitingBusinessIds(4009L)).thenReturn(List.of());
+        when(fixture.recordMapper.selectFinishedBusinessIds(4009L)).thenReturn(List.of());
+
+        ServiceException exception = assertThrows(ServiceException.class, () -> fixture.readableService.getDetail(9310L));
 
         assertEquals("当前用户无权查看该流程", exception.getMessage());
     }
@@ -112,6 +143,26 @@ class ManuscriptReviewReadableVisibilityTest {
     }
 
     @Test
+    void shouldAllowFinishedApproverToViewButNotOperateDetail() {
+        ReadableFixture fixture = new ReadableFixture(4012L);
+        when(fixture.recordMapper.selectById(9312L)).thenReturn(buildRecord(9312L, 3012L, "已完成", "流程完成"));
+        when(fixture.attachmentMapper.selectList(any())).thenReturn(List.of());
+        when(fixture.externalLinkMapper.selectList(any())).thenReturn(List.of());
+        when(fixture.historyMapper.selectList(any())).thenReturn(List.of(buildHistory(9312L, 4012L, "李四审批通过了流程。")));
+        when(fixture.videoMarkerMapper.selectList(any())).thenReturn(List.of());
+        when(fixture.recordMapper.selectWaitingBusinessIds(4012L)).thenReturn(List.of());
+        when(fixture.recordMapper.selectFinishedBusinessIds(4012L)).thenReturn(List.of("9312"));
+
+        ManuscriptReviewDetailResponse detail = fixture.readableService.getDetail(9312L);
+
+        assertTrue(detail.getPermissionMatrix().isCanView());
+        assertFalse(detail.getPermissionMatrix().isCanEdit());
+        assertFalse(detail.getPermissionMatrix().isCanGotoApproval());
+        assertFalse(detail.getPermissionMatrix().isCanResubmit());
+        assertEquals("流程已完成，不可继续操作", detail.getPermissionMatrix().getButtonReason());
+    }
+
+    @Test
     void shouldTreatRuntimeWorkflowNodeNameAsCurrentApproverNode() {
         ReadableFixture fixture = new ReadableFixture(4001L);
         ManuscriptReviewRecordEntity record = buildRecord(9307L, 3007L, "审批中", "一级审批");
@@ -120,10 +171,8 @@ class ManuscriptReviewReadableVisibilityTest {
         when(fixture.externalLinkMapper.selectList(any())).thenReturn(List.of());
         when(fixture.historyMapper.selectList(any())).thenReturn(List.of());
         when(fixture.videoMarkerMapper.selectList(any())).thenReturn(List.of());
-        when(fixture.flowConfigMapper.selectOne(any())).thenReturn(buildFlowConfig());
-        when(fixture.roleMapper.selectList(any())).thenReturn(List.of(buildRole(7101L, "role:l1")));
-        when(fixture.userRoleMapper.selectList(any())).thenReturn(List.of(buildUserRole(4001L, 7101L)));
-        when(fixture.userMapper.selectList(any())).thenReturn(List.of(buildEnabledUser(4001L)));
+        when(fixture.recordMapper.selectWaitingBusinessIds(4001L)).thenReturn(List.of("9307"));
+        when(fixture.recordMapper.selectFinishedBusinessIds(4001L)).thenReturn(List.of());
 
         ManuscriptReviewDetailResponse detail = fixture.readableService.getDetail(9307L);
 

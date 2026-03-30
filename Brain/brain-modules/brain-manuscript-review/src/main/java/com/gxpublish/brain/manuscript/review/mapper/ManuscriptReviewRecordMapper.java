@@ -12,11 +12,15 @@ import com.gxpublish.brain.manuscript.review.domain.entity.ManuscriptReviewRecor
 
 public interface ManuscriptReviewRecordMapper extends BaseMapperPlus<ManuscriptReviewRecordEntity, ManuscriptReviewRecordEntity> {
 
+    List<Long> selectInitiatedReviewIds(@Param("currentUserId") Long currentUserId);
+
+    List<String> selectWaitingBusinessIds(@Param("currentUserId") Long currentUserId);
+
+    List<String> selectFinishedBusinessIds(@Param("currentUserId") Long currentUserId);
+
     Page<ManuscriptReviewRecordEntity> customSelectVisibleLedgerPage(@Param("page") Page<ManuscriptReviewRecordEntity> page,
                                                                      @Param("query") ManuscriptReviewLedgerQueryRequest query,
-                                                                     @Param("currentUserId") Long currentUserId,
-                                                                     @Param("allowInitiator") boolean allowInitiator,
-                                                                     @Param("approverNodeStatuses") List<String> approverNodeStatuses,
+                                                                     @Param("visibleReviewIds") List<Long> visibleReviewIds,
                                                                      @Param("startTimeFrom") Date startTimeFrom,
                                                                      @Param("startTimeTo") Date startTimeTo);
 }
