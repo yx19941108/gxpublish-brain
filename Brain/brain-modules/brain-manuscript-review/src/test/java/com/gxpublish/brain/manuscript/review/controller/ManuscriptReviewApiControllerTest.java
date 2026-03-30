@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 
+import cn.dev33.satoken.annotation.SaIgnore;
 import cn.dev33.satoken.annotation.SaCheckPermission;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gxpublish.brain.manuscript.review.controller.request.ManuscriptReviewLedgerQueryRequest;
@@ -62,6 +63,17 @@ class ManuscriptReviewApiControllerTest {
         assertTrue(previewMapping != null && previewMapping.value().length > 0
                 && "/resource/preview/{resourceId}".equals(previewMapping.value()[0]),
             "previewResource should map to /resource/preview/{resourceId}");
+        assertTrue(previewMethod.getAnnotation(SaIgnore.class) != null,
+            "previewResource should bypass global login filter and rely on preview-specific auth");
+
+        Method previewTicketMethod = Arrays.stream(ManuscriptReviewReadableApiController.class.getDeclaredMethods())
+            .filter(method -> "issuePreviewTicket".equals(method.getName()))
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("issuePreviewTicket endpoint should exist for preview token flow"));
+        GetMapping previewTicketMapping = previewTicketMethod.getAnnotation(GetMapping.class);
+        assertTrue(previewTicketMapping != null && previewTicketMapping.value().length > 0
+                && "/resource/preview-ticket/{resourceId}".equals(previewTicketMapping.value()[0]),
+            "issuePreviewTicket should map to /resource/preview-ticket/{resourceId}");
     }
 
     @Test

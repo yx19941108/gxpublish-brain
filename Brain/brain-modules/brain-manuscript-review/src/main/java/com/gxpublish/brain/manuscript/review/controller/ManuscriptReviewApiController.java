@@ -5,6 +5,8 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -207,6 +209,18 @@ public class ManuscriptReviewApiController {
     @PutMapping("/cancelProcessApply")
     public R<Void> cancelProcessApply(@RequestBody CancelProcessRequest request) {
         manuscriptReviewService.cancelProcessApply(requireReviewId(request.getId()), request.getReason());
+        return R.ok();
+    }
+
+    /**
+     * 删除暂存资源。
+     *
+     * @param ossId OSS 主键
+     * @return 无返回值
+     */
+    @DeleteMapping("/resource/pending/{ossId}")
+    public R<Void> deletePendingResource(@PathVariable("ossId") Long ossId) {
+        manuscriptReviewService.deletePendingResource(ossId);
         return R.ok();
     }
 

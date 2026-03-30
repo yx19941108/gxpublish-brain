@@ -94,6 +94,13 @@ export interface ManuscriptReviewResourceItemVO {
   resourceUrl?: string;
 }
 
+export interface ManuscriptReviewPreviewTicketVO {
+  resourceId: string | number;
+  resourceUrl: string;
+  previewToken: string;
+  expireAtEpochSecond: number;
+}
+
 export interface ManuscriptReviewVideoMarkItemVO {
   id: string | number;
   resourceId?: string | number;

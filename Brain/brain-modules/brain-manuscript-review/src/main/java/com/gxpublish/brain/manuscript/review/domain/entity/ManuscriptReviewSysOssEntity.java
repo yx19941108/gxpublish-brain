@@ -19,6 +19,11 @@ import lombok.Data;
 public class ManuscriptReviewSysOssEntity {
 
     /**
+     * 租户编号。
+     */
+    private String tenantId;
+
+    /**
      * OSS 主键。
      */
     @TableId(value = "oss_id")
@@ -43,6 +48,11 @@ public class ManuscriptReviewSysOssEntity {
      * OSS 服务标识。
      */
     private String service;
+
+    /**
+     * 创建人主键。
+     */
+    private Long createBy;
 
     /**
      * 扩展字段 JSON。

@@ -74,6 +74,14 @@ public interface IManuscriptReviewService {
     void cancelProcessApply(Long reviewId, String reason);
 
     /**
+     * 删除暂存资源。
+     *
+     * @param ossId OSS 主键
+     * @return 无返回值
+     */
+    void deletePendingResource(Long ossId);
+
+    /**
      * 追加资源。
      *
      * @param command 资源新增命令

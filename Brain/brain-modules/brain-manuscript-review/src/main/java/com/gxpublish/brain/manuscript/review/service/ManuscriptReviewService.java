@@ -29,6 +29,7 @@ import com.gxpublish.brain.common.core.domain.event.ProcessTaskEvent;
 import com.gxpublish.brain.common.core.exception.ServiceException;
 import com.gxpublish.brain.common.core.service.WorkflowService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.gxpublish.brain.common.oss.factory.OssFactory;
 import com.gxpublish.brain.common.mybatis.utils.IdGeneratorUtil;
 import com.gxpublish.brain.manuscript.review.domain.command.AddManuscriptReviewResourceCommand;
 import com.gxpublish.brain.manuscript.review.domain.command.AddManuscriptReviewVideoMarkCommand;
@@ -96,6 +97,10 @@ public class ManuscriptReviewService implements IManuscriptReviewService {
     private static final String CANCEL_ONLY_INITIATOR_MESSAGE = "仅发起人本人可撤销";
     private static final String CANCEL_ONLY_WAITING_MESSAGE = "仅审批中或已退回的流程可撤销";
     private static final String RESUBMIT_ONLY_RETURNED_MESSAGE = "仅退回给发起人的流程可再次提交";
+    private static final String PENDING_RESOURCE_NOT_FOUND_MESSAGE = "上传文件不存在或已被删除";
+    private static final String PENDING_RESOURCE_PERMISSION_DENIED_MESSAGE = "当前用户无权删除该暂存资源";
+    private static final String PENDING_RESOURCE_ALREADY_BOUND_MESSAGE = "该资源已正式入库，不能按暂存资源删除";
+    private static final String PENDING_RESOURCE_INCOMPLETE_MESSAGE = "上传文件信息不完整，无法删除";
     private static final String UPDATE_PERMISSION_DENIED_MESSAGE = "当前用户无权修改该流程";
     private static final String INITIATOR_PERMISSION_DENIED_MESSAGE = "当前用户无权发起审校流程";
     private static final String FLOW_CONFIG_MISSING_MESSAGE = "审校流程审批链配置缺失";
@@ -732,6 +737,40 @@ public class ManuscriptReviewService implements IManuscriptReviewService {
             insertWorkflowHistory(reviewId, processTaskEvent.getTenantId(),
                 ManuscriptReviewHistoryActionTypeEnum.APPROVE.getCode(), approvalHistoryText, processTaskEvent.getParams());
         }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deletePendingResource(Long ossId) {
+        if (ossId == null) {
+            throw new ServiceException(PENDING_RESOURCE_NOT_FOUND_MESSAGE);
+        }
+        ManuscriptReviewSysOssEntity sysOss = sysOssMapper.selectById(ossId);
+        if (sysOss == null) {
+            throw new ServiceException(PENDING_RESOURCE_NOT_FOUND_MESSAGE);
+        }
+        Long currentUserId = requireCurrentUserId();
+        boolean ownerMatched = Objects.equals(currentUserId, sysOss.getCreateBy());
+        boolean tenantMatched = Objects.equals(
+            normalizeTenantId(currentUserGateway.getCurrentTenantId()),
+            normalizeTenantId(sysOss.getTenantId())
+        );
+        if (!ownerMatched || !tenantMatched) {
+            throw new ServiceException(PENDING_RESOURCE_PERMISSION_DENIED_MESSAGE);
+        }
+        Long boundAttachmentCount = attachmentMapper.selectCount(
+            new QueryWrapper<ManuscriptReviewAttachmentEntity>().eq("oss_id", ossId)
+        );
+        if (boundAttachmentCount != null && boundAttachmentCount > 0) {
+            throw new ServiceException(PENDING_RESOURCE_ALREADY_BOUND_MESSAGE);
+        }
+        String service = trimToNull(sysOss.getService());
+        String url = trimToNull(sysOss.getUrl());
+        if (service == null || url == null) {
+            throw new ServiceException(PENDING_RESOURCE_INCOMPLETE_MESSAGE);
+        }
+        OssFactory.instance(service).delete(url);
+        sysOssMapper.deleteById(ossId);
     }
 
     public Long addResource(AddManuscriptReviewResourceCommand command) {

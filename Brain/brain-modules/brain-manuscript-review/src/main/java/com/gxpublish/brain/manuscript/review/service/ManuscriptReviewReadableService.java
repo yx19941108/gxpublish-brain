@@ -1,6 +1,5 @@
 package com.gxpublish.brain.manuscript.review.service;
 
-import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -16,8 +15,19 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 
+import cn.hutool.crypto.SecureUtil;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -29,6 +39,7 @@ import com.gxpublish.brain.common.oss.factory.OssFactory;
 import com.gxpublish.brain.manuscript.review.controller.request.ManuscriptReviewLedgerQueryRequest;
 import com.gxpublish.brain.manuscript.review.controller.response.ManuscriptReviewDetailResponse;
 import com.gxpublish.brain.manuscript.review.controller.response.ManuscriptReviewLedgerItemResponse;
+import com.gxpublish.brain.manuscript.review.controller.response.ManuscriptReviewPreviewTicketResponse;
 import com.gxpublish.brain.manuscript.review.domain.entity.ManuscriptReviewAttachmentEntity;
 import com.gxpublish.brain.manuscript.review.domain.entity.ManuscriptReviewExternalLinkEntity;
 import com.gxpublish.brain.manuscript.review.domain.entity.ManuscriptReviewFlowConfigEntity;
@@ -65,6 +76,15 @@ public class ManuscriptReviewReadableService {
     private static final String REVIEW_NOT_FOUND_MESSAGE = "稿件审校流程不存在";
     private static final String CURRENT_USER_REQUIRED_MESSAGE = "当前登录用户不存在";
     private static final String VIEW_PERMISSION_DENIED_MESSAGE = "当前用户无权查看该流程";
+    private static final String RESOURCE_NOT_FOUND_MESSAGE = "资源不存在";
+    private static final String PREVIEW_RESOURCE_INCOMPLETE_MESSAGE = "资源预览信息缺失";
+    private static final String PREVIEW_TOKEN_REQUIRED_MESSAGE = "预览票据不存在或已失效";
+    private static final String PREVIEW_TOKEN_INVALID_MESSAGE = "预览票据无效";
+    private static final String PREVIEW_TOKEN_EXPIRED_MESSAGE = "预览票据已过期，请刷新详情后重试";
+    private static final String CURRENT_CLIENT_REQUIRED_MESSAGE = "当前客户端不存在";
+    private static final String CURRENT_USER_TYPE_REQUIRED_MESSAGE = "当前登录用户类型不存在";
+    private static final String PREVIEW_TOKEN_SCOPE = "MANUSCRIPT_REVIEW_PREVIEW";
+    private static final long PREVIEW_TOKEN_TTL_SECONDS = 600L;
     private static final String DEFAULT_TENANT_ID = "000000";
     private static final String ROLE_KEY_CERTIFIED_INITIATOR = "manuscript_review_certified_initiator";
     private static final String ROLE_KEY_INITIATOR = "manuscript_review_initiator";
@@ -86,6 +106,8 @@ public class ManuscriptReviewReadableService {
     private final ManuscriptReviewCurrentUserGateway currentUserGateway;
     private final ManuscriptReviewSysOssMapper sysOssMapper;
     private final ManuscriptReviewDetailPermissionPolicy permissionPolicy = new ManuscriptReviewDetailPermissionPolicy();
+    @Value("${sa-token.jwt-secret-key:abcdefghijklmnopqrstuvwxyz}")
+    private String previewTokenSecret;
 
     @Autowired
     public ManuscriptReviewReadableService(ManuscriptReviewRecordMapper recordMapper,
@@ -169,7 +191,6 @@ public class ManuscriptReviewReadableService {
             videoMarkerMapper.selectList(new QueryWrapper<ManuscriptReviewVideoMarkerEntity>().eq("review_id", reviewId)),
             List.of()
         );
-        Map<Long, String> readableVideoUrls = buildReadableVideoUrlMap(attachments);
         DetailAccessScope accessScope = resolveDetailAccessScope(record);
         if (!accessScope.canView()) {
             throw new ServiceException(VIEW_PERMISSION_DENIED_MESSAGE);
@@ -224,11 +245,159 @@ public class ManuscriptReviewReadableService {
         response.setUpdateTime(formatDate(firstNonNull(record.getUpdateTime(), record.getCreateTime())));
         response.setAttachmentList(currentAttachments.stream().map(this::toAttachmentItem).toList());
         response.setExternalLinkList(currentExternalLinks.stream().map(this::toExternalLinkItem).toList());
-        response.setVideoList(currentVideos.stream().map(video -> toVideoItem(video, readableVideoUrls)).toList());
+        response.setVideoList(currentVideos.stream().map(this::toVideoItem).toList());
         response.setVideoMarkList(currentVideoMarks.stream().map(this::toVideoMarkItem).toList());
         response.setTimelineItems(buildTimelineItems(histories, attachments, externalLinks));
         response.setPermissionMatrix(buildPermissionMatrix(record, accessScope));
         return response;
+    }
+
+    public ManuscriptReviewPreviewTicketResponse issuePreviewTicket(Long resourceId) {
+        ManuscriptReviewAttachmentEntity attachment = requirePreviewAttachment(resourceId);
+        ManuscriptReviewRecordEntity record = requirePreviewRecord(attachment);
+        DetailAccessScope accessScope = resolveDetailAccessScope(record);
+        if (!accessScope.canView()) {
+            throw new ServiceException(VIEW_PERMISSION_DENIED_MESSAGE);
+        }
+        String clientId = requireCurrentClientId();
+        PreviewTokenPayload payload = new PreviewTokenPayload(
+            PREVIEW_TOKEN_SCOPE,
+            attachment.getId(),
+            requireCurrentUserId(),
+            requireCurrentUserType(),
+            clientId,
+            Instant.now().getEpochSecond() + PREVIEW_TOKEN_TTL_SECONDS
+        );
+        String previewToken = createPreviewToken(payload);
+        return new ManuscriptReviewPreviewTicketResponse(
+            attachment.getId(),
+            buildTokenizedPreviewResourceUrl(attachment.getId(), previewToken, clientId),
+            previewToken,
+            payload.expireAtEpochSecond()
+        );
+    }
+
+    public void previewResource(Long resourceId, HttpServletRequest request, HttpServletResponse response) throws IOException {
+        ManuscriptReviewAttachmentEntity attachment = requirePreviewAttachment(resourceId);
+        ManuscriptReviewRecordEntity record = requirePreviewRecord(attachment);
+        if (currentUserGateway.getCurrentUserId() != null) {
+            validateLoggedInPreviewAccess(record, request);
+        } else {
+            validatePreviewTokenAccess(resourceId, request);
+        }
+        ManuscriptReviewSysOssEntity sysOss = sysOssMapper == null ? null : sysOssMapper.selectById(attachment.getOssId());
+        String upstreamUrl = buildPreviewUpstreamUrl(sysOss, attachment);
+        HttpURLConnection connection = openPreviewConnection(upstreamUrl, request.getHeader("Range"));
+        try {
+            response.setStatus(connection.getResponseCode());
+            applyPreviewResponseHeaders(response, attachment, connection);
+            try (InputStream inputStream = resolvePreviewInputStream(connection)) {
+                inputStream.transferTo(response.getOutputStream());
+            }
+        } finally {
+            connection.disconnect();
+        }
+    }
+
+    private ManuscriptReviewAttachmentEntity requirePreviewAttachment(Long resourceId) {
+        ManuscriptReviewAttachmentEntity attachment = attachmentMapper.selectById(resourceId);
+        if (attachment == null) {
+            throw new ServiceException(RESOURCE_NOT_FOUND_MESSAGE);
+        }
+        return attachment;
+    }
+
+    private ManuscriptReviewRecordEntity requirePreviewRecord(ManuscriptReviewAttachmentEntity attachment) {
+        ManuscriptReviewRecordEntity record = recordMapper.selectById(attachment.getReviewId());
+        if (record == null) {
+            throw new ServiceException(REVIEW_NOT_FOUND_MESSAGE);
+        }
+        return record;
+    }
+
+    private void validateLoggedInPreviewAccess(ManuscriptReviewRecordEntity record, HttpServletRequest request) {
+        if (!Objects.equals(requireCurrentClientId(), requireRequestClientId(request))) {
+            throw new ServiceException(PREVIEW_TOKEN_INVALID_MESSAGE);
+        }
+        DetailAccessScope accessScope = resolveDetailAccessScope(record);
+        if (!accessScope.canView()) {
+            throw new ServiceException(VIEW_PERMISSION_DENIED_MESSAGE);
+        }
+    }
+
+    private void validatePreviewTokenAccess(Long resourceId, HttpServletRequest request) {
+        String previewToken = trimToNull(request.getParameter("previewToken"));
+        if (previewToken == null) {
+            throw new ServiceException(PREVIEW_TOKEN_REQUIRED_MESSAGE);
+        }
+        PreviewTokenPayload payload = parsePreviewToken(previewToken);
+        if (!Objects.equals(PREVIEW_TOKEN_SCOPE, payload.scope())
+            || !Objects.equals(resourceId, payload.resourceId())
+            || !Objects.equals(requireRequestClientId(request), trimToNull(payload.clientId()))) {
+            throw new ServiceException(PREVIEW_TOKEN_INVALID_MESSAGE);
+        }
+        if (payload.expireAtEpochSecond() == null || payload.expireAtEpochSecond() < Instant.now().getEpochSecond()) {
+            throw new ServiceException(PREVIEW_TOKEN_EXPIRED_MESSAGE);
+        }
+    }
+
+    private String createPreviewToken(PreviewTokenPayload payload) {
+        String payloadText = serializePreviewTokenPayload(payload);
+        String encodedPayload = java.util.Base64.getUrlEncoder()
+            .withoutPadding()
+            .encodeToString(payloadText.getBytes(StandardCharsets.UTF_8));
+        return encodedPayload + "." + buildPreviewTokenSignature(payloadText);
+    }
+
+    private PreviewTokenPayload parsePreviewToken(String previewToken) {
+        String[] segments = previewToken.split("\\.", 2);
+        if (segments.length != 2) {
+            throw new ServiceException(PREVIEW_TOKEN_INVALID_MESSAGE);
+        }
+        try {
+            String payloadText = new String(java.util.Base64.getUrlDecoder().decode(segments[0]), StandardCharsets.UTF_8);
+            if (!Objects.equals(buildPreviewTokenSignature(payloadText), segments[1])) {
+                throw new ServiceException(PREVIEW_TOKEN_INVALID_MESSAGE);
+            }
+            return deserializePreviewTokenPayload(payloadText);
+        } catch (IllegalArgumentException exception) {
+            throw new ServiceException(PREVIEW_TOKEN_INVALID_MESSAGE);
+        }
+    }
+
+    private String serializePreviewTokenPayload(PreviewTokenPayload payload) {
+        return String.join("|",
+            firstNonNull(payload.scope(), ""),
+            payload.resourceId() == null ? "" : String.valueOf(payload.resourceId()),
+            payload.userId() == null ? "" : String.valueOf(payload.userId()),
+            firstNonNull(payload.userType(), ""),
+            firstNonNull(payload.clientId(), ""),
+            payload.expireAtEpochSecond() == null ? "" : String.valueOf(payload.expireAtEpochSecond()));
+    }
+
+    private PreviewTokenPayload deserializePreviewTokenPayload(String payloadText) {
+        String[] parts = payloadText.split("\\|", -1);
+        if (parts.length != 6) {
+            throw new ServiceException(PREVIEW_TOKEN_INVALID_MESSAGE);
+        }
+        return new PreviewTokenPayload(
+            trimToNull(parts[0]),
+            parseLongOrNull(parts[1]),
+            parseLongOrNull(parts[2]),
+            trimToNull(parts[3]),
+            trimToNull(parts[4]),
+            parseLongOrNull(parts[5])
+        );
+    }
+
+    private String buildPreviewTokenSignature(String payloadText) {
+        return SecureUtil.sha256(PREVIEW_TOKEN_SCOPE + ":" + payloadText + ":" + firstNonNull(previewTokenSecret, ""));
+    }
+
+    private String buildTokenizedPreviewResourceUrl(Long resourceId, String previewToken, String clientId) {
+        return buildPreviewResourceUrl(resourceId)
+            + "?previewToken=" + URLEncoder.encode(previewToken, StandardCharsets.UTF_8)
+            + "&clientid=" + URLEncoder.encode(clientId, StandardCharsets.UTF_8);
     }
 
     public ManuscriptReviewDetailResponse.ResourceItemVO getResourceItem(Long reviewId, Long resourceId) {
@@ -434,7 +603,7 @@ public class ManuscriptReviewReadableService {
             attachment.getFileName(),
             null,
             formatDate(attachment.getCreateTime()),
-            attachment.getFileUrl());
+            buildPreviewResourceUrl(attachment.getId()));
     }
 
     private ManuscriptReviewDetailResponse.ResourceItemVO toVideoItem(ManuscriptReviewAttachmentEntity video) {
@@ -446,20 +615,7 @@ public class ManuscriptReviewReadableService {
             video.getFileName(),
             null,
             formatDate(video.getCreateTime()),
-            video.getFileUrl());
-    }
-
-    private ManuscriptReviewDetailResponse.ResourceItemVO toVideoItem(ManuscriptReviewAttachmentEntity video,
-                                                                      Map<Long, String> readableVideoUrls) {
-        return new ManuscriptReviewDetailResponse.ResourceItemVO(
-            video.getId(),
-            video.getOssId(),
-            "VIDEO",
-            "视频",
-            video.getFileName(),
-            null,
-            formatDate(video.getCreateTime()),
-            readableVideoUrls.getOrDefault(video.getOssId(), video.getFileUrl()));
+            buildPreviewResourceUrl(video.getId()));
     }
 
     private ManuscriptReviewDetailResponse.ResourceItemVO toExternalLinkItem(ManuscriptReviewExternalLinkEntity externalLink) {
@@ -788,46 +944,86 @@ public class ManuscriptReviewReadableService {
         return trimmed.isEmpty() ? null : trimmed;
     }
 
-    private Map<Long, String> buildReadableVideoUrlMap(List<ManuscriptReviewAttachmentEntity> attachments) {
-        if (sysOssMapper == null) {
-            return Collections.emptyMap();
-        }
-
-        List<Long> videoOssIds = attachments.stream()
-            .filter(attachment -> Boolean.TRUE.equals(attachment.getIsVideo()))
-            .map(ManuscriptReviewAttachmentEntity::getOssId)
-            .filter(Objects::nonNull)
-            .distinct()
-            .toList();
-        if (videoOssIds.isEmpty()) {
-            return Collections.emptyMap();
-        }
-
-        List<ManuscriptReviewSysOssEntity> sysOssList = firstNonNull(sysOssMapper.selectByIds(videoOssIds), List.of());
-        Map<Long, String> readableUrlMap = new java.util.HashMap<>();
-        for (ManuscriptReviewSysOssEntity sysOss : sysOssList) {
-            String readableUrl = buildReadableVideoUrl(sysOss);
-            if (readableUrl != null && sysOss.getOssId() != null) {
-                readableUrlMap.put(sysOss.getOssId(), readableUrl);
-            }
-        }
-        return readableUrlMap;
+    private String buildPreviewResourceUrl(Long resourceId) {
+        return resourceId == null ? null : "/workflow/manuscript-review/resource/preview/" + resourceId;
     }
 
-    private String buildReadableVideoUrl(ManuscriptReviewSysOssEntity sysOss) {
+    private String buildPreviewUpstreamUrl(ManuscriptReviewSysOssEntity sysOss, ManuscriptReviewAttachmentEntity attachment) {
         if (sysOss == null) {
-            return null;
+            String fallbackUrl = trimToNull(attachment.getFileUrl());
+            if (fallbackUrl != null) {
+                return fallbackUrl;
+            }
+            throw new ServiceException(PREVIEW_RESOURCE_INCOMPLETE_MESSAGE);
         }
-        String fileName = trimToNull(sysOss.getFileName());
         String service = trimToNull(sysOss.getService());
-        if (fileName == null || service == null) {
-            return trimToNull(sysOss.getUrl());
+        String fileName = trimToNull(sysOss.getFileName());
+        if (service != null && fileName != null) {
+            return OssFactory.instance(service).createPresignedGetUrl(fileName, java.time.Duration.ofMinutes(5));
         }
-        try {
-            return OssFactory.instance(service).createPresignedGetUrl(fileName, Duration.ofHours(1));
-        } catch (Exception exception) {
-            return trimToNull(sysOss.getUrl());
+        String directUrl = trimToNull(sysOss.getUrl());
+        if (directUrl != null) {
+            return directUrl;
         }
+        String fallbackUrl = trimToNull(attachment.getFileUrl());
+        if (fallbackUrl != null) {
+            return fallbackUrl;
+        }
+        throw new ServiceException(PREVIEW_RESOURCE_INCOMPLETE_MESSAGE);
+    }
+
+    private HttpURLConnection openPreviewConnection(String upstreamUrl, String rangeHeader) throws IOException {
+        HttpURLConnection connection = (HttpURLConnection) new URL(upstreamUrl).openConnection();
+        connection.setRequestMethod("GET");
+        connection.setDoInput(true);
+        connection.setConnectTimeout(10000);
+        connection.setReadTimeout(60000);
+        if (rangeHeader != null && !rangeHeader.isBlank()) {
+            connection.setRequestProperty("Range", rangeHeader.trim());
+        }
+        return connection;
+    }
+
+    private void applyPreviewResponseHeaders(HttpServletResponse response,
+                                             ManuscriptReviewAttachmentEntity attachment,
+                                             HttpURLConnection connection) {
+        String contentType = firstNonNull(trimToNull(connection.getContentType()), trimToNull(attachment.getMimeType()),
+            MediaType.APPLICATION_OCTET_STREAM_VALUE);
+        response.setContentType(contentType);
+        long contentLength = connection.getContentLengthLong();
+        if (contentLength >= 0) {
+            response.setContentLengthLong(contentLength);
+        }
+        copyPreviewHeader(connection, response, "Accept-Ranges");
+        copyPreviewHeader(connection, response, "Content-Range");
+        copyPreviewHeader(connection, response, "Cache-Control");
+        copyPreviewHeader(connection, response, "ETag");
+        copyPreviewHeader(connection, response, "Last-Modified");
+        response.setHeader("Content-Disposition", buildInlineContentDisposition(attachment.getFileName()));
+    }
+
+    private void copyPreviewHeader(HttpURLConnection connection, HttpServletResponse response, String headerName) {
+        String value = trimToNull(connection.getHeaderField(headerName));
+        if (value != null) {
+            response.setHeader(headerName, value);
+        }
+    }
+
+    private String buildInlineContentDisposition(String fileName) {
+        String normalizedFileName = trimToNull(fileName);
+        if (normalizedFileName == null) {
+            return "inline";
+        }
+        String encodedFileName = URLEncoder.encode(normalizedFileName, StandardCharsets.UTF_8).replace("+", "%20");
+        return "inline; filename*=UTF-8''" + encodedFileName;
+    }
+
+    private InputStream resolvePreviewInputStream(HttpURLConnection connection) throws IOException {
+        InputStream errorStream = connection.getErrorStream();
+        if (errorStream != null && connection.getResponseCode() >= 400) {
+            return errorStream;
+        }
+        return connection.getInputStream();
     }
 
     private Long requireCurrentUserId() {
@@ -836,6 +1032,42 @@ public class ManuscriptReviewReadableService {
             throw new ServiceException(CURRENT_USER_REQUIRED_MESSAGE);
         }
         return currentUserId;
+    }
+
+    private String requireCurrentUserType() {
+        String currentUserType = trimToNull(currentUserGateway.getCurrentUserType());
+        if (currentUserType == null) {
+            throw new ServiceException(CURRENT_USER_TYPE_REQUIRED_MESSAGE);
+        }
+        return currentUserType;
+    }
+
+    private String requireCurrentClientId() {
+        String currentClientId = trimToNull(currentUserGateway.getCurrentClientId());
+        if (currentClientId == null) {
+            throw new ServiceException(CURRENT_CLIENT_REQUIRED_MESSAGE);
+        }
+        return currentClientId;
+    }
+
+    private String requireRequestClientId(HttpServletRequest request) {
+        String requestClientId = trimToNull(firstNonNull(request.getHeader("clientid"), request.getParameter("clientid")));
+        if (requestClientId == null) {
+            throw new ServiceException(CURRENT_CLIENT_REQUIRED_MESSAGE);
+        }
+        return requestClientId;
+    }
+
+    private Long parseLongOrNull(String value) {
+        String normalized = trimToNull(value);
+        if (normalized == null) {
+            return null;
+        }
+        try {
+            return Long.parseLong(normalized);
+        } catch (NumberFormatException exception) {
+            throw new ServiceException(PREVIEW_TOKEN_INVALID_MESSAGE);
+        }
     }
 
     @SafeVarargs
@@ -870,5 +1102,13 @@ public class ManuscriptReviewReadableService {
     }
 
     private record LedgerVisibilityScope(Long currentUserId, boolean allowInitiator) {
+    }
+
+    private record PreviewTokenPayload(String scope,
+                                       Long resourceId,
+                                       Long userId,
+                                       String userType,
+                                       String clientId,
+                                       Long expireAtEpochSecond) {
     }
 }

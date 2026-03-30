@@ -148,6 +148,56 @@
                     </button>
                   </div>
                 </div>
+
+                <div
+                  v-if="canManageResources && videoPlaybackItems.length > 0"
+                  class="manuscript-review-detail-shell__video-mark-create"
+                  data-testid="manuscript-review-video-mark-create"
+                >
+                  <div class="manuscript-review-detail-shell__video-mark-create-header">
+                    <div>
+                      <p class="manuscript-review-detail-shell__video-marks-title">新增视频标注</p>
+                      <p class="manuscript-review-detail-shell__section-hint">
+                        标注能力与详情页“修改”权限保持一致，提交成功后会刷新当前标注列表与时间线。
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      class="manuscript-review-detail-shell__video-mark-submit"
+                      :disabled="videoMarkSubmitting"
+                      @click="handleAddVideoMark"
+                    >
+                      {{ videoMarkSubmitting ? '提交中…' : '提交新增标注' }}
+                    </button>
+                  </div>
+                  <div class="manuscript-review-detail-shell__video-mark-form">
+                    <label class="manuscript-review-detail-shell__video-mark-field">
+                      <span>当前视频</span>
+                      <select v-model="pendingVideoMarkResourceId">
+                        <option v-for="item in videoPlaybackItems" :key="item.id" :value="item.id">
+                          {{ item.name }}
+                        </option>
+                      </select>
+                    </label>
+                    <label class="manuscript-review-detail-shell__video-mark-field">
+                      <span>开始时间</span>
+                      <input v-model.trim="pendingVideoMarkStartTime" type="text" placeholder="00:00:05" />
+                    </label>
+                    <label class="manuscript-review-detail-shell__video-mark-field">
+                      <span>结束时间</span>
+                      <input v-model.trim="pendingVideoMarkEndTime" type="text" placeholder="00:00:12" />
+                    </label>
+                    <label class="manuscript-review-detail-shell__video-mark-field manuscript-review-detail-shell__video-mark-field--full">
+                      <span>标注内容</span>
+                      <textarea
+                        v-model.trim="pendingVideoMarkContent"
+                        rows="3"
+                        maxlength="500"
+                        placeholder="请输入需要记录的问题或说明"
+                      />
+                    </label>
+                  </div>
+                </div>
               </template>
             </div>
 
@@ -247,9 +297,11 @@ import { computed, getCurrentInstance, nextTick, onMounted, ref, watch } from 'v
 import { useRoute, useRouter } from 'vue-router';
 
 import {
+  addManuscriptReviewVideoMark,
   disableManuscriptReviewResource,
   disableManuscriptReviewVideoMark,
   getManuscriptReviewDetail,
+  getManuscriptReviewPreviewTicket,
   resubmitManuscriptReview
 } from '@/api/manuscript-review';
 import { flowHisTaskList, getInfo } from '@/api/workflow/instance';
@@ -307,6 +359,11 @@ const submitVerifyRef = ref<InstanceType<typeof SubmitVerify>>();
 const videoPlayerRef = ref<HTMLVideoElement | null>(null);
 const activeVideoId = ref('');
 const pendingSeekSeconds = ref<number | null>(null);
+const pendingVideoMarkResourceId = ref('');
+const pendingVideoMarkStartTime = ref('');
+const pendingVideoMarkEndTime = ref('');
+const pendingVideoMarkContent = ref('');
+const videoMarkSubmitting = ref(false);
 
 const detailSource = computed(() => viewModel.value?.detail ?? null);
 const actionBar = computed(() => {
@@ -330,6 +387,62 @@ const activeVideo = computed<ManuscriptReviewVideoPlaybackItem | undefined>(() =
   return videoPlaybackItems.value[0];
 });
 const activeVideoMarks = computed<ManuscriptReviewVideoPlaybackMarkItem[]>(() => activeVideo.value?.marks ?? []);
+const extractPreviewTicketUrl = (
+  response: Awaited<ReturnType<typeof getManuscriptReviewPreviewTicket>>
+): string | undefined => {
+  const payload = response?.data as
+    | {
+        data?: {
+          resourceUrl?: string;
+        };
+        resourceUrl?: string;
+      }
+    | undefined;
+  const resourceUrl = payload?.data?.resourceUrl ?? payload?.resourceUrl;
+  return typeof resourceUrl === 'string' && resourceUrl.trim() ? resourceUrl.trim() : undefined;
+};
+
+const applyPreviewTicketUrls = async (
+  currentViewModel: ManuscriptReviewDetailReadableViewModel
+): Promise<ManuscriptReviewDetailReadableViewModel> => {
+  const previewableIds = [
+    ...(currentViewModel.detail.attachmentList ?? []).map((item) => String(item.id)),
+    ...(currentViewModel.detail.videoList ?? []).map((item) => String(item.id))
+  ];
+  if (previewableIds.length === 0) {
+    return currentViewModel;
+  }
+
+  const previewEntries = await Promise.all(
+    previewableIds.map(async (resourceId) => {
+      try {
+        const response = await getManuscriptReviewPreviewTicket(resourceId);
+        return [resourceId, extractPreviewTicketUrl(response)] as const;
+      } catch {
+        return [resourceId, undefined] as const;
+      }
+    })
+  );
+
+  const previewUrlMap = new Map(previewEntries.filter((entry): entry is readonly [string, string] => Boolean(entry[1])));
+  if (previewUrlMap.size === 0) {
+    return currentViewModel;
+  }
+
+  return normalizeDetailViewModel({
+    data: {
+      ...currentViewModel.detail,
+      attachmentList: (currentViewModel.detail.attachmentList ?? []).map((item) => ({
+        ...item,
+        resourceUrl: previewUrlMap.get(String(item.id)) ?? item.resourceUrl
+      })),
+      videoList: (currentViewModel.detail.videoList ?? []).map((item) => ({
+        ...item,
+        resourceUrl: previewUrlMap.get(String(item.id)) ?? item.resourceUrl
+      }))
+    }
+  });
+};
 
 const summaryCards = computed(() => {
   const detail = detailSource.value;
@@ -401,11 +514,15 @@ watch(
     if (items.length === 0) {
       activeVideoId.value = '';
       pendingSeekSeconds.value = null;
+      pendingVideoMarkResourceId.value = '';
       return;
     }
 
     if (!items.some((item) => item.id === activeVideoId.value)) {
       activeVideoId.value = items[0].id;
+    }
+    if (!items.some((item) => item.id === pendingVideoMarkResourceId.value)) {
+      pendingVideoMarkResourceId.value = activeVideoId.value || items[0].id;
     }
   },
   { immediate: true }
@@ -455,7 +572,8 @@ const fetchDetail = async () => {
 
   try {
     const payload = await getManuscriptReviewDetail(reviewId.value);
-    viewModel.value = normalizeDetailViewModel(payload);
+    const normalizedViewModel = normalizeDetailViewModel(payload);
+    viewModel.value = await applyPreviewTicketUrls(normalizedViewModel);
   } catch {
     viewModel.value = null;
     errorMessage.value = '详情数据加载失败，请稍后重试。';
@@ -566,6 +684,56 @@ const selectVideo = (videoId: string) => {
   activeVideoId.value = videoId;
 };
 
+const resetPendingVideoMarkForm = () => {
+  pendingVideoMarkResourceId.value = activeVideo.value?.id ?? videoPlaybackItems.value[0]?.id ?? '';
+  pendingVideoMarkStartTime.value = '';
+  pendingVideoMarkEndTime.value = '';
+  pendingVideoMarkContent.value = '';
+};
+
+const handleAddVideoMark = async () => {
+  if (!reviewId.value) {
+    errorMessage.value = '缺少必要的定位信息，请从台账进入详情页。';
+    return;
+  }
+  const resourceId = pendingVideoMarkResourceId.value || activeVideo.value?.id;
+  const startTimeText = pendingVideoMarkStartTime.value.trim();
+  const markContent = pendingVideoMarkContent.value.trim();
+  if (!resourceId) {
+    errorMessage.value = '当前没有可标注的视频资源。';
+    return;
+  }
+  if (!startTimeText) {
+    errorMessage.value = '请先填写视频标注开始时间。';
+    return;
+  }
+  if (!markContent) {
+    errorMessage.value = '请先填写视频标注内容。';
+    return;
+  }
+
+  videoMarkSubmitting.value = true;
+  errorMessage.value = '';
+  activeVideoId.value = resourceId;
+
+  try {
+    await addManuscriptReviewVideoMark({
+      reviewId: reviewId.value,
+      resourceId,
+      startTimeText,
+      endTimeText: pendingVideoMarkEndTime.value.trim() || undefined,
+      markContent
+    });
+    resetPendingVideoMarkForm();
+    await fetchDetail();
+    proxy?.$modal.msgSuccess('新增视频标注成功');
+  } catch {
+    errorMessage.value = '新增视频标注失败，请稍后重试。';
+  } finally {
+    videoMarkSubmitting.value = false;
+  }
+};
+
 const jumpToVideoMark = async (videoId: string, seconds?: number) => {
   if (!videoId || seconds == null) {
     errorMessage.value = '当前标注缺少有效时间信息，无法跳转。';
@@ -642,6 +810,7 @@ const handleApprovalSubmit = async () => {
 };
 
 onMounted(() => {
+  resetPendingVideoMarkForm();
   void fetchDetail();
 });
 </script>
@@ -954,6 +1123,79 @@ onMounted(() => {
   gap: 10px;
 }
 
+.manuscript-review-detail-shell__video-mark-create {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid rgb(214 224 237 / 80%);
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgb(245 249 255 / 95%) 0%, rgb(255 255 255 / 92%) 100%);
+}
+
+.manuscript-review-detail-shell__video-mark-create-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.manuscript-review-detail-shell__video-mark-form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.manuscript-review-detail-shell__video-mark-field {
+  display: grid;
+  gap: 8px;
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
+}
+
+.manuscript-review-detail-shell__video-mark-field span {
+  color: var(--el-text-color-primary);
+  font-weight: 600;
+}
+
+.manuscript-review-detail-shell__video-mark-field select,
+.manuscript-review-detail-shell__video-mark-field input,
+.manuscript-review-detail-shell__video-mark-field textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--el-border-color);
+  border-radius: 12px;
+  background: var(--el-bg-color);
+  color: var(--el-text-color-primary);
+  font: inherit;
+}
+
+.manuscript-review-detail-shell__video-mark-field textarea {
+  resize: vertical;
+  min-height: 88px;
+}
+
+.manuscript-review-detail-shell__video-mark-field--full {
+  grid-column: 1 / -1;
+}
+
+.manuscript-review-detail-shell__video-mark-submit {
+  align-self: start;
+  min-width: 132px;
+  padding: 10px 18px;
+  border: 1px solid var(--el-color-primary);
+  border-radius: 999px;
+  background: var(--el-color-primary);
+  color: var(--el-color-white);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.manuscript-review-detail-shell__video-mark-submit:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
 .manuscript-review-detail-shell__video-switch {
   display: flex;
   align-items: center;
@@ -1202,6 +1444,10 @@ onMounted(() => {
   .manuscript-review-detail-shell__content,
   .manuscript-review-detail-shell__resource-groups,
   .manuscript-review-detail-shell__info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .manuscript-review-detail-shell__video-mark-form {
     grid-template-columns: 1fr;
   }
 

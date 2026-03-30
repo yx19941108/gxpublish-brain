@@ -7,6 +7,7 @@ import type {
   ManuscriptReviewDetailVO,
   ManuscriptReviewListPageVO,
   ManuscriptReviewListQuery,
+  ManuscriptReviewPreviewTicketVO,
   ManuscriptReviewResourceCreateCommand,
   ManuscriptReviewResourceDisableCommand,
   ManuscriptReviewResourceItemVO,
@@ -28,6 +29,15 @@ export const listManuscriptReview = (query?: ManuscriptReviewListQuery): AxiosPr
 export const getManuscriptReviewDetail = (id: string | number): AxiosPromise<ManuscriptReviewDetailVO> => {
   return request({
     url: `/workflow/manuscript-review/${id}`,
+    method: 'get'
+  });
+};
+
+export const getManuscriptReviewPreviewTicket = (
+  resourceId: string | number
+): AxiosPromise<ManuscriptReviewPreviewTicketVO> => {
+  return request({
+    url: `/workflow/manuscript-review/resource/preview-ticket/${resourceId}`,
     method: 'get'
   });
 };
@@ -58,12 +68,14 @@ export const submitAndFlowStartManuscriptReview = (
   });
 };
 
-export const deletePendingOssResource = (ossId: string | number): AxiosPromise<void> => {
+export const deletePendingManuscriptReviewResource = (ossId: string | number): AxiosPromise<void> => {
   return request({
-    url: `/resource/oss/${ossId}`,
+    url: `/workflow/manuscript-review/resource/pending/${ossId}`,
     method: 'delete'
   });
 };
+
+export const deletePendingOssResource = deletePendingManuscriptReviewResource;
 
 export const resubmitManuscriptReview = (
   data: ManuscriptReviewReviewIdCommand

@@ -16,11 +16,16 @@ describe('T10_ManuscriptReview_SecondRoundContractSpec', () => {
   });
 
   it('exposes round-2 video mark creation area and refreshes detail after creation', () => {
+    const apiFile = readFileSync(resolve(__dirname, '../../api/manuscript-review/index.ts'), 'utf-8');
     const detailFile = readFileSync(resolve(__dirname, './detail-page-shell.vue'), 'utf-8');
 
+    expect(apiFile).toContain('getManuscriptReviewPreviewTicket');
+    expect(apiFile).toContain('/workflow/manuscript-review/resource/preview-ticket/');
     expect(detailFile).toContain('新增视频标注');
     expect(detailFile).toContain('addManuscriptReviewVideoMark');
     expect(detailFile).toContain('await addManuscriptReviewVideoMark');
     expect(detailFile).toContain('await fetchDetail()');
+    expect(detailFile).toContain('getManuscriptReviewPreviewTicket');
+    expect(detailFile).not.toContain('Authorization=Bearer');
   });
 });

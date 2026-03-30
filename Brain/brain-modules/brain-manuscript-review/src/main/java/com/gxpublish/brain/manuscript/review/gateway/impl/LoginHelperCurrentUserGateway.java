@@ -1,5 +1,7 @@
 package com.gxpublish.brain.manuscript.review.gateway.impl;
 
+import cn.dev33.satoken.stp.StpUtil;
+import cn.hutool.core.convert.Convert;
 import org.springframework.stereotype.Component;
 
 import com.gxpublish.brain.common.satoken.utils.LoginHelper;
@@ -12,6 +14,22 @@ public class LoginHelperCurrentUserGateway implements ManuscriptReviewCurrentUse
     @Override
     public Long getCurrentUserId() {
         return LoginHelper.getUserId();
+    }
+
+    @Override
+    public String getCurrentUserType() {
+        LoginUser loginUser = LoginHelper.getLoginUser();
+        return loginUser == null ? null : loginUser.getUserType();
+    }
+
+    @Override
+    public String getCurrentClientId() {
+        try {
+            return Convert.toStr(StpUtil.getExtra(LoginHelper.CLIENT_KEY));
+        } catch (Exception exception) {
+            LoginUser loginUser = LoginHelper.getLoginUser();
+            return loginUser == null ? null : loginUser.getClientKey();
+        }
     }
 
     @Override

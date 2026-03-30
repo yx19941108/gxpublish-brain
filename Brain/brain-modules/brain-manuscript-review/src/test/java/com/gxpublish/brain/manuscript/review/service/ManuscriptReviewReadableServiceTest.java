@@ -20,6 +20,7 @@ import com.gxpublish.brain.common.mybatis.core.page.TableDataInfo;
 import com.gxpublish.brain.manuscript.review.controller.request.ManuscriptReviewLedgerQueryRequest;
 import com.gxpublish.brain.manuscript.review.controller.response.ManuscriptReviewDetailResponse;
 import com.gxpublish.brain.manuscript.review.controller.response.ManuscriptReviewLedgerItemResponse;
+import com.gxpublish.brain.manuscript.review.controller.response.ManuscriptReviewPreviewTicketResponse;
 import com.gxpublish.brain.manuscript.review.domain.entity.ManuscriptReviewAttachmentEntity;
 import com.gxpublish.brain.manuscript.review.domain.entity.ManuscriptReviewExternalLinkEntity;
 import com.gxpublish.brain.manuscript.review.domain.entity.ManuscriptReviewFlowConfigEntity;
@@ -107,6 +108,25 @@ class ManuscriptReviewReadableServiceTest {
         assertEquals("张三新增了流程。", detail.getTimelineItems().get(0).getEventText());
         assertTrue(detail.getPermissionMatrix().isCanResubmit());
         assertTrue(detail.getPermissionMatrix().isCanCancel());
+    }
+
+    @Test
+    void shouldIssueShortLivedPreviewTicketForReadableResource() {
+        ReadableFixture fixture = new ReadableFixture(3003L);
+        when(fixture.currentUserGateway.getCurrentClientId()).thenReturn("client-preview");
+        when(fixture.currentUserGateway.getCurrentUserType()).thenReturn("pc");
+        when(fixture.attachmentMapper.selectById(1L)).thenReturn(buildCurrentAttachment());
+        when(fixture.recordMapper.selectById(9002L)).thenReturn(buildReviewRecord());
+        when(fixture.recordMapper.selectWaitingBusinessIds(3003L)).thenReturn(List.of());
+        when(fixture.recordMapper.selectFinishedBusinessIds(3003L)).thenReturn(List.of());
+
+        ManuscriptReviewPreviewTicketResponse response = fixture.readableService.issuePreviewTicket(1L);
+
+        assertEquals(1L, response.getResourceId());
+        assertTrue(response.getResourceUrl().contains("/workflow/manuscript-review/resource/preview/1?previewToken="));
+        assertTrue(response.getResourceUrl().contains("&clientid=client-preview"));
+        assertTrue(response.getPreviewToken() != null && !response.getPreviewToken().isBlank());
+        assertTrue(response.getExpireAtEpochSecond() != null && response.getExpireAtEpochSecond() > 0);
     }
 
     @Test

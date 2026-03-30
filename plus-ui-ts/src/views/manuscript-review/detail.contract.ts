@@ -48,6 +48,7 @@ const SUMMARY_FIELDS: Array<{
 
 const EMPTY_TEXT = '--';
 const SUCCESS_CODES = new Set([0, '0', 200, '200']);
+const API_BASE_URL = import.meta.env.VITE_APP_BASE_API ?? '';
 
 export interface ManuscriptReviewLedgerRow {
   id: string;
@@ -213,6 +214,23 @@ const extractRecord = (payload: unknown): UnknownRecord => {
   return isRecord(unwrapped) ? unwrapped : {};
 };
 
+const resolveInternalResourceUrl = (value?: string): string | undefined => {
+  const normalized = value?.trim();
+  if (!normalized) {
+    return undefined;
+  }
+  if (/^https?:\/\//i.test(normalized)) {
+    return normalized;
+  }
+  if (!normalized.startsWith('/')) {
+    return normalized;
+  }
+  if (API_BASE_URL && normalized.startsWith(API_BASE_URL + '/')) {
+    return normalized;
+  }
+  return `${API_BASE_URL}${normalized}`;
+};
+
 const normalizePermissionMatrix = (source: UnknownRecord): ManuscriptReviewPermissionMatrixVO | undefined => {
   const permissionSource = pickMaybeRecord(source, ['permissionMatrix']);
   if (!permissionSource) {
@@ -247,7 +265,7 @@ const normalizeTimelinePayload = (source: UnknownRecord): ManuscriptReviewTimeli
       relatedResourceId: pickMaybeText(timelineItem, ['relatedResourceId']),
       relatedResourceOssId: pickMaybeText(timelineItem, ['relatedResourceOssId']),
       relatedResourceType: pickMaybeText(timelineItem, ['relatedResourceType']),
-      relatedResourceUrl: pickMaybeText(timelineItem, ['relatedResourceUrl']),
+      relatedResourceUrl: resolveInternalResourceUrl(pickMaybeText(timelineItem, ['relatedResourceUrl'])),
       relatedExternalUrl: pickMaybeText(timelineItem, ['relatedExternalUrl']),
       statusLabel: pickMaybeText(timelineItem, ['statusLabel']),
       diffSummary: pickMaybeText(timelineItem, ['diffSummary', 'remark'])
@@ -281,7 +299,7 @@ const normalizeResourceList = (
       displayName: pickText(resource, ['displayName', 'fileName', 'linkTitle', 'name'], `${fallbackType}-${index + 1}`),
       externalUrl: pickMaybeText(resource, ['externalUrl', 'linkUrl']),
       createdTime: pickMaybeText(resource, ['createdTime', 'createTime']),
-      resourceUrl: pickMaybeText(resource, ['resourceUrl', 'fileUrl'])
+      resourceUrl: resolveInternalResourceUrl(pickMaybeText(resource, ['resourceUrl', 'fileUrl']))
     };
   });
 

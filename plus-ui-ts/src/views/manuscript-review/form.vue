@@ -199,7 +199,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { ElMessage, type FormInstance, type FormRules, type UploadProps, type UploadRawFile } from 'element-plus';
 
 import {
-  deletePendingOssResource,
+  deletePendingManuscriptReviewResource,
   getManuscriptReviewDetail,
   submitAndFlowStartManuscriptReview,
   updateManuscriptReview
@@ -424,7 +424,7 @@ const handleUploadError: UploadProps['onError'] = (_, uploadFile) => {
 
 const handleDeletePendingUpload = async (ossId: string | number) => {
   try {
-    await deletePendingOssResource(ossId);
+    await deletePendingManuscriptReviewResource(ossId);
     draftUploads.value = removeDraftUploadByOssId(draftUploads.value, ossId);
     ElMessage.success('已删除暂存附件。');
   } catch {
