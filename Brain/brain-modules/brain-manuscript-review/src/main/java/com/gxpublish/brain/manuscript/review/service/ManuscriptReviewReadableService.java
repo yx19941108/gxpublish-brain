@@ -10,6 +10,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.EnumMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -19,8 +20,10 @@ import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gxpublish.brain.common.core.exception.ServiceException;
+import com.gxpublish.brain.common.mybatis.core.page.PageQuery;
 import com.gxpublish.brain.common.mybatis.core.page.TableDataInfo;
 import com.gxpublish.brain.common.oss.factory.OssFactory;
 import com.gxpublish.brain.manuscript.review.controller.request.ManuscriptReviewLedgerQueryRequest;
@@ -63,6 +66,8 @@ public class ManuscriptReviewReadableService {
     private static final String CURRENT_USER_REQUIRED_MESSAGE = "当前登录用户不存在";
     private static final String VIEW_PERMISSION_DENIED_MESSAGE = "当前用户无权查看该流程";
     private static final String DEFAULT_TENANT_ID = "000000";
+    private static final String ROLE_KEY_CERTIFIED_INITIATOR = "manuscript_review_certified_initiator";
+    private static final String ROLE_KEY_INITIATOR = "manuscript_review_initiator";
     private static final String LEVEL_ONE_NODE = ManuscriptReviewNodeStatusEnum.LEVEL_1.getLabel();
     private static final String LEVEL_TWO_NODE = ManuscriptReviewNodeStatusEnum.LEVEL_2.getLabel();
     private static final String LEVEL_THREE_NODE = ManuscriptReviewNodeStatusEnum.LEVEL_3.getLabel();
@@ -123,26 +128,21 @@ public class ManuscriptReviewReadableService {
 
     public TableDataInfo<ManuscriptReviewLedgerItemResponse> listLedger(ManuscriptReviewLedgerQueryRequest request) {
         ManuscriptReviewLedgerQueryRequest safeRequest = request == null ? new ManuscriptReviewLedgerQueryRequest() : request;
-        List<ManuscriptReviewHistoryEntity> historyRecords = firstNonNull(
-            historyMapper.selectList(new QueryWrapper<ManuscriptReviewHistoryEntity>()),
-            List.of()
+        LedgerVisibilityScope scope = resolveLedgerVisibilityScope();
+        Page<ManuscriptReviewRecordEntity> page = new PageQuery(safePageSize(safeRequest.getPageSize()), safePageNum(safeRequest.getPageNum())).build();
+        Page<ManuscriptReviewRecordEntity> result = recordMapper.customSelectVisibleLedgerPage(
+            page,
+            safeRequest,
+            scope.currentUserId(),
+            scope.allowInitiator(),
+            scope.approverNodeStatuses(),
+            toDate(parseDateTime(safeRequest.getStartTimeFrom())),
+            toDate(parseDateTime(safeRequest.getStartTimeTo()))
         );
-        Map<Long, List<ManuscriptReviewHistoryEntity>> historiesByReviewId = historyRecords
-            .stream()
-            .filter(history -> history.getReviewId() != null)
-            .collect(Collectors.groupingBy(ManuscriptReviewHistoryEntity::getReviewId));
-        List<ManuscriptReviewLedgerItemResponse> rows = recordMapper.selectList(new QueryWrapper<ManuscriptReviewRecordEntity>())
-            .stream()
-            .filter(record -> matchesLedgerFilter(record, safeRequest))
-            .filter(record -> canViewRecord(record, historiesByReviewId.getOrDefault(record.getId(), List.of())))
-            .sorted(this::compareLedgerRecord)
-            .map(this::toLedgerItem)
-            .toList();
-        int pageNum = safePageNum(safeRequest.getPageNum());
-        int pageSize = safePageSize(safeRequest.getPageSize());
-        int fromIndex = Math.min((pageNum - 1) * pageSize, rows.size());
-        int toIndex = Math.min(fromIndex + pageSize, rows.size());
-        return new TableDataInfo<>(rows.subList(fromIndex, toIndex), rows.size());
+        if (result == null || result.getRecords() == null) {
+            return new TableDataInfo<>(List.of(), 0);
+        }
+        return new TableDataInfo<>(result.getRecords().stream().map(this::toLedgerItem).toList(), result.getTotal());
     }
 
     public ManuscriptReviewDetailResponse getDetail(Long reviewId) {
@@ -246,66 +246,6 @@ public class ManuscriptReviewReadableService {
             throw new ServiceException("视频标注不存在");
         }
         return toVideoMarkItem(videoMarker);
-    }
-
-    private boolean matchesLedgerFilter(ManuscriptReviewRecordEntity record, ManuscriptReviewLedgerQueryRequest request) {
-        if (!matchesKeyword(record, request.getKeyword())) {
-            return false;
-        }
-        if (!matchesExact(trimToNull(request.getProcessType()), trimToNull(record.getProcessType()))) {
-            return false;
-        }
-        if (!matchesExact(trimToNull(request.getMediaChannel()), trimToNull(record.getMediaChannel()))) {
-            return false;
-        }
-        if (!matchesExact(trimToNull(request.getBusinessStatus()), mapBusinessStatusCode(record.getFlowStatusLabel()))) {
-            return false;
-        }
-        ManuscriptReviewNodeStatusEnum currentNodeStatus = resolveCurrentNodeStatus(record);
-        if (!matchesExact(trimToNull(request.getCurrentNodeCode()),
-            currentNodeStatus == null ? mapCurrentNodeCode(record.getCurrentNodeLabel()) : currentNodeStatus.getCode())) {
-            return false;
-        }
-        return matchesStartTimeRange(record, request.getStartTimeFrom(), request.getStartTimeTo());
-    }
-
-    private boolean matchesKeyword(ManuscriptReviewRecordEntity record, String keyword) {
-        String normalizedKeyword = trimToNull(keyword);
-        if (normalizedKeyword == null) {
-            return true;
-        }
-        return contains(record.getManuscriptCode(), normalizedKeyword)
-            || contains(record.getExternalManuscriptCode(), normalizedKeyword)
-            || contains(record.getTitle(), normalizedKeyword);
-    }
-
-    private boolean contains(String source, String keyword) {
-        return source != null && source.contains(keyword);
-    }
-
-    private boolean matchesExact(String expected, String actual) {
-        return expected == null || Objects.equals(expected, actual);
-    }
-
-    private boolean matchesStartTimeRange(ManuscriptReviewRecordEntity record, String startTimeFrom, String startTimeTo) {
-        Date startTime = firstNonNull(record.getFirstSubmitTime(), record.getCreateTime());
-        if (startTime == null) {
-            return trimToNull(startTimeFrom) == null && trimToNull(startTimeTo) == null;
-        }
-        LocalDateTime actual = toLocalDateTime(startTime);
-        LocalDateTime from = parseDateTime(startTimeFrom);
-        LocalDateTime to = parseDateTime(startTimeTo);
-        return (from == null || !actual.isBefore(from)) && (to == null || !actual.isAfter(to));
-    }
-
-    private int compareLedgerRecord(ManuscriptReviewRecordEntity left, ManuscriptReviewRecordEntity right) {
-        return Comparator
-            .comparing((ManuscriptReviewRecordEntity record) -> firstNonNull(record.getUpdateTime(), record.getCreateTime()),
-                Comparator.nullsLast(Date::compareTo))
-            .thenComparing(ManuscriptReviewRecordEntity::getCreateTime, Comparator.nullsLast(Date::compareTo))
-            .thenComparing(ManuscriptReviewRecordEntity::getId, Comparator.nullsLast(Long::compareTo))
-            .reversed()
-            .compare(left, right);
     }
 
     private ManuscriptReviewLedgerItemResponse toLedgerItem(ManuscriptReviewRecordEntity record) {
@@ -564,6 +504,50 @@ public class ManuscriptReviewReadableService {
             || resolveCurrentNodeStatus(record) == ManuscriptReviewNodeStatusEnum.RETURN_TO_INITIATOR;
     }
 
+    private LedgerVisibilityScope resolveLedgerVisibilityScope() {
+        Long currentUserId = requireCurrentUserId();
+        String tenantId = normalizeTenantId(currentUserGateway.getCurrentTenantId());
+        List<Long> currentRoleIds = firstNonNull(userRoleMapper.selectList(
+            new QueryWrapper<ManuscriptReviewSystemUserRoleEntity>().eq("user_id", currentUserId)), List.<ManuscriptReviewSystemUserRoleEntity>of())
+            .stream()
+            .map(ManuscriptReviewSystemUserRoleEntity::getRoleId)
+            .filter(Objects::nonNull)
+            .distinct()
+            .toList();
+        if (currentRoleIds.isEmpty()) {
+            return new LedgerVisibilityScope(currentUserId, false, List.of());
+        }
+        Set<String> currentRoleKeys = firstNonNull(roleMapper.selectList(
+            new QueryWrapper<ManuscriptReviewSystemRoleEntity>()
+                .in("role_id", currentRoleIds)
+                .eq("tenant_id", tenantId)
+                .eq("status", ACTIVE)
+                .eq("del_flag", ACTIVE)), List.<ManuscriptReviewSystemRoleEntity>of())
+            .stream()
+            .map(ManuscriptReviewSystemRoleEntity::getRoleKey)
+            .map(this::trimToNull)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toSet());
+        boolean allowInitiator = currentRoleKeys.contains(ROLE_KEY_INITIATOR) || currentRoleKeys.contains(ROLE_KEY_CERTIFIED_INITIATOR);
+        Set<String> approverNodeStatuses = new LinkedHashSet<>();
+        firstNonNull(flowConfigMapper.selectList(
+            new QueryWrapper<ManuscriptReviewFlowConfigEntity>()
+                .eq("tenant_id", tenantId)
+                .eq("status", ACTIVE)), List.<ManuscriptReviewFlowConfigEntity>of())
+            .forEach(config -> {
+                if (currentRoleKeys.contains(trimToNull(config.getLevelOneRoleKey()))) {
+                    approverNodeStatuses.add(ManuscriptReviewNodeStatusEnum.LEVEL_1.getCode());
+                }
+                if (currentRoleKeys.contains(trimToNull(config.getLevelTwoRoleKey()))) {
+                    approverNodeStatuses.add(ManuscriptReviewNodeStatusEnum.LEVEL_2.getCode());
+                }
+                if (currentRoleKeys.contains(trimToNull(config.getLevelThreeRoleKey()))) {
+                    approverNodeStatuses.add(ManuscriptReviewNodeStatusEnum.LEVEL_3.getCode());
+                }
+            });
+        return new LedgerVisibilityScope(currentUserId, allowInitiator, List.copyOf(approverNodeStatuses));
+    }
+
     private Set<Long> resolveCurrentApproverUserIds(ManuscriptReviewRecordEntity record) {
         String roleKey = resolveCurrentNodeRoleKey(record);
         if (roleKey == null) {
@@ -755,6 +739,10 @@ public class ManuscriptReviewReadableService {
         return normalized == null ? null : LocalDateTime.parse(normalized, TIME_FORMATTER);
     }
 
+    private Date toDate(LocalDateTime value) {
+        return value == null ? null : Date.from(value.atZone(BUSINESS_ZONE_ID).toInstant());
+    }
+
     private LocalDateTime toLocalDateTime(Date date) {
         return Instant.ofEpochMilli(date.getTime()).atZone(BUSINESS_ZONE_ID).toLocalDateTime();
     }
@@ -855,5 +843,8 @@ public class ManuscriptReviewReadableService {
         String externalUrl,
         Date matchTime
     ) {
+    }
+
+    private record LedgerVisibilityScope(Long currentUserId, boolean allowInitiator, List<String> approverNodeStatuses) {
     }
 }

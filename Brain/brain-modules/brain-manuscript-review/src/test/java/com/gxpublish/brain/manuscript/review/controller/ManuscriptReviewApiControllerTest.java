@@ -4,15 +4,18 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.lang.reflect.Method;
 import java.util.List;
 
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.bind.annotation.RequestMapping;
 
+import cn.dev33.satoken.annotation.SaCheckPermission;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gxpublish.brain.manuscript.review.controller.request.ManuscriptReviewLedgerQueryRequest;
 import com.gxpublish.brain.manuscript.review.controller.request.ManuscriptReviewSubmitRequest;
+import com.gxpublish.brain.manuscript.review.controller.ManuscriptReviewApiController.ReviewIdRequest;
 import com.gxpublish.brain.manuscript.review.controller.response.ManuscriptReviewDetailResponse;
 import com.gxpublish.brain.manuscript.review.controller.response.ManuscriptReviewLedgerItemResponse;
 
@@ -28,6 +31,13 @@ class ManuscriptReviewApiControllerTest {
 
         assertArrayEquals(new String[] {"/workflow/manuscript-review"}, apiMapping.value());
         assertArrayEquals(new String[] {"/workflow/manuscript-review"}, readableMapping.value());
+    }
+
+    @Test
+    void shouldDeclareFirstRoundPermissionAnnotationsOnWriteEndpoints() throws Exception {
+        assertPermission("update", "manuscript:review:edit", ManuscriptReviewSubmitRequest.class);
+        assertPermission("submitAndFlowStart", "manuscript:review:submit", ManuscriptReviewSubmitRequest.class);
+        assertPermission("resubmit", "manuscript:review:resubmit", ReviewIdRequest.class);
     }
 
     @Test
@@ -162,5 +172,12 @@ class ManuscriptReviewApiControllerTest {
         assertFalse(responseJson.contains("\"actionBar\":"));
         assertFalse(responseJson.contains("\"resources\":"));
         assertFalse(responseJson.contains("\"fileUrl\":"));
+    }
+
+    private static void assertPermission(String methodName, String permission, Class<?>... parameterTypes) throws Exception {
+        Method method = ManuscriptReviewApiController.class.getDeclaredMethod(methodName, parameterTypes);
+        SaCheckPermission annotation = method.getAnnotation(SaCheckPermission.class);
+        assertTrue(annotation != null && annotation.value().length > 0 && permission.equals(annotation.value()[0]),
+            methodName + " should declare " + permission);
     }
 }

@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import cn.dev33.satoken.annotation.SaCheckPermission;
 import com.gxpublish.brain.common.core.domain.R;
 import com.gxpublish.brain.common.core.exception.ServiceException;
 import com.gxpublish.brain.manuscript.review.controller.request.ManuscriptReviewSubmitRequest;
@@ -83,6 +84,7 @@ public class ManuscriptReviewApiController {
      * @return 新建流程单主键
      */
     @PostMapping
+    @SaCheckPermission("manuscript:review:submit")
     public R<Long> create(@RequestBody ManuscriptReviewSubmitRequest request) {
         Long reviewId = manuscriptReviewService.create(CreateManuscriptReviewCommand.builder()
             .processType(resolveProcessType(request.getProcessType()))
@@ -107,6 +109,7 @@ public class ManuscriptReviewApiController {
      * @return 无返回值
      */
     @PutMapping
+    @SaCheckPermission("manuscript:review:edit")
     public R<Void> update(@RequestBody ManuscriptReviewSubmitRequest request) {
         manuscriptReviewService.update(UpdateManuscriptReviewCommand.builder()
             .id(request.getId())
@@ -144,6 +147,7 @@ public class ManuscriptReviewApiController {
      * @return 最新详情响应
      */
     @PostMapping("/submitAndFlowStart")
+    @SaCheckPermission("manuscript:review:submit")
     public R<ManuscriptReviewDetailResponse> submitAndFlowStart(@RequestBody ManuscriptReviewSubmitRequest request) {
         Long reviewId = request.getId();
         if (isLegacyDraftSubmit(request)) {
@@ -187,6 +191,7 @@ public class ManuscriptReviewApiController {
      * @return 最新详情响应
      */
     @PostMapping("/resubmit")
+    @SaCheckPermission("manuscript:review:resubmit")
     public R<ManuscriptReviewDetailResponse> resubmit(@RequestBody ReviewIdRequest request) {
         Long reviewId = requireReviewId(request.getId());
         manuscriptReviewService.resubmit(ResubmitManuscriptReviewCommand.builder().reviewId(reviewId).build());

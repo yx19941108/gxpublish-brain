@@ -5,7 +5,10 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.Date;
@@ -14,6 +17,7 @@ import java.util.List;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.gxpublish.brain.common.core.exception.ServiceException;
 import com.gxpublish.brain.common.mybatis.core.page.TableDataInfo;
 import com.gxpublish.brain.manuscript.review.controller.request.ManuscriptReviewLedgerQueryRequest;
@@ -43,24 +47,30 @@ class ManuscriptReviewReadableVisibilityTest {
     @Test
     void shouldOnlyReturnVisibleRecordsInLedger() {
         ReadableFixture fixture = new ReadableFixture(4001L);
-        when(fixture.recordMapper.selectList(any())).thenReturn(List.of(
-            buildRecord(9301L, 4001L, "审批中", "待一级审批"),
-            buildRecord(9302L, 3002L, "审批中", "待二级审批"),
+        Page<ManuscriptReviewRecordEntity> page = new Page<>(1, 10);
+        page.setRecords(List.of(
             buildRecord(9303L, 3003L, "已完成", "流程完成"),
-            buildRecord(9304L, 3004L, "已取消", "流程已取消")
-        ));
-        when(fixture.historyMapper.selectList(any())).thenReturn(List.of(
-            buildHistory(9303L, 4001L, "李四完成审批。")
-        ));
-        when(fixture.flowConfigMapper.selectOne(any())).thenReturn(buildFlowConfig());
-        when(fixture.roleMapper.selectList(any())).thenReturn(List.of(buildRole(7102L, "role:l2")));
-        when(fixture.userRoleMapper.selectList(any())).thenReturn(List.of(buildUserRole(4001L, 7102L)));
-        when(fixture.userMapper.selectList(any())).thenReturn(List.of(buildEnabledUser(4001L)));
+            buildRecord(9302L, 3002L, "审批中", "待二级审批"),
+            buildRecord(9301L, 4001L, "审批中", "待一级审批")));
+        page.setTotal(3);
+        when(fixture.recordMapper.customSelectVisibleLedgerPage(any(), any(), any(), anyBoolean(), any(), any(), any())).thenReturn(page);
 
         TableDataInfo<ManuscriptReviewLedgerItemResponse> ledger = fixture.readableService.listLedger(new ManuscriptReviewLedgerQueryRequest());
 
         assertEquals(3, ledger.getTotal());
         assertEquals(List.of(9303L, 9302L, 9301L), ledger.getRows().stream().map(ManuscriptReviewLedgerItemResponse::getId).toList());
+    }
+
+    @Test
+    void shouldAvoidFullTableRecordAndHistoryScansWhenListingLedger() {
+        ReadableFixture fixture = new ReadableFixture(4001L);
+
+        TableDataInfo<ManuscriptReviewLedgerItemResponse> ledger = fixture.readableService.listLedger(new ManuscriptReviewLedgerQueryRequest());
+
+        assertEquals(0, ledger.getTotal());
+        assertTrue(ledger.getRows().isEmpty());
+        verify(fixture.recordMapper, never()).selectList(any());
+        verify(fixture.historyMapper, never()).selectList(any());
     }
 
     @Test

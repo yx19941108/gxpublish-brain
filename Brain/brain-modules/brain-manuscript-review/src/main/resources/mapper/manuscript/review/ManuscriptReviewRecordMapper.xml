@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.gxpublish.brain.manuscript.review.mapper.ManuscriptReviewRecordMapper">
+
+    <select id="customSelectVisibleLedgerPage" resultType="com.gxpublish.brain.manuscript.review.domain.entity.ManuscriptReviewRecordEntity">
+        SELECT r.*
+        FROM brain_manuscript_review r
+        <where>
+            AND (
+                EXISTS (
+                     SELECT 1
+                    FROM brain_manuscript_review_history h
+                    WHERE h.review_id = r.id
+                      AND h.actor_user_id = #{currentUserId}
+                )
+                <if test="allowInitiator">
+                    OR r.initiator_user_id = #{currentUserId}
+                </if>
+                <if test="approverNodeStatuses != null and approverNodeStatuses.size() > 0">
+                    OR
+                    <foreach item="status" collection="approverNodeStatuses" open="(" separator=" OR " close=")">
+                        <choose>
+                            <when test="status == 'LEVEL_1'">
+                                r.current_node_status = 'LEVEL_1'
+                                OR r.current_node_label IN ('待一级审批', '一级审批')
+                            </when>
+                            <when test="status == 'LEVEL_2'">
+                                r.current_node_status = 'LEVEL_2'
+                                OR r.current_node_label IN ('待二级审批', '二级审批')
+                            </when>
+                            <when test="status == 'LEVEL_3'">
+                                r.current_node_status = 'LEVEL_3'
+                                OR r.current_node_label IN ('待三级审批', '三级审批', '终审')
+                            </when>
+                        </choose>
+                    </foreach>
+                </if>
+            )
+            <if test="query != null and query.keyword != null and query.keyword != ''">
+                AND (
+                    r.manuscript_code LIKE concat('%', #{query.keyword}, '%')
+                    OR r.external_manuscript_code LIKE concat('%', #{query.keyword}, '%')
+                    OR r.title LIKE concat('%', #{query.keyword}, '%')
+                )
+            </if>
+            <if test="query != null and query.processType != null and query.processType != ''">
+                AND r.process_type = #{query.processType}
+            </if>
+            <if test="query != null and query.mediaChannel != null and query.mediaChannel != ''">
+                AND r.media_channel = #{query.mediaChannel}
+            </if>
+            <if test="query != null and query.businessStatus != null and query.businessStatus != ''">
+                <choose>
+                    <when test="query.businessStatus == 'WAITING'">
+                        AND r.flow_status_label = '审批中'
+                    </when>
+                    <when test="query.businessStatus == 'BACK'">
+                        AND r.flow_status_label = '已退回'
+                    </when>
+                    <when test="query.businessStatus == 'FINISH'">
+                        AND r.flow_status_label IN ('已完成', '流程完成')
+                    </when>
+                    <when test="query.businessStatus == 'CANCEL'">
+                        AND r.flow_status_label IN ('已取消', '流程已取消')
+                    </when>
+                    <when test="query.businessStatus == 'REJECT'">
+                        AND r.flow_status_label IN ('已驳回', '流程已驳回')
+                    </when>
+                </choose>
+            </if>
+            <if test="query != null and query.currentNodeCode != null and query.currentNodeCode != ''">
+                <choose>
+                    <when test="query.currentNodeCode == 'LEVEL_1'">
+                        AND (r.current_node_status = 'LEVEL_1' OR r.current_node_label IN ('待一级审批', '一级审批'))
+                    </when>
+                    <when test="query.currentNodeCode == 'LEVEL_2'">
+                        AND (r.current_node_status = 'LEVEL_2' OR r.current_node_label IN ('待二级审批', '二级审批'))
+                    </when>
+                    <when test="query.currentNodeCode == 'LEVEL_3'">
+                        AND (r.current_node_status = 'LEVEL_3' OR r.current_node_label IN ('待三级审批', '三级审批', '终审'))
+                    </when>
+                    <when test="query.currentNodeCode == 'RETURN_TO_INITIATOR'">
+                        AND (r.current_node_status = 'RETURN_TO_INITIATOR' OR r.current_node_label = '待发起人处理')
+                    </when>
+                </choose>
+            </if>
+            <if test="startTimeFrom != null">
+                AND COALESCE(r.first_submit_time, r.create_time) <![CDATA[ >= ]]> #{startTimeFrom}
+            </if>
+            <if test="startTimeTo != null">
+                AND COALESCE(r.first_submit_time, r.create_time) <![CDATA[ <= ]]> #{startTimeTo}
+            </if>
+        </where>
+        ORDER BY COALESCE(r.update_time, r.create_time) DESC, r.create_time DESC, r.id DESC
+    </select>
+</mapper>

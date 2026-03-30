@@ -3,7 +3,7 @@
     <el-card shadow="hover">
       <template #header>
         <el-row :gutter="10" class="mb8">
-          <el-col :span="1.5">
+          <el-col v-if="canCreate" :span="1.5">
             <el-button type="primary" plain icon="Plus" @click="handleCreate">新增</el-button>
           </el-col>
           <right-toolbar v-model:show-search="showSearch" @query-table="fetchList" />
@@ -56,6 +56,7 @@ import { useRouter } from 'vue-router';
 import { cancelManuscriptReviewProcess } from '@/api/manuscript-review';
 import { pageByCurrent } from '@/api/workflow/instance';
 import type { FlowInstanceQuery, FlowInstanceVO } from '@/api/workflow/instance/types';
+import { checkPermi } from '@/utils/permission';
 
 import {
   buildMyDocumentEditRoute,
@@ -73,6 +74,7 @@ const showSearch = ref(true);
 const loading = ref(false);
 const total = ref(0);
 const rows = ref<FlowInstanceVO[]>([]);
+const canCreate = checkPermi(['manuscript:review:submit']);
 
 const queryParams = reactive<FlowInstanceQuery>({
   pageNum: 1,
@@ -92,6 +94,9 @@ const fetchList = async () => {
 };
 
 const handleCreate = () => {
+  if (!canCreate) {
+    return;
+  }
   void router.push({ path: '/manuscript/review/form', query: { mode: 'create' } });
 };
 

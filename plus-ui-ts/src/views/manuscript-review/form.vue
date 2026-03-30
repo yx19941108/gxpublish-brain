@@ -205,6 +205,7 @@ import {
   updateManuscriptReview
 } from '@/api/manuscript-review';
 import { getInfo as getCurrentUserInfo } from '@/api/login';
+import { checkPermi } from '@/utils/permission';
 import { globalHeaders } from '@/utils/request';
 
 import {
@@ -226,6 +227,7 @@ import { resolveEditBackTarget } from './detail-navigation';
 
 const route = useRoute();
 const router = useRouter();
+const canCreate = checkPermi(['manuscript:review:submit']);
 
 const mode = computed(() => resolveFormMode(route.query));
 const presentation = computed(() => buildFormPresentation(mode.value));
@@ -492,6 +494,11 @@ const handlePrimaryAction = async () => {
 };
 
 onMounted(() => {
+  if (mode.value === 'create' && !canCreate) {
+    ElMessage.error('当前用户无权发起审校流程。');
+    void router.replace({ path: '/manuscript/review' });
+    return;
+  }
   resetDraftState();
   if (mode.value === 'edit') {
     void applyEditDraftState();

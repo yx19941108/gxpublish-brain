@@ -97,6 +97,7 @@ public class ManuscriptReviewService implements IManuscriptReviewService {
     private static final String CANCEL_ONLY_WAITING_MESSAGE = "仅审批中或已退回的流程可撤销";
     private static final String RESUBMIT_ONLY_RETURNED_MESSAGE = "仅退回给发起人的流程可再次提交";
     private static final String UPDATE_PERMISSION_DENIED_MESSAGE = "当前用户无权修改该流程";
+    private static final String INITIATOR_PERMISSION_DENIED_MESSAGE = "当前用户无权发起审校流程";
     private static final String FLOW_CONFIG_MISSING_MESSAGE = "审校流程审批链配置缺失";
     private static final String CERTIFIED_ROLE_RESOLUTION_MESSAGE = "持证发起人角色解析失败";
     private static final String FIRST_APPROVER_PERMISSION_VAR = "manuscriptReviewFirstLevelApprover";
@@ -109,6 +110,7 @@ public class ManuscriptReviewService implements IManuscriptReviewService {
     private static final String LEVEL_TWO_NODE = ManuscriptReviewNodeStatusEnum.LEVEL_2.getLabel();
     private static final String LEVEL_THREE_NODE = ManuscriptReviewNodeStatusEnum.LEVEL_3.getLabel();
     private static final String ROLE_KEY_CERTIFIED_INITIATOR = "manuscript_review_certified_initiator";
+    private static final String ROLE_KEY_INITIATOR = "manuscript_review_initiator";
     private static final int UPDATE_HISTORY_BODY_PREVIEW_LIMIT = 60;
     private static final ZoneId BUSINESS_ZONE_ID = ZoneId.of("Asia/Shanghai");
 
@@ -209,6 +211,7 @@ public class ManuscriptReviewService implements IManuscriptReviewService {
      */
     @Override
     public Long create(CreateManuscriptReviewCommand command) {
+        ensureCurrentUserCanInitiate(normalizeTenantId(currentUserGateway.getCurrentTenantId()));
         ManuscriptReviewRecordEntity entity = new ManuscriptReviewRecordEntity();
         entity.setId(nextId());
         applyWriteFields(entity, command.getProcessType(), command.getExternalManuscriptCode(), command.getTitle(),
@@ -267,6 +270,7 @@ public class ManuscriptReviewService implements IManuscriptReviewService {
     @Transactional(rollbackFor = Exception.class)
     public String submitAndFlowStart(Long reviewId) {
         ManuscriptReviewRecordEntity existing = requireRecord(reviewId);
+        ensureCurrentUserCanInitiate(normalizeTenantId(existing.getTenantId()));
         ensureHasAtLeastOneEffectiveResource(reviewId);
         SubmissionRoute route = resolveSubmissionRoute(existing);
         String manuscriptCode = buildManuscriptCode(route.processType());
@@ -287,7 +291,7 @@ public class ManuscriptReviewService implements IManuscriptReviewService {
             currentUsername() + "提交了审校流程单。");
         if (route.skipLevelOne()) {
             insertSystemHistory(reviewId, ManuscriptReviewHistoryActionTypeEnum.SKIP_LEVEL_1.getCode(),
-                "系统判定发起人具备持证资格，自动跳过一级审批");
+                buildSkipLevelOneHistoryText());
         }
         return entity.getManuscriptCode();
     }
@@ -306,6 +310,7 @@ public class ManuscriptReviewService implements IManuscriptReviewService {
     public Long submitAndFlowStart(SubmitAndStartManuscriptReviewCommand command) {
         ManuscriptReviewProcessType processType = requireProcessType(command.getProcessType());
         String tenantId = normalizeTenantId(currentUserGateway.getCurrentTenantId());
+        ensureCurrentUserCanInitiate(tenantId);
         SubmissionRoute route = resolveSubmissionRoute(buildSubmissionRouteRecord(tenantId, processType));
         Date submitBaseTime = now();
         Long reviewId = nextId();
@@ -335,7 +340,7 @@ public class ManuscriptReviewService implements IManuscriptReviewService {
             buildCreateAndSubmitHistoryText(entity, resourceSummary), submitBaseTime);
         if (route.skipLevelOne()) {
             insertSystemHistory(reviewId, ManuscriptReviewHistoryActionTypeEnum.SKIP_LEVEL_1.getCode(),
-                "系统判定发起人具备持证资格，自动跳过一级审批", submitBaseTime);
+                buildSkipLevelOneHistoryText(), submitBaseTime);
         }
 
         Long flowInstanceId = startWorkflowOrThrow(reviewId, route, manuscriptCode, entity.getTitle());
@@ -384,7 +389,7 @@ public class ManuscriptReviewService implements IManuscriptReviewService {
             currentUsername() + "再次提交了审校流程单。");
         if (route.skipLevelOne()) {
             insertSystemHistory(existing.getId(), ManuscriptReviewHistoryActionTypeEnum.SKIP_LEVEL_1.getCode(),
-                "系统判定发起人具备持证资格，自动跳过一级审批");
+                buildSkipLevelOneHistoryText());
         }
     }
 
@@ -669,21 +674,27 @@ public class ManuscriptReviewService implements IManuscriptReviewService {
                 applyCurrentNodeStatus(entity, ManuscriptReviewNodeStatusEnum.RETURN_TO_INITIATOR);
                 recordMapper.updateById(entity);
                 insertWorkflowHistory(reviewId, processEvent.getTenantId(),
-                    ManuscriptReviewHistoryActionTypeEnum.BACK.getCode(), "流程已退回发起人处理。");
+                    ManuscriptReviewHistoryActionTypeEnum.BACK.getCode(),
+                    buildBackWorkflowHistoryText(processEvent),
+                    processEvent.getParams());
             }
             case "finish" -> {
                 entity.setFlowStatusLabel(ManuscriptReviewFlowStatusEnum.FINISH.getLabel());
                 applyCurrentNodeStatus(entity, ManuscriptReviewNodeStatusEnum.FLOW_FINISHED);
                 recordMapper.updateById(entity);
                 insertWorkflowHistory(reviewId, processEvent.getTenantId(),
-                    ManuscriptReviewHistoryActionTypeEnum.FINISH.getCode(), "流程审批已完成。");
+                    ManuscriptReviewHistoryActionTypeEnum.FINISH.getCode(),
+                    buildFinishWorkflowHistoryText(processEvent),
+                    processEvent.getParams());
             }
             case "termination" -> {
                 entity.setFlowStatusLabel(ManuscriptReviewFlowStatusEnum.REJECT.getLabel());
                 applyCurrentNodeStatus(entity, ManuscriptReviewNodeStatusEnum.FLOW_REJECTED);
                 recordMapper.updateById(entity);
                 insertWorkflowHistory(reviewId, processEvent.getTenantId(),
-                    ManuscriptReviewHistoryActionTypeEnum.REJECT.getCode(), buildRejectWorkflowHistoryText(processEvent));
+                    ManuscriptReviewHistoryActionTypeEnum.REJECT.getCode(),
+                    buildRejectWorkflowHistoryText(processEvent),
+                    processEvent.getParams());
             }
             default -> {
             }
@@ -715,11 +726,11 @@ public class ManuscriptReviewService implements IManuscriptReviewService {
         entity.setUpdateTime(now());
         recordMapper.updateById(entity);
         String approvalHistoryText = shouldWriteApprovalHistory(processTaskEvent.getNodeCode(), processTaskEvent.getParams())
-            ? buildApprovalWorkflowHistoryText(processTaskEvent.getNodeCode(), processTaskEvent.getParams())
+            ? buildApprovalWorkflowHistoryText(processTaskEvent.getNodeCode(), processTaskEvent.getNodeName(), processTaskEvent.getParams())
             : null;
         if (approvalHistoryText != null) {
             insertWorkflowHistory(reviewId, processTaskEvent.getTenantId(),
-                ManuscriptReviewHistoryActionTypeEnum.APPROVE.getCode(), approvalHistoryText);
+                ManuscriptReviewHistoryActionTypeEnum.APPROVE.getCode(), approvalHistoryText, processTaskEvent.getParams());
         }
     }
 
@@ -954,6 +965,14 @@ public class ManuscriptReviewService implements IManuscriptReviewService {
         throw new ServiceException(UPDATE_PERMISSION_DENIED_MESSAGE);
     }
 
+    private void ensureCurrentUserCanInitiate(String tenantId) {
+        Long currentUserId = requireCurrentUserId();
+        if (hasActiveRoleMember(tenantId, ROLE_KEY_INITIATOR, currentUserId) || isCertifiedInitiator(tenantId, currentUserId)) {
+            return;
+        }
+        throw new ServiceException(INITIATOR_PERMISSION_DENIED_MESSAGE);
+    }
+
     private boolean isDraft(ManuscriptReviewRecordEntity record) {
         return trimToNull(record.getFlowStatusLabel()) == null
             && trimToNull(record.getCurrentNodeLabel()) == null
@@ -1063,6 +1082,10 @@ public class ManuscriptReviewService implements IManuscriptReviewService {
             return List.of();
         }
         return resolveActiveUserIdsByRoleId(tenantId, role.getRoleId());
+    }
+
+    private boolean hasActiveRoleMember(String tenantId, String roleKey, Long currentUserId) {
+        return resolveActiveUserIdsByRoleKey(tenantId, roleKey).stream().anyMatch(currentUserId::equals);
     }
 
     private List<Long> resolveActiveUserIdsByRoleId(String tenantId, Long roleId) {
@@ -1184,6 +1207,8 @@ public class ManuscriptReviewService implements IManuscriptReviewService {
         entity.setReviewId(reviewId);
         entity.setActionType(actionType);
         entity.setActionText(actionText);
+        entity.setActorUserId(requireCurrentUserId());
+        entity.setActorName(currentUsername());
         entity.setCreateTime(createTime);
         entity.setSorted(nextHistorySorted(reviewId));
         historyMapper.insert(entity);
@@ -1201,13 +1226,16 @@ public class ManuscriptReviewService implements IManuscriptReviewService {
      * @param actionText 动作文案
      * @return 无返回值
      */
-    private void insertWorkflowHistory(Long reviewId, String tenantId, String actionType, String actionText) {
+    private void insertWorkflowHistory(Long reviewId, String tenantId, String actionType, String actionText, Map<String, Object> params) {
+        WorkflowActorInfo actorInfo = resolveWorkflowActorInfo(params);
         ManuscriptReviewHistoryEntity entity = new ManuscriptReviewHistoryEntity();
         entity.setId(nextId());
         entity.setTenantId(normalizeTenantId(tenantId));
         entity.setReviewId(reviewId);
         entity.setActionType(actionType);
         entity.setActionText(actionText);
+        entity.setActorUserId(actorInfo.actorUserId());
+        entity.setActorName(actorInfo.actorName());
         entity.setCreateTime(now());
         entity.setSorted(nextHistorySorted(reviewId));
         historyMapper.insert(entity);
@@ -1697,30 +1725,63 @@ public class ManuscriptReviewService implements IManuscriptReviewService {
         }
     }
 
-    private String buildRejectWorkflowHistoryText(ProcessEvent processEvent) {
-        Map<String, Object> params = processEvent.getParams();
-        String message = trimToNull(params == null ? null : Objects.toString(params.get("message"), null));
-        return message == null ? "三级审批驳回，当前流程已终止。"
-            : "三级审批驳回，当前流程已终止。审批意见：" + message + "。";
+    private WorkflowActorInfo resolveWorkflowActorInfo(Map<String, Object> params) {
+        Long actorUserId = parseReviewId(params == null ? null : Objects.toString(params.get("handler"), null));
+        if (actorUserId == null) {
+            Long currentUserId = currentUserGateway.getCurrentUserId();
+            return currentUserId == null
+                ? new WorkflowActorInfo(0L, "系统")
+                : new WorkflowActorInfo(currentUserId, currentUsername());
+        }
+        Long currentUserId = currentUserGateway.getCurrentUserId();
+        if (Objects.equals(actorUserId, currentUserId)) {
+            return new WorkflowActorInfo(actorUserId, currentUsername());
+        }
+        return new WorkflowActorInfo(actorUserId, "用户" + actorUserId);
     }
 
-    private String buildApprovalWorkflowHistoryText(String nextNodeCode, Map<String, Object> params) {
+    private String buildSkipLevelOneHistoryText() {
+        return currentUsername() + "提交流程时命中持证资格，系统自动跳过一级审批。";
+    }
+
+    private String buildBackWorkflowHistoryText(ProcessEvent processEvent) {
+        WorkflowActorInfo actorInfo = resolveWorkflowActorInfo(processEvent.getParams());
+        String nodeLabel = trimToNull(processEvent.getNodeName());
+        String message = trimToNull(processEvent.getParams() == null ? null : Objects.toString(processEvent.getParams().get("message"), null));
+        String action = actorInfo.actorName() + "在" + (nodeLabel == null ? "当前环节" : nodeLabel) + "退回了流程。";
+        return message == null ? action : action + "审批意见：" + message + "。";
+    }
+
+    private String buildFinishWorkflowHistoryText(ProcessEvent processEvent) {
+        return resolveWorkflowActorInfo(processEvent.getParams()).actorName() + "完成了流程审批。";
+    }
+
+    private String buildRejectWorkflowHistoryText(ProcessEvent processEvent) {
+        WorkflowActorInfo actorInfo = resolveWorkflowActorInfo(processEvent.getParams());
+        String nodeLabel = trimToNull(processEvent.getNodeName());
+        String message = trimToNull(processEvent.getParams() == null ? null : Objects.toString(processEvent.getParams().get("message"), null));
+        String action = actorInfo.actorName() + "在" + (nodeLabel == null ? "三级审批" : nodeLabel) + "驳回了流程，当前流程已终止。";
+        return message == null ? action : action + "审批意见：" + message + "。";
+    }
+
+    private String buildApprovalWorkflowHistoryText(String nextNodeCode, String nodeName, Map<String, Object> params) {
         String normalizedNextNodeCode = trimToNull(nextNodeCode);
         if (normalizedNextNodeCode == null) {
             return null;
         }
+        WorkflowActorInfo actorInfo = resolveWorkflowActorInfo(params);
         String previousNodeLabel = switch (normalizedNextNodeCode) {
             case "second-review-node" -> "一级审批";
             case "final-review-node" -> "二级审批";
-            case "end-node" -> "三级审批";
+            case "end-node" -> trimToNull(nodeName) == null ? "三级审批" : trimToNull(nodeName);
             default -> null;
         };
         if (previousNodeLabel == null) {
             return null;
         }
         String message = trimToNull(params == null ? null : Objects.toString(params.get("message"), null));
-        return message == null ? previousNodeLabel + "审批通过。"
-            : previousNodeLabel + "审批通过。审批意见：" + message + "。";
+        String action = actorInfo.actorName() + "在" + previousNodeLabel + "通过了流程。";
+        return message == null ? action : action + "审批意见：" + message + "。";
     }
 
     private boolean shouldWriteApprovalHistory(String nextNodeCode, Map<String, Object> params) {
@@ -1732,6 +1793,9 @@ public class ManuscriptReviewService implements IManuscriptReviewService {
             case "second-review-node", "final-review-node", "end-node" -> true;
             default -> false;
         };
+    }
+
+    private record WorkflowActorInfo(Long actorUserId, String actorName) {
     }
 
     private boolean isSubmitTriggeredTaskCreation(Map<String, Object> params) {

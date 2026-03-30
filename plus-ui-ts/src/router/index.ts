@@ -123,6 +123,7 @@ export const constantRoutes: RouteRecordRaw[] = [
         path: 'review/form',
         component: () => import('@/views/manuscript-review/form.vue'),
         name: 'ManuscriptReviewForm',
+        permissions: ['manuscript:review:submit', 'manuscript:review:edit', 'manuscript:review:resubmit', 'manuscript:review:goApprove'],
         meta: { title: '审校表单', activeMenu: '/manuscript/review' }
       },
       {

@@ -42,7 +42,7 @@
     <el-card shadow="hover">
       <template #header>
         <el-row :gutter="10" class="mb8">
-          <el-col :span="1.5">
+          <el-col v-if="canCreate" :span="1.5">
             <el-button type="primary" plain icon="Plus" @click="handleCreate">新增</el-button>
           </el-col>
           <right-toolbar v-model:show-search="showSearch" @query-table="fetchLedger" />
@@ -92,6 +92,7 @@ import { getCurrentInstance, onMounted, reactive, ref } from 'vue';
 import type { ComponentInternalInstance } from 'vue';
 import { useRouter } from 'vue-router';
 import { listManuscriptReview } from '@/api/manuscript-review';
+import { checkPermi } from '@/utils/permission';
 
 import { BUSINESS_STATUS_OPTIONS, PROCESS_TYPE_OPTIONS } from './components/formState';
 import { normalizeLedgerRows, type ManuscriptReviewLedgerRow } from './detail.contract';
@@ -118,6 +119,7 @@ const total = ref(0);
 const rows = ref<ManuscriptReviewLedgerRow[]>([]);
 const errorMessage = ref('');
 const showSearch = ref(true);
+const canCreate = checkPermi(['manuscript:review:submit']);
 
 const queryFormRef = ref<ElFormInstance>();
 const queryParams = reactive<LedgerQueryParams>({
@@ -177,6 +179,9 @@ const goDetail = (reviewId: string) => {
 };
 
 const handleCreate = () => {
+  if (!canCreate) {
+    return;
+  }
   router.push({ path: '/manuscript/review/form', query: { mode: 'create' } });
 };
 
