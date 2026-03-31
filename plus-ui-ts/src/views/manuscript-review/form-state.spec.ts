@@ -5,15 +5,20 @@ import {
   buildFormPresentation,
   buildIntegratedSavePayload,
   buildIntegratedSubmitPayload,
+  createManuscriptReviewFormRules,
   createDraftStateFromDetail,
   createDraftStateFromPayload,
+  hasUploadingProgressItems,
   PROCESS_TYPE_OPTIONS,
   readReviewIdFromQuery,
+  removeUploadProgressItem,
   removeDraftUploadByOssId,
   resolveFormMode,
+  upsertUploadProgressItem,
   type ManuscriptReviewDraftExternalLinkItem,
   type ManuscriptReviewDraftFormModel,
-  type ManuscriptReviewDraftUploadItem
+  type ManuscriptReviewDraftUploadItem,
+  type ManuscriptReviewUploadProgressItem
 } from './components/formState';
 
 describe('T09_ManuscriptReview_FormStateSpec', () => {
@@ -90,6 +95,49 @@ describe('T09_ManuscriptReview_FormStateSpec', () => {
     expect(buildFormPresentation('edit').primaryActionLabel).not.toMatch(/审批|重新提交/);
   });
 
+  it('includes authorName in the required front-end form rules', () => {
+    expect(createManuscriptReviewFormRules()).toEqual(
+      expect.objectContaining({
+        authorName: [{ required: true, message: '请输入作者', trigger: 'blur' }]
+      })
+    );
+  });
+
+  it('tracks upload progress items and exposes blocking state while uploads are in flight', () => {
+    const started = upsertUploadProgressItem([], {
+      uid: 'upload-1',
+      displayName: '超大样片.mp4',
+      percentage: 0
+    });
+
+    expect(started).toEqual([
+      {
+        uid: 'upload-1',
+        displayName: '超大样片.mp4',
+        percentage: 0
+      }
+    ]);
+    expect(hasUploadingProgressItems(started)).toBe(true);
+
+    const progressed = upsertUploadProgressItem(started, {
+      uid: 'upload-1',
+      displayName: '超大样片.mp4',
+      percentage: 46.7
+    });
+
+    expect(progressed).toEqual([
+      {
+        uid: 'upload-1',
+        displayName: '超大样片.mp4',
+        percentage: 47
+      }
+    ]);
+
+    const cleared = removeUploadProgressItem(progressed, 'upload-1');
+    expect(cleared).toEqual<ManuscriptReviewUploadProgressItem[]>([]);
+    expect(hasUploadingProgressItems(cleared)).toBe(false);
+  });
+
   it('builds integrated create payload with main fields, attachments, and external links', () => {
     expect(buildIntegratedSubmitPayload(baseForm, uploads, links)).toEqual({
       ...baseForm,
@@ -162,23 +210,22 @@ describe('T09_ManuscriptReview_FormStateSpec', () => {
         contentBody: '原正文',
         attachmentList: [
           {
-        id: 1,
-        displayName: '已入库附件.pdf'
-        ,
-        operatorName: '张三',
-        operatorTime: '2026-03-23 11:20:01',
-        fileSizeLabel: '1.00 MB'
-      }
-    ],
+            id: 1,
+            displayName: '已入库附件.pdf',
+            operatorName: '张三',
+            operatorTime: '2026-03-23 11:20:01',
+            fileSizeLabel: '1.00 MB'
+          }
+        ],
         externalLinkList: [
           {
-        id: 2,
-        displayName: '已入库外链',
-        externalUrl: 'https://example.com/online',
-        operatorName: '李四',
-        operatorTime: '2026-03-23 11:20:02'
-      }
-    ],
+            id: 2,
+            displayName: '已入库外链',
+            externalUrl: 'https://example.com/online',
+            operatorName: '李四',
+            operatorTime: '2026-03-23 11:20:02'
+          }
+        ],
         videoList: null,
         videoMarkList: null,
         timelineItems: null,

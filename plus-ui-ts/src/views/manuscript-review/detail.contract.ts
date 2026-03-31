@@ -112,6 +112,28 @@ export interface ManuscriptReviewVideoPlaybackItem {
   marks: ManuscriptReviewVideoPlaybackMarkItem[];
 }
 
+export interface ManuscriptReviewVideoSelectionState {
+  activeVideoId: string;
+  pendingVideoMarkResourceId: string;
+}
+
+export interface ManuscriptReviewPendingVideoMarkDraft {
+  reviewId?: string;
+  activeVideoId?: string;
+  pendingVideoMarkResourceId?: string;
+  startTimeText?: string;
+  markContent?: string;
+}
+
+export interface ManuscriptReviewPendingVideoMarkValidationResult {
+  ok: boolean;
+  resourceId?: string;
+  startTimeText?: string;
+  markContent?: string;
+  pageError?: string;
+  formError?: string;
+}
+
 export interface ManuscriptReviewDetailReadableViewModel {
   actionRole: ManuscriptReviewDetailViewRole;
   detail: ManuscriptReviewDetailReadableSource;
@@ -119,8 +141,7 @@ export interface ManuscriptReviewDetailReadableViewModel {
   resourceItems: ManuscriptReviewResourceItem[];
 }
 
-const isRecord = (value: unknown): value is UnknownRecord =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
+const isRecord = (value: unknown): value is UnknownRecord => typeof value === 'object' && value !== null && !Array.isArray(value);
 
 const toTrimmedString = (value: unknown): string | undefined => {
   if (value === undefined || value === null) {
@@ -140,8 +161,7 @@ const pickMaybeText = (source: UnknownRecord, keys: string[]): string | undefine
   return undefined;
 };
 
-const pickText = (source: UnknownRecord, keys: string[], fallback = EMPTY_TEXT): string =>
-  pickMaybeText(source, keys) ?? fallback;
+const pickText = (source: UnknownRecord, keys: string[], fallback = EMPTY_TEXT): string => pickMaybeText(source, keys) ?? fallback;
 
 const pickBoolean = (source: UnknownRecord, keys: string[]): boolean => {
   for (const key of keys) {
@@ -235,11 +255,7 @@ const resolveInternalResourceUrl = (value?: string): string | undefined => {
   return `${API_BASE_URL}${normalized}`;
 };
 
-const buildResourceMetaLines = (
-  operatorName?: string,
-  operatorTime?: string,
-  fileSizeLabel?: string
-): string[] => {
+const buildResourceMetaLines = (operatorName?: string, operatorTime?: string, fileSizeLabel?: string): string[] => {
   const lines = [`操作人：${operatorName?.trim() || '--'}`, `操作时间：${operatorTime?.trim() || '--'}`];
   if (fileSizeLabel !== undefined) {
     lines.push(`文件大小：${fileSizeLabel.trim() || '--'}`);
@@ -302,11 +318,7 @@ const normalizeVideoMarkList = (payload: unknown): ManuscriptReviewVideoMarkItem
     };
   });
 
-const normalizeResourceList = (
-  payload: unknown,
-  keys: string[],
-  fallbackType: string
-) =>
+const normalizeResourceList = (payload: unknown, keys: string[], fallbackType: string) =>
   extractCollection(payload, keys).map((item, index) => {
     const resource = isRecord(item) ? item : {};
     return {
@@ -361,8 +373,7 @@ const normalizeHistoryItems = (detail: ManuscriptReviewDetailReadableSource): Ma
       actionLabel: timelineItem.eventText,
       operatorName: timelineItem.operatorName ?? '',
       remark: timelineItem.diffSummary,
-      relatedResourceId:
-        timelineItem.relatedResourceId == null ? undefined : String(timelineItem.relatedResourceId),
+      relatedResourceId: timelineItem.relatedResourceId == null ? undefined : String(timelineItem.relatedResourceId),
       relatedResourceType: timelineItem.relatedResourceType ?? undefined,
       actionPrefix: actionLink?.actionPrefix,
       actionLinkLabel: actionLink?.actionLinkLabel,
@@ -454,9 +465,7 @@ export const parseVideoTimeTextToSeconds = (value?: string): number | undefined 
   return hours * 3600 + minutes * 60 + seconds;
 };
 
-export const buildVideoPlaybackItems = (
-  detail: ManuscriptReviewDetailReadableSource
-): ManuscriptReviewVideoPlaybackItem[] => {
+export const buildVideoPlaybackItems = (detail: ManuscriptReviewDetailReadableSource): ManuscriptReviewVideoPlaybackItem[] => {
   const markMap = new Map<string, ManuscriptReviewVideoPlaybackMarkItem[]>();
 
   for (const marker of detail.videoMarkList ?? []) {
@@ -493,9 +502,76 @@ export const buildVideoPlaybackItems = (
   });
 };
 
-const resolveDetailViewRole = (
-  permissionMatrix?: ManuscriptReviewPermissionMatrixVO
-): ManuscriptReviewDetailViewRole => {
+export const reconcileVideoSelectionState = (
+  items: ManuscriptReviewVideoPlaybackItem[],
+  activeVideoId: string,
+  pendingVideoMarkResourceId: string
+): ManuscriptReviewVideoSelectionState => {
+  if (items.length === 0) {
+    return {
+      activeVideoId: '',
+      pendingVideoMarkResourceId: ''
+    };
+  }
+
+  const nextActiveVideoId = items.some((item) => item.id === activeVideoId) ? activeVideoId : items[0].id;
+  const nextPendingVideoMarkResourceId = items.some((item) => item.id === pendingVideoMarkResourceId)
+    ? pendingVideoMarkResourceId
+    : nextActiveVideoId;
+
+  return {
+    activeVideoId: nextActiveVideoId,
+    pendingVideoMarkResourceId: nextPendingVideoMarkResourceId
+  };
+};
+
+export const applyVideoSelection = (videoId: string): ManuscriptReviewVideoSelectionState => ({
+  activeVideoId: videoId,
+  pendingVideoMarkResourceId: videoId
+});
+
+export const validatePendingVideoMarkDraft = (draft: ManuscriptReviewPendingVideoMarkDraft): ManuscriptReviewPendingVideoMarkValidationResult => {
+  const reviewId = draft.reviewId?.trim();
+  if (!reviewId) {
+    return {
+      ok: false,
+      pageError: '缺少必要的定位信息，请从台账进入详情页。'
+    };
+  }
+
+  const resourceId = draft.pendingVideoMarkResourceId?.trim() || draft.activeVideoId?.trim();
+  if (!resourceId) {
+    return {
+      ok: false,
+      pageError: '当前没有可标注的视频资源。'
+    };
+  }
+
+  const startTimeText = draft.startTimeText?.trim() ?? '';
+  if (!startTimeText) {
+    return {
+      ok: false,
+      formError: '请先填写视频标注开始时间。'
+    };
+  }
+
+  const markContent = draft.markContent?.trim() ?? '';
+  if (!markContent) {
+    return {
+      ok: false,
+      formError: '请先填写视频标注内容。'
+    };
+  }
+
+  return {
+    ok: true,
+    resourceId,
+    startTimeText,
+    markContent
+  };
+};
+
+const resolveDetailViewRole = (permissionMatrix?: ManuscriptReviewPermissionMatrixVO): ManuscriptReviewDetailViewRole => {
   if (permissionMatrix?.canGotoApproval || permissionMatrix?.isCurrentApprover) {
     return 'CURRENT_APPROVER';
   }
@@ -507,13 +583,9 @@ const resolveDetailViewRole = (
   return 'HISTORY_PARTICIPANT';
 };
 
-export const buildDetailActionBar = (
-  role: ManuscriptReviewDetailViewRole
-): ManuscriptReviewDetailAction[] => ACTIONS_BY_ROLE[role];
+export const buildDetailActionBar = (role: ManuscriptReviewDetailViewRole): ManuscriptReviewDetailAction[] => ACTIONS_BY_ROLE[role];
 
-export const buildReadableSummary = (
-  detail: ManuscriptReviewDetailReadableSource
-): ManuscriptReviewReadableSummaryItem[] =>
+export const buildReadableSummary = (detail: ManuscriptReviewDetailReadableSource): ManuscriptReviewReadableSummaryItem[] =>
   SUMMARY_FIELDS.map((field) => {
     const value = field.pick(detail)?.trim();
 
@@ -546,8 +618,7 @@ export const normalizeDetailViewModel = (payload: unknown): ManuscriptReviewDeta
     processType: pickMaybeText(source, ['processType']),
     processTypeLabel: pickText(source, ['processTypeLabel', 'processTypeName', 'reviewTypeLabel']),
     manuscriptCode: pickText(source, ['manuscriptCode', 'manuscript_code', 'manuscriptNo']),
-    externalManuscriptCode:
-      pickMaybeText(source, ['externalManuscriptCode', 'externalCode', 'externalManuscriptNo']),
+    externalManuscriptCode: pickMaybeText(source, ['externalManuscriptCode', 'externalCode', 'externalManuscriptNo']),
     title: pickText(source, ['title']),
     mediaChannel: pickText(source, ['mediaChannel', 'mediaChannelLabel', 'mediaChannelName', 'mediaColumnLabel']),
     submitDepartment: pickText(source, ['submitDepartment', 'submitterDeptName', 'submitDeptName', 'departmentName']),

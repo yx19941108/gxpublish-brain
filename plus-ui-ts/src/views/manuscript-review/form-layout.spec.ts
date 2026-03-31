@@ -47,6 +47,16 @@ describe('manuscript review form layout shell', () => {
     expect(file).toContain('target="_blank"');
     expect(file).toContain('rel="noopener noreferrer"');
     expect(file).not.toContain('placeholder="请输入流程类型"');
-    expect(file).not.toContain("submitDepartment: [{ required: true");
+    expect(file).not.toContain('submitDepartment: [{ required: true');
+  });
+
+  it('exposes author validation and upload progress blocking hooks in the form shell', () => {
+    const file = readFileSync(resolve(__dirname, './form.vue'), 'utf-8');
+
+    expect(file).toContain('<el-form-item label="作者" prop="authorName">');
+    expect(file).toContain('data-testid="manuscript-review-form-upload-progress-list"');
+    expect(file).toContain(':on-progress="handleUploadProgress"');
+    expect(file).toContain(':disabled="hasUploadingInFlight"');
+    expect(file).toContain('ElMessageBox.confirm');
   });
 });

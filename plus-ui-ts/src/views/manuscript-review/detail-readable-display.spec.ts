@@ -1,11 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  applyVideoSelection,
   buildDetailActionBar,
   buildReadableSummary,
   buildVideoPlaybackItems,
   normalizeDetailViewModel,
-  parseVideoTimeTextToSeconds
+  parseVideoTimeTextToSeconds,
+  reconcileVideoSelectionState,
+  validatePendingVideoMarkDraft
 } from './detail.contract';
 
 const { requestInvoker } = vi.hoisted(() => ({
@@ -95,9 +98,7 @@ describe('T07_Frontend_DetailActions_AndReadableDisplaySpec', () => {
       disabledReason: '标注停用'
     });
 
-    expect(
-      requestInvoker.mock.calls.map(([config]) => `${(config as { method: string }).method}:${(config as { url: string }).url}`)
-    ).toEqual([
+    expect(requestInvoker.mock.calls.map(([config]) => `${(config as { method: string }).method}:${(config as { url: string }).url}`)).toEqual([
       'get:/workflow/manuscript-review/list',
       'get:/workflow/manuscript-review/9001',
       'post:/workflow/manuscript-review/submitAndFlowStart',
@@ -513,6 +514,77 @@ describe('T07_Frontend_DetailActions_AndReadableDisplaySpec', () => {
         ]
       }
     ]);
+  });
+
+  it('keeps the pending video mark target synchronized with the selected video', () => {
+    const items = [
+      {
+        id: '301',
+        name: '样片一.mp4',
+        marks: []
+      },
+      {
+        id: '302',
+        name: '样片二.mp4',
+        marks: []
+      }
+    ];
+
+    expect(reconcileVideoSelectionState(items, '', '')).toEqual({
+      activeVideoId: '301',
+      pendingVideoMarkResourceId: '301'
+    });
+    expect(applyVideoSelection('302')).toEqual({
+      activeVideoId: '302',
+      pendingVideoMarkResourceId: '302'
+    });
+    expect(reconcileVideoSelectionState(items, '302', '302')).toEqual({
+      activeVideoId: '302',
+      pendingVideoMarkResourceId: '302'
+    });
+  });
+
+  it('returns local validation errors for incomplete pending video marks', () => {
+    expect(
+      validatePendingVideoMarkDraft({
+        reviewId: '9001',
+        activeVideoId: '301',
+        pendingVideoMarkResourceId: '301',
+        startTimeText: '',
+        markContent: '只填内容'
+      })
+    ).toEqual({
+      ok: false,
+      formError: '请先填写视频标注开始时间。'
+    });
+
+    expect(
+      validatePendingVideoMarkDraft({
+        reviewId: '9001',
+        activeVideoId: '301',
+        pendingVideoMarkResourceId: '301',
+        startTimeText: '00:00:05',
+        markContent: ''
+      })
+    ).toEqual({
+      ok: false,
+      formError: '请先填写视频标注内容。'
+    });
+
+    expect(
+      validatePendingVideoMarkDraft({
+        reviewId: '9001',
+        activeVideoId: '301',
+        pendingVideoMarkResourceId: '301',
+        startTimeText: '00:00:05',
+        markContent: '第一处问题'
+      })
+    ).toEqual({
+      ok: true,
+      resourceId: '301',
+      startTimeText: '00:00:05',
+      markContent: '第一处问题'
+    });
   });
 
   it('parses HH:mm:ss video mark time text into seconds', () => {

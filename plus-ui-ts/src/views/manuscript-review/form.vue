@@ -99,12 +99,27 @@
                 :headers="uploadHeaders"
                 :show-file-list="false"
                 :before-upload="handleBeforeUpload"
+                :on-progress="handleUploadProgress"
                 :on-success="handleUploadSuccess"
                 :on-error="handleUploadError"
                 multiple
               >
-                <el-button type="primary" plain>上传附件/视频</el-button>
+                <el-button type="primary" plain :disabled="submitting || hasUploadingInFlight">上传附件/视频</el-button>
               </el-upload>
+            </div>
+
+            <div
+              v-if="uploadProgressItems.length > 0"
+              data-testid="manuscript-review-form-upload-progress-list"
+              class="manuscript-review-form-page__upload-progress-list"
+            >
+              <div v-for="item in uploadProgressItems" :key="item.uid" class="manuscript-review-form-page__upload-progress-item">
+                <div class="manuscript-review-form-page__upload-progress-head">
+                  <span class="manuscript-review-form-page__draft-name">{{ item.displayName }}</span>
+                  <span>{{ item.percentage }}%</span>
+                </div>
+                <el-progress :percentage="item.percentage" />
+              </div>
             </div>
 
             <div v-if="draftUploads.length === 0" class="manuscript-review-form-page__empty">暂无待提交附件，可继续上传。</div>
@@ -114,7 +129,7 @@
                   <div class="manuscript-review-form-page__draft-name">{{ item.displayName }}</div>
                   <div class="manuscript-review-form-page__draft-meta">{{ resolveDraftUploadTypeLabel(item.resourceType) }}待提交</div>
                 </div>
-                <el-button link type="danger" @click="handleDeletePendingUpload(item.ossId)">删除</el-button>
+                <el-button link type="danger" :disabled="hasUploadingInFlight" @click="handleDeletePendingUpload(item.ossId)">删除</el-button>
               </div>
             </div>
           </el-card>
@@ -186,7 +201,13 @@
 
           <div class="manuscript-review-form-page__footer">
             <el-button @click="handleBack">返回</el-button>
-            <el-button data-testid="manuscript-review-form-primary-action" type="primary" :loading="submitting" @click="handlePrimaryAction">
+            <el-button
+              data-testid="manuscript-review-form-primary-action"
+              type="primary"
+              :loading="submitting"
+              :disabled="hasUploadingInFlight"
+              @click="handlePrimaryAction"
+            >
               {{ presentation.primaryActionLabel }}
             </el-button>
           </div>
@@ -199,7 +220,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { ElMessage, type FormInstance, type FormRules, type UploadProps, type UploadRawFile } from 'element-plus';
+import { ElMessage, ElMessageBox, type FormInstance, type FormRules, type UploadProps, type UploadRawFile } from 'element-plus';
 
 import {
   deletePendingManuscriptReviewResource,
@@ -216,15 +237,20 @@ import {
   PROCESS_TYPE_OPTIONS,
   buildIntegratedSavePayload,
   buildIntegratedSubmitPayload,
+  createManuscriptReviewFormRules,
   createDraftStateFromDetail,
   createDraftStateFromPayload,
+  hasUploadingProgressItems,
   readReviewIdFromQuery,
+  removeUploadProgressItem,
   removeDraftUploadByOssId,
   resolveFormMode,
+  upsertUploadProgressItem,
   type ManuscriptReviewDraftExternalLinkItem,
   type ManuscriptReviewDraftFormModel,
   type ManuscriptReviewDraftUploadItem,
-  type ManuscriptReviewPersistedResourceView
+  type ManuscriptReviewPersistedResourceView,
+  type ManuscriptReviewUploadProgressItem
 } from './components/formState';
 import { resolveEditBackTarget } from './detail-navigation';
 
@@ -243,7 +269,9 @@ const errorMessage = ref('');
 const draftUploads = ref<ManuscriptReviewDraftUploadItem[]>([]);
 const draftExternalLinks = ref<ManuscriptReviewDraftExternalLinkItem[]>([{ uid: 'link-1', displayName: '', externalUrl: '' }]);
 const persistedResources = ref<ManuscriptReviewPersistedResourceView[]>([]);
+const uploadProgressItems = ref<ManuscriptReviewUploadProgressItem[]>([]);
 const pendingVideoDurationSeconds = ref<Record<string, number>>({});
+const hasUploadingInFlight = computed(() => hasUploadingProgressItems(uploadProgressItems.value));
 
 const formModel = reactive<ManuscriptReviewDraftFormModel>({
   processType: '',
@@ -260,20 +288,14 @@ const uploadFileUrl = `${import.meta.env.VITE_APP_BASE_API}/resource/oss/upload`
 const uploadHeaders = globalHeaders();
 const processTypeOptions = PROCESS_TYPE_OPTIONS;
 
-const resolveDraftUploadTypeLabel = (resourceType: ManuscriptReviewDraftUploadItem['resourceType']) =>
-  resourceType === 'VIDEO' ? '视频' : '附件';
+const resolveDraftUploadTypeLabel = (resourceType: ManuscriptReviewDraftUploadItem['resourceType']) => (resourceType === 'VIDEO' ? '视频' : '附件');
 
 const isClickableExternalUrl = (value: string | undefined) => {
   const normalized = String(value ?? '').trim();
   return normalized.startsWith('http://') || normalized.startsWith('https://');
 };
 
-const rules: FormRules<ManuscriptReviewDraftFormModel> = {
-  processType: [{ required: true, message: '请选择流程类型', trigger: 'change' }],
-  title: [{ required: true, message: '请输入标题', trigger: 'blur' }],
-  mediaChannel: [{ required: true, message: '请输入媒体栏目', trigger: 'blur' }],
-  contentBody: [{ required: true, message: '请输入正文内容', trigger: 'blur' }]
-};
+const rules: FormRules<ManuscriptReviewDraftFormModel> = createManuscriptReviewFormRules();
 
 const resetDraftState = () => {
   formModel.processType = '';
@@ -287,6 +309,7 @@ const resetDraftState = () => {
   draftUploads.value = [];
   draftExternalLinks.value = [{ uid: `link-${Date.now()}`, displayName: '', externalUrl: '' }];
   persistedResources.value = [];
+  uploadProgressItems.value = [];
   pendingVideoDurationSeconds.value = {};
 };
 
@@ -384,6 +407,11 @@ const handleBeforeUpload: UploadProps['beforeUpload'] = async (rawFile) => {
 
   delete pendingVideoDurationSeconds.value[String(rawFile.uid)];
   if (!isVideoUpload(rawFile)) {
+    uploadProgressItems.value = upsertUploadProgressItem(uploadProgressItems.value, {
+      uid: String(rawFile.uid),
+      displayName: rawFile.name,
+      percentage: 0
+    });
     return true;
   }
 
@@ -393,6 +421,11 @@ const handleBeforeUpload: UploadProps['beforeUpload'] = async (rawFile) => {
     return false;
   }
   pendingVideoDurationSeconds.value[String(rawFile.uid)] = durationSeconds;
+  uploadProgressItems.value = upsertUploadProgressItem(uploadProgressItems.value, {
+    uid: String(rawFile.uid),
+    displayName: rawFile.name,
+    percentage: 0
+  });
   return true;
 };
 
@@ -401,8 +434,17 @@ const buildUploadData = async (rawFile: UploadRawFile) => {
   return durationSeconds ? { videoDurationSeconds: String(durationSeconds) } : {};
 };
 
+const handleUploadProgress: UploadProps['onProgress'] = (event, uploadFile) => {
+  uploadProgressItems.value = upsertUploadProgressItem(uploadProgressItems.value, {
+    uid: String(uploadFile.uid),
+    displayName: uploadFile.name,
+    percentage: Number(event.percent ?? 0)
+  });
+};
+
 const handleUploadSuccess: UploadProps['onSuccess'] = (response, uploadFile) => {
   delete pendingVideoDurationSeconds.value[String(uploadFile.uid)];
+  uploadProgressItems.value = removeUploadProgressItem(uploadProgressItems.value, String(uploadFile.uid));
   if (response?.code !== 200 || !response?.data?.ossId) {
     ElMessage.error(response?.msg ?? '上传失败，请重试。');
     return;
@@ -422,10 +464,15 @@ const handleUploadSuccess: UploadProps['onSuccess'] = (response, uploadFile) => 
 
 const handleUploadError: UploadProps['onError'] = (_, uploadFile) => {
   delete pendingVideoDurationSeconds.value[String(uploadFile.uid)];
+  uploadProgressItems.value = removeUploadProgressItem(uploadProgressItems.value, String(uploadFile.uid));
   ElMessage.error('上传失败，请重试。');
 };
 
 const handleDeletePendingUpload = async (ossId: string | number) => {
+  if (hasUploadingInFlight.value) {
+    ElMessage.warning('文件上传中，请等待上传完成后再删除暂存资源。');
+    return;
+  }
   try {
     await deletePendingManuscriptReviewResource(ossId);
     draftUploads.value = removeDraftUploadByOssId(draftUploads.value, ossId);
@@ -435,12 +482,23 @@ const handleDeletePendingUpload = async (ossId: string | number) => {
   }
 };
 
-const handleBack = () => {
+const handleBack = async () => {
+  if (hasUploadingInFlight.value) {
+    try {
+      await ElMessageBox.confirm('文件仍在上传中，离开后将中断当前上传，是否仍然返回？', '上传进行中', {
+        type: 'warning',
+        confirmButtonText: '仍然返回',
+        cancelButtonText: '继续等待'
+      });
+    } catch {
+      return;
+    }
+  }
   if (mode.value === 'edit' && reviewId.value) {
-    void router.push(resolveEditBackTarget(route.query, reviewId.value));
+    await router.push(resolveEditBackTarget(route.query, reviewId.value));
     return;
   }
-  void router.push({ path: '/manuscript/review' });
+  await router.push({ path: '/manuscript/review' });
 };
 
 const resolveSuccessReviewId = (payload: unknown): string => {
@@ -458,6 +516,10 @@ const resolveSuccessReviewId = (payload: unknown): string => {
 };
 
 const handlePrimaryAction = async () => {
+  if (hasUploadingInFlight.value) {
+    ElMessage.warning('文件仍在上传中，请等待上传完成后再提交。');
+    return;
+  }
   const valid = await formRef.value?.validate().catch(() => false);
   if (!valid) {
     return;
@@ -575,9 +637,26 @@ onMounted(() => {
   }
 
   &__draft-list,
+  &__upload-progress-list,
   &__link-list {
     display: grid;
     gap: 12px;
+  }
+
+  &__upload-progress-item {
+    padding: 12px 14px;
+    border: 1px solid var(--el-border-color-light);
+    border-radius: 12px;
+    background: var(--el-fill-color-extra-light);
+  }
+
+  &__upload-progress-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+    font-size: 13px;
   }
 
   &__draft-item {

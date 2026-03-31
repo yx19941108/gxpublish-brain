@@ -70,6 +70,20 @@ export interface ManuscriptReviewEditDraftState {
   draftExternalLinks: ManuscriptReviewDraftExternalLinkItem[];
 }
 
+export interface ManuscriptReviewFormRuleConfig {
+  required: boolean;
+  message: string;
+  trigger: 'blur' | 'change';
+}
+
+export type ManuscriptReviewFormRuleMap = Partial<Record<keyof ManuscriptReviewDraftFormModel, ManuscriptReviewFormRuleConfig[]>>;
+
+export interface ManuscriptReviewUploadProgressItem {
+  uid: string;
+  displayName: string;
+  percentage: number;
+}
+
 const readQueryText = (value: LocationQuery[string]): string | undefined => {
   if (Array.isArray(value)) {
     return value[0] ? String(value[0]) : undefined;
@@ -106,6 +120,41 @@ export const buildFormPresentation = (mode: ManuscriptReviewFormMode): Manuscrip
     successToast: '提交成功，已进入详情页。'
   };
 };
+
+export const createManuscriptReviewFormRules = (): ManuscriptReviewFormRuleMap => ({
+  processType: [{ required: true, message: '请选择流程类型', trigger: 'change' }],
+  title: [{ required: true, message: '请输入标题', trigger: 'blur' }],
+  mediaChannel: [{ required: true, message: '请输入媒体栏目', trigger: 'blur' }],
+  authorName: [{ required: true, message: '请输入作者', trigger: 'blur' }],
+  contentBody: [{ required: true, message: '请输入正文内容', trigger: 'blur' }]
+});
+
+const normalizeUploadPercentage = (value: number): number => {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+  return Math.min(100, Math.max(0, Math.round(value)));
+};
+
+export const upsertUploadProgressItem = (
+  items: ManuscriptReviewUploadProgressItem[],
+  nextItem: ManuscriptReviewUploadProgressItem
+): ManuscriptReviewUploadProgressItem[] => {
+  const normalizedItem: ManuscriptReviewUploadProgressItem = {
+    ...nextItem,
+    percentage: normalizeUploadPercentage(nextItem.percentage)
+  };
+  const index = items.findIndex((item) => item.uid === normalizedItem.uid);
+  if (index < 0) {
+    return [...items, normalizedItem];
+  }
+  return items.map((item, itemIndex) => (itemIndex === index ? { ...item, ...normalizedItem } : item));
+};
+
+export const removeUploadProgressItem = (items: ManuscriptReviewUploadProgressItem[], uid: string): ManuscriptReviewUploadProgressItem[] =>
+  items.filter((item) => item.uid !== uid);
+
+export const hasUploadingProgressItems = (items: ManuscriptReviewUploadProgressItem[]): boolean => items.length > 0;
 
 export const removeDraftUploadByOssId = (items: ManuscriptReviewDraftUploadItem[], ossId: string | number): ManuscriptReviewDraftUploadItem[] =>
   items.filter((item) => String(item.ossId) !== String(ossId));
@@ -147,13 +196,14 @@ const mapPersistedResources = (
     const resourceKind = String(item.resourceType ?? '').toUpperCase();
     const labelKind = String(item.resourceTypeLabel ?? typeLabel).trim();
     const isExternalLink = resourceKind.includes('EXTERNAL') || labelKind.includes('外链');
-    const isFileLike = resourceKind.includes('ATTACHMENT') || resourceKind.includes('VIDEO') || labelKind.includes('附件') || labelKind.includes('视频');
+    const isFileLike =
+      resourceKind.includes('ATTACHMENT') || resourceKind.includes('VIDEO') || labelKind.includes('附件') || labelKind.includes('视频');
 
     return {
       id: String(item.id),
       typeLabel: item.resourceTypeLabel ?? typeLabel,
       displayName: item.displayName,
-      note: isExternalLink ? item.externalUrl ?? '' : '',
+      note: isExternalLink ? (item.externalUrl ?? '') : '',
       metaLines: [
         `操作人：${String(item.operatorName ?? '').trim() || '--'}`,
         `操作时间：${String(item.operatorTime ?? '').trim() || '--'}`,

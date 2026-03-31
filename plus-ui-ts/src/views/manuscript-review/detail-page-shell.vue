@@ -109,14 +109,16 @@
                   <div class="manuscript-review-detail-shell__video-meta">
                     <div>
                       <p class="manuscript-review-detail-shell__video-title">{{ activeVideo.name }}</p>
-                      <p class="manuscript-review-detail-shell__video-note">
-                        当前命中 {{ activeVideoMarks.length }} 条有效标注
-                      </p>
+                      <p class="manuscript-review-detail-shell__video-note">当前命中 {{ activeVideoMarks.length }} 条有效标注</p>
                     </div>
                   </div>
                 </div>
 
-                <div v-if="videoPlaybackItems.length > 1" class="manuscript-review-detail-shell__video-switcher" data-testid="manuscript-review-video-switcher">
+                <div
+                  v-if="videoPlaybackItems.length > 1"
+                  class="manuscript-review-detail-shell__video-switcher"
+                  data-testid="manuscript-review-video-switcher"
+                >
                   <button
                     v-for="item in videoPlaybackItems"
                     :key="item.id"
@@ -189,14 +191,17 @@
                     </label>
                     <label class="manuscript-review-detail-shell__video-mark-field manuscript-review-detail-shell__video-mark-field--full">
                       <span>标注内容</span>
-                      <textarea
-                        v-model.trim="pendingVideoMarkContent"
-                        rows="3"
-                        maxlength="500"
-                        placeholder="请输入需要记录的问题或说明"
-                      />
+                      <textarea v-model.trim="pendingVideoMarkContent" rows="3" maxlength="500" placeholder="请输入需要记录的问题或说明" />
                     </label>
                   </div>
+                  <p
+                    v-if="videoMarkFormError"
+                    data-testid="manuscript-review-video-mark-form-error"
+                    class="manuscript-review-detail-shell__video-mark-form-error"
+                    role="alert"
+                  >
+                    {{ videoMarkFormError }}
+                  </p>
                 </div>
               </template>
             </div>
@@ -273,11 +278,7 @@
                   <div class="manuscript-review-detail-shell__timeline-title">
                     <template v-if="item.actionLinkLabel && (item.actionLinkHref || item.actionLinkOssId)">
                       {{ item.actionPrefix }}
-                      <button
-                        type="button"
-                        class="manuscript-review-detail-shell__timeline-link"
-                        @click="onHistoryAction(item)"
-                      >
+                      <button type="button" class="manuscript-review-detail-shell__timeline-link" @click="onHistoryAction(item)">
                         {{ item.actionLinkLabel }}
                       </button>
                       {{ item.actionSuffix }}
@@ -288,10 +289,7 @@
                     {{ item.operatorName }}
                   </div>
                   <div v-if="item.remark" class="manuscript-review-detail-shell__timeline-remark">{{ item.remark }}</div>
-                  <div
-                    v-if="!loading && resolveHistoryActions(item).length > 0"
-                    class="manuscript-review-detail-shell__timeline-actions"
-                  >
+                  <div v-if="!loading && resolveHistoryActions(item).length > 0" class="manuscript-review-detail-shell__timeline-actions">
                     <button
                       v-for="action in resolveHistoryActions(item)"
                       :key="`${item.id}-${action.key}`"
@@ -333,10 +331,13 @@ import { resolveManuscriptApproveAction, type ManuscriptReviewApproveActionResul
 import SubmitVerify from '@/components/Process/submitVerify.vue';
 
 import {
+  applyVideoSelection,
   buildVideoPlaybackItems,
   buildDetailActionBar,
   normalizeDetailViewModel,
   parseVideoTimeTextToSeconds,
+  reconcileVideoSelectionState,
+  validatePendingVideoMarkDraft,
   type ManuscriptReviewDetailReadableViewModel,
   type ManuscriptReviewHistoryItem,
   type ManuscriptReviewResourceItem,
@@ -388,6 +389,7 @@ const pendingVideoMarkResourceId = ref('');
 const pendingVideoMarkStartTime = ref('');
 const pendingVideoMarkEndTime = ref('');
 const pendingVideoMarkContent = ref('');
+const videoMarkFormError = ref('');
 const videoMarkSubmitting = ref(false);
 
 const detailSource = computed(() => viewModel.value?.detail ?? null);
@@ -412,9 +414,7 @@ const activeVideo = computed<ManuscriptReviewVideoPlaybackItem | undefined>(() =
   return videoPlaybackItems.value[0];
 });
 const activeVideoMarks = computed<ManuscriptReviewVideoPlaybackMarkItem[]>(() => activeVideo.value?.marks ?? []);
-const extractPreviewTicketUrl = (
-  response: Awaited<ReturnType<typeof getManuscriptReviewPreviewTicket>>
-): string | undefined => {
+const extractPreviewTicketUrl = (response: Awaited<ReturnType<typeof getManuscriptReviewPreviewTicket>>): string | undefined => {
   const payload = response?.data as
     | {
         data?: {
@@ -536,22 +536,21 @@ const canManageResources = computed(() => Boolean(detailSource.value?.permission
 watch(
   videoPlaybackItems,
   (items) => {
+    const selectionState = reconcileVideoSelectionState(items, activeVideoId.value, pendingVideoMarkResourceId.value);
+    activeVideoId.value = selectionState.activeVideoId;
+    pendingVideoMarkResourceId.value = selectionState.pendingVideoMarkResourceId;
     if (items.length === 0) {
-      activeVideoId.value = '';
       pendingSeekSeconds.value = null;
-      pendingVideoMarkResourceId.value = '';
-      return;
-    }
-
-    if (!items.some((item) => item.id === activeVideoId.value)) {
-      activeVideoId.value = items[0].id;
-    }
-    if (!items.some((item) => item.id === pendingVideoMarkResourceId.value)) {
-      pendingVideoMarkResourceId.value = activeVideoId.value || items[0].id;
     }
   },
   { immediate: true }
 );
+
+watch([pendingVideoMarkResourceId, pendingVideoMarkStartTime, pendingVideoMarkContent], () => {
+  if (videoMarkFormError.value) {
+    videoMarkFormError.value = '';
+  }
+});
 
 const resolveResourceActions = (item: ManuscriptReviewResourceItem) => {
   const actions: Array<{ key: ResourceActionKey; label: string }> = [];
@@ -702,8 +701,7 @@ const openExternalTarget = (href?: string) => {
   window.open(href, '_blank', 'noopener,noreferrer');
 };
 
-const parseVideoMarkStartSeconds = (item: ManuscriptReviewResourceItem): number | undefined =>
-  parseVideoTimeTextToSeconds(item.startTimeText);
+const parseVideoMarkStartSeconds = (item: ManuscriptReviewResourceItem): number | undefined => parseVideoTimeTextToSeconds(item.startTimeText);
 
 const applyPendingVideoSeek = () => {
   const player = videoPlayerRef.value;
@@ -720,7 +718,10 @@ const onVideoLoadedMetadata = () => {
 };
 
 const selectVideo = (videoId: string) => {
-  activeVideoId.value = videoId;
+  const selectionState = applyVideoSelection(videoId);
+  activeVideoId.value = selectionState.activeVideoId;
+  pendingVideoMarkResourceId.value = selectionState.pendingVideoMarkResourceId;
+  videoMarkFormError.value = '';
 };
 
 const resetPendingVideoMarkForm = () => {
@@ -728,40 +729,35 @@ const resetPendingVideoMarkForm = () => {
   pendingVideoMarkStartTime.value = '';
   pendingVideoMarkEndTime.value = '';
   pendingVideoMarkContent.value = '';
+  videoMarkFormError.value = '';
 };
 
 const handleAddVideoMark = async () => {
-  if (!reviewId.value) {
-    errorMessage.value = '缺少必要的定位信息，请从台账进入详情页。';
-    return;
-  }
-  const resourceId = pendingVideoMarkResourceId.value || activeVideo.value?.id;
-  const startTimeText = pendingVideoMarkStartTime.value.trim();
-  const markContent = pendingVideoMarkContent.value.trim();
-  if (!resourceId) {
-    errorMessage.value = '当前没有可标注的视频资源。';
-    return;
-  }
-  if (!startTimeText) {
-    errorMessage.value = '请先填写视频标注开始时间。';
-    return;
-  }
-  if (!markContent) {
-    errorMessage.value = '请先填写视频标注内容。';
+  const validation = validatePendingVideoMarkDraft({
+    reviewId: reviewId.value,
+    activeVideoId: activeVideo.value?.id,
+    pendingVideoMarkResourceId: pendingVideoMarkResourceId.value,
+    startTimeText: pendingVideoMarkStartTime.value,
+    markContent: pendingVideoMarkContent.value
+  });
+  if (!validation.ok) {
+    videoMarkFormError.value = validation.formError ?? '';
+    errorMessage.value = validation.pageError ?? '';
     return;
   }
 
   videoMarkSubmitting.value = true;
   errorMessage.value = '';
-  activeVideoId.value = resourceId;
+  videoMarkFormError.value = '';
+  activeVideoId.value = validation.resourceId ?? '';
 
   try {
     await addManuscriptReviewVideoMark({
       reviewId: reviewId.value,
-      resourceId,
-      startTimeText,
+      resourceId: validation.resourceId,
+      startTimeText: validation.startTimeText,
       endTimeText: pendingVideoMarkEndTime.value.trim() || undefined,
-      markContent
+      markContent: validation.markContent
     });
     resetPendingVideoMarkForm();
     await fetchDetail();
@@ -1207,6 +1203,13 @@ onMounted(() => {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
+}
+
+.manuscript-review-detail-shell__video-mark-form-error {
+  margin: 0;
+  color: var(--el-color-danger);
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .manuscript-review-detail-shell__video-mark-field {
