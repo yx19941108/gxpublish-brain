@@ -12,6 +12,8 @@ public class ManuscriptReviewSystemUserEntity {
     @TableId("user_id")
     private Long userId;
     private String tenantId;
+    private String userName;
+    private String nickName;
     private String status;
     private String delFlag;
 }

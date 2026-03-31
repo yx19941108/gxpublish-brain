@@ -84,6 +84,7 @@ export interface ManuscriptReviewResourceItem {
   typeLabel: string;
   name: string;
   statusLabel?: string;
+  metaLines?: string[];
   note?: string;
   href?: string;
   resourceUrl?: string;
@@ -234,6 +235,18 @@ const resolveInternalResourceUrl = (value?: string): string | undefined => {
   return `${API_BASE_URL}${normalized}`;
 };
 
+const buildResourceMetaLines = (
+  operatorName?: string,
+  operatorTime?: string,
+  fileSizeLabel?: string
+): string[] => {
+  const lines = [`操作人：${operatorName?.trim() || '--'}`, `操作时间：${operatorTime?.trim() || '--'}`];
+  if (fileSizeLabel !== undefined) {
+    lines.push(`文件大小：${fileSizeLabel.trim() || '--'}`);
+  }
+  return lines;
+};
+
 const normalizePermissionMatrix = (source: UnknownRecord): ManuscriptReviewPermissionMatrixVO | undefined => {
   const permissionSource = pickMaybeRecord(source, ['permissionMatrix']);
   if (!permissionSource) {
@@ -283,7 +296,9 @@ const normalizeVideoMarkList = (payload: unknown): ManuscriptReviewVideoMarkItem
       resourceId: pickMaybeText(marker, ['resourceId', 'videoAttachmentId', 'attachmentId']),
       startTimeText: pickText(marker, ['startTimeText', 'startTime']),
       endTimeText: pickMaybeText(marker, ['endTimeText', 'endTime']),
-      markContent: pickText(marker, ['markContent', 'markerNote', 'note'])
+      markContent: pickText(marker, ['markContent', 'markerNote', 'note']),
+      operatorName: pickMaybeText(marker, ['operatorName']),
+      operatorTime: pickMaybeText(marker, ['operatorTime'])
     };
   });
 
@@ -302,6 +317,10 @@ const normalizeResourceList = (
       displayName: pickText(resource, ['displayName', 'fileName', 'linkTitle', 'name'], `${fallbackType}-${index + 1}`),
       externalUrl: pickMaybeText(resource, ['externalUrl', 'linkUrl']),
       createdTime: pickMaybeText(resource, ['createdTime', 'createTime']),
+      operatorName: pickMaybeText(resource, ['operatorName']),
+      operatorTime: pickMaybeText(resource, ['operatorTime']),
+      fileSizeBytes: pickMaybeText(resource, ['fileSizeBytes', 'fileSize']),
+      fileSizeLabel: pickMaybeText(resource, ['fileSizeLabel']),
       resourceUrl: resolveInternalResourceUrl(pickMaybeText(resource, ['resourceUrl', 'fileUrl']))
     };
   });
@@ -363,7 +382,7 @@ const normalizeResourceItems = (detail: ManuscriptReviewDetailReadableSource): M
       typeLabel: attachment.resourceTypeLabel ?? '附件',
       name: attachment.displayName,
       statusLabel: '当前有效',
-      note: attachment.resourceUrl,
+      metaLines: buildResourceMetaLines(attachment.operatorName, attachment.operatorTime, attachment.fileSizeLabel),
       resourceUrl: attachment.resourceUrl,
       ossId: attachment.ossId == null ? undefined : String(attachment.ossId)
     });
@@ -376,6 +395,7 @@ const normalizeResourceItems = (detail: ManuscriptReviewDetailReadableSource): M
       typeLabel: link.resourceTypeLabel ?? '外链',
       name: link.displayName,
       statusLabel: '当前有效',
+      metaLines: buildResourceMetaLines(link.operatorName, link.operatorTime),
       note: link.externalUrl,
       href: link.externalUrl
     });
@@ -388,7 +408,7 @@ const normalizeResourceItems = (detail: ManuscriptReviewDetailReadableSource): M
       typeLabel: video.resourceTypeLabel ?? '视频',
       name: video.displayName,
       statusLabel: '当前有效',
-      note: video.resourceUrl,
+      metaLines: buildResourceMetaLines(video.operatorName, video.operatorTime, video.fileSizeLabel),
       resourceUrl: video.resourceUrl,
       ossId: video.ossId == null ? undefined : String(video.ossId)
     });
@@ -401,6 +421,7 @@ const normalizeResourceItems = (detail: ManuscriptReviewDetailReadableSource): M
       typeLabel: '视频时间标注',
       name: marker.startTimeText,
       statusLabel: '当前有效',
+      metaLines: buildResourceMetaLines(marker.operatorName, marker.operatorTime),
       note: marker.markContent,
       resourceId: marker.resourceId == null ? undefined : String(marker.resourceId),
       startTimeText: marker.startTimeText,

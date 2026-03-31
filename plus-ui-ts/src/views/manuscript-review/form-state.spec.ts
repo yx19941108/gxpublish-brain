@@ -162,17 +162,23 @@ describe('T09_ManuscriptReview_FormStateSpec', () => {
         contentBody: '原正文',
         attachmentList: [
           {
-            id: 1,
-            displayName: '已入库附件.pdf'
-          }
-        ],
+        id: 1,
+        displayName: '已入库附件.pdf'
+        ,
+        operatorName: '张三',
+        operatorTime: '2026-03-23 11:20:01',
+        fileSizeLabel: '1.00 MB'
+      }
+    ],
         externalLinkList: [
           {
-            id: 2,
-            displayName: '已入库外链',
-            externalUrl: 'https://example.com/online'
-          }
-        ],
+        id: 2,
+        displayName: '已入库外链',
+        externalUrl: 'https://example.com/online',
+        operatorName: '李四',
+        operatorTime: '2026-03-23 11:20:02'
+      }
+    ],
         videoList: null,
         videoMarkList: null,
         timelineItems: null,
@@ -194,13 +200,15 @@ describe('T09_ManuscriptReview_FormStateSpec', () => {
           id: '1',
           typeLabel: '附件',
           displayName: '已入库附件.pdf',
-          note: ''
+          note: '',
+          metaLines: ['操作人：张三', '操作时间：2026-03-23 11:20:01', '文件大小：1.00 MB']
         },
         {
           id: '2',
           typeLabel: '外链',
           displayName: '已入库外链',
-          note: 'https://example.com/online'
+          note: 'https://example.com/online',
+          metaLines: ['操作人：李四', '操作时间：2026-03-23 11:20:02']
         }
       ],
       draftUploads: [],
@@ -232,7 +240,9 @@ describe('T09_ManuscriptReview_FormStateSpec', () => {
               resourceType: 'EXTERNAL_LINK',
               resourceTypeLabel: '外链',
               displayName: '已入库外链',
-              externalUrl: 'https://example.com/review/21'
+              externalUrl: 'https://example.com/review/21',
+              operatorName: '李四',
+              operatorTime: '2026-03-24 10:00:01'
             }
           ],
           attachments: [
@@ -241,6 +251,9 @@ describe('T09_ManuscriptReview_FormStateSpec', () => {
               resourceType: 'ATTACHMENT',
               resourceTypeLabel: '附件',
               displayName: '已入库附件.pdf',
+              operatorName: '张三',
+              operatorTime: '2026-03-24 10:00:00',
+              fileSizeLabel: '1.00 MB',
               resourceUrl: 'https://example.com/files/22.pdf'
             }
           ],
@@ -250,6 +263,9 @@ describe('T09_ManuscriptReview_FormStateSpec', () => {
               resourceType: 'VIDEO',
               resourceTypeLabel: '视频',
               displayName: '已入库视频.mp4',
+              operatorName: '王五',
+              operatorTime: '2026-03-24 10:00:02',
+              fileSizeLabel: '3.00 MB',
               resourceUrl: 'https://example.com/files/23.mp4'
             }
           ],
@@ -276,19 +292,22 @@ describe('T09_ManuscriptReview_FormStateSpec', () => {
           id: '22',
           typeLabel: '附件',
           displayName: '已入库附件.pdf',
-          note: 'https://example.com/files/22.pdf'
+          note: '',
+          metaLines: ['操作人：张三', '操作时间：2026-03-24 10:00:00', '文件大小：1.00 MB']
         },
         {
           id: '21',
           typeLabel: '外链',
           displayName: '已入库外链',
-          note: 'https://example.com/review/21'
+          note: 'https://example.com/review/21',
+          metaLines: ['操作人：李四', '操作时间：2026-03-24 10:00:01']
         },
         {
           id: '23',
           typeLabel: '视频',
           displayName: '已入库视频.mp4',
-          note: 'https://example.com/files/23.mp4'
+          note: '',
+          metaLines: ['操作人：王五', '操作时间：2026-03-24 10:00:02', '文件大小：3.00 MB']
         }
       ],
       draftUploads: [],

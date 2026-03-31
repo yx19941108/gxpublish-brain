@@ -1,6 +1,7 @@
 package com.gxpublish.brain.manuscript.review.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -9,12 +10,15 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.Map;
 import java.util.Date;
 import java.util.List;
 
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gxpublish.brain.common.core.exception.ServiceException;
 import com.gxpublish.brain.common.mybatis.core.page.TableDataInfo;
 import com.gxpublish.brain.manuscript.review.controller.request.ManuscriptReviewLedgerQueryRequest;
@@ -43,6 +47,8 @@ import com.gxpublish.brain.manuscript.review.mapper.ManuscriptReviewVideoMarkerM
 
 @Tag("dev")
 class ManuscriptReviewReadableServiceTest {
+
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     @Test
     void shouldReturnEmptyReadableLedgerWhenDatabaseHasNoRows() {
@@ -104,6 +110,26 @@ class ManuscriptReviewReadableServiceTest {
         assertEquals(2, detail.getVideoMarkList().size());
         assertEquals(2L, detail.getVideoMarkList().get(0).getResourceId());
         assertEquals(4L, detail.getVideoMarkList().get(1).getResourceId());
+        Map<String, Object> attachmentItem = OBJECT_MAPPER.convertValue(detail.getAttachmentList().get(0), new TypeReference<Map<String, Object>>() {
+        });
+        assertNotNull(attachmentItem.get("operatorName"));
+        assertNotNull(attachmentItem.get("operatorTime"));
+        assertEquals(1048576L, attachmentItem.get("fileSizeBytes"));
+        assertEquals("1.00 MB", attachmentItem.get("fileSizeLabel"));
+        Map<String, Object> linkItem = OBJECT_MAPPER.convertValue(detail.getExternalLinkList().get(0), new TypeReference<Map<String, Object>>() {
+        });
+        assertNotNull(linkItem.get("operatorName"));
+        assertNotNull(linkItem.get("operatorTime"));
+        Map<String, Object> videoItem = OBJECT_MAPPER.convertValue(detail.getVideoList().get(0), new TypeReference<Map<String, Object>>() {
+        });
+        assertNotNull(videoItem.get("operatorName"));
+        assertNotNull(videoItem.get("operatorTime"));
+        assertEquals(3145728L, videoItem.get("fileSizeBytes"));
+        assertEquals("3.00 MB", videoItem.get("fileSizeLabel"));
+        Map<String, Object> markerItem = OBJECT_MAPPER.convertValue(detail.getVideoMarkList().get(0), new TypeReference<Map<String, Object>>() {
+        });
+        assertNotNull(markerItem.get("operatorName"));
+        assertNotNull(markerItem.get("operatorTime"));
         assertEquals(2, detail.getTimelineItems().size());
         assertEquals("张三新增了流程。", detail.getTimelineItems().get(0).getEventText());
         assertTrue(detail.getPermissionMatrix().isCanResubmit());
@@ -212,8 +238,10 @@ class ManuscriptReviewReadableServiceTest {
         entity.setReviewId(9002L);
         entity.setFileName("送审单.pdf");
         entity.setFileUrl("https://files.example/a.pdf");
+        entity.setFileSize(1048576L);
         entity.setEnabled("1");
         entity.setIsVideo(false);
+        entity.setCreateBy(1001L);
         entity.setCreateTime(new Date(1774234800000L));
         return entity;
     }
@@ -224,9 +252,11 @@ class ManuscriptReviewReadableServiceTest {
         entity.setReviewId(9002L);
         entity.setFileName("样片.mp4");
         entity.setFileUrl("https://files.example/video.mp4");
+        entity.setFileSize(3145728L);
         entity.setEnabled("1");
         entity.setIsVideo(true);
         entity.setVideoDurationSeconds(600);
+        entity.setCreateBy(1002L);
         entity.setCreateTime(new Date(1774234860000L));
         return entity;
     }
@@ -249,9 +279,11 @@ class ManuscriptReviewReadableServiceTest {
         entity.setReviewId(9002L);
         entity.setFileName("补充样片.mp4");
         entity.setFileUrl("https://files.example/video-2.mp4");
+        entity.setFileSize(5242880L);
         entity.setEnabled("1");
         entity.setIsVideo(true);
         entity.setVideoDurationSeconds(720);
+        entity.setCreateBy(1002L);
         entity.setCreateTime(new Date(1774234920000L));
         return entity;
     }
@@ -263,6 +295,7 @@ class ManuscriptReviewReadableServiceTest {
         entity.setLinkTitle("素材参考");
         entity.setLinkUrl("https://example.com/ref");
         entity.setEnabled("1");
+        entity.setCreateBy(1003L);
         entity.setCreateTime(new Date(1774234920000L));
         return entity;
     }
@@ -342,6 +375,7 @@ class ManuscriptReviewReadableServiceTest {
         entity.setEndTime("00:00:10");
         entity.setMarkerNote("第一处问题");
         entity.setEnabled("1");
+        entity.setCreateBy(1004L);
         entity.setCreateTime(new Date(1774236060000L));
         return entity;
     }
@@ -368,6 +402,7 @@ class ManuscriptReviewReadableServiceTest {
         entity.setEndTime("00:00:15");
         entity.setMarkerNote("第二处问题");
         entity.setEnabled("1");
+        entity.setCreateBy(1004L);
         entity.setCreateTime(new Date(1774236090000L));
         return entity;
     }

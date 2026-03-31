@@ -229,6 +229,13 @@
                       <span v-else class="manuscript-review-detail-shell__resource-name">{{ item.name }}</span>
                       <span class="manuscript-review-detail-shell__resource-status">{{ item.statusLabel }}</span>
                     </div>
+                    <div
+                      v-for="line in item.metaLines ?? []"
+                      :key="`${item.id}-${line}`"
+                      class="manuscript-review-detail-shell__resource-note manuscript-review-detail-shell__resource-meta"
+                    >
+                      {{ line }}
+                    </div>
                     <div v-if="item.note" class="manuscript-review-detail-shell__resource-note">{{ item.note }}</div>
                     <div v-if="!loading" class="manuscript-review-detail-shell__resource-actions">
                       <button
@@ -1373,6 +1380,10 @@ onMounted(() => {
   font-size: 12px;
   line-height: 1.6;
   word-break: break-word;
+}
+
+.manuscript-review-detail-shell__resource-meta {
+  color: var(--el-text-color-regular);
 }
 
 .manuscript-review-detail-shell__resource-actions {

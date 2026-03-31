@@ -165,8 +165,7 @@ const logout = async () => {
     type: 'warning'
   } as ElMessageBoxOptions);
   userStore.logout().then(() => {
-    const redirectUrl = encodeURIComponent(router.currentRoute.value.fullPath || '/');
-    location.href = import.meta.env.VITE_APP_CONTEXT_PATH + 'login?redirect=' + redirectUrl;
+    location.href = import.meta.env.VITE_APP_CONTEXT_PATH + 'login';
   }).catch(() => {
     location.href = import.meta.env.VITE_APP_CONTEXT_PATH + 'login';
   });

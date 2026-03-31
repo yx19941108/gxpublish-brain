@@ -157,6 +157,58 @@ class ManuscriptReviewServiceTest {
     }
 
     @Test
+    void shouldRejectUpdateWhenProcessTypeChangesAfterCreation() {
+        ServiceFixture fixture = new ServiceFixture(1002L, "000000", 2001L, "镜");
+        ManuscriptReviewRecordEntity existing = buildRecord(9009L);
+        existing.setInitiatorUserId(1002L);
+        existing.setProcessType("AUDIT");
+        existing.setFlowCode("manuscript_review_audit_flow");
+        when(fixture.recordMapper.selectById(9009L)).thenReturn(existing);
+        when(fixture.recordMapper.selectCount(any())).thenReturn(0L);
+
+        ServiceException exception = assertThrows(ServiceException.class, () -> fixture.service.update(UpdateManuscriptReviewCommand.builder()
+            .id(9009L)
+            .processType(ManuscriptReviewProcessType.PROOFREAD)
+            .externalManuscriptCode("EXT-009")
+            .title("process type immutable")
+            .mediaChannel("channel")
+            .submitDepartment(existing.getSubmitDepartment())
+            .authorName("author")
+            .remark("remark")
+            .contentBody("content")
+            .build()));
+
+        assertEquals("流程类型创建后不允许修改", exception.getMessage());
+        verify(fixture.recordMapper, never()).updateById(any(ManuscriptReviewRecordEntity.class));
+    }
+
+    @Test
+    void shouldKeepExistingFlowCodeWhenUpdateSavesMainForm() {
+        ServiceFixture fixture = new ServiceFixture(1001L, "000000", 2001L, "张");
+        ManuscriptReviewRecordEntity existing = buildRecord(9010L);
+        existing.setProcessType("AUDIT");
+        existing.setFlowCode("manuscript_review_custom_locked_flow");
+        when(fixture.recordMapper.selectById(9010L)).thenReturn(existing);
+        when(fixture.recordMapper.selectCount(any())).thenReturn(0L);
+
+        fixture.service.update(UpdateManuscriptReviewCommand.builder()
+            .id(9010L)
+            .processType(ManuscriptReviewProcessType.AUDIT)
+            .externalManuscriptCode("EXT-010")
+            .title("keep existing flow code")
+            .mediaChannel("channel")
+            .submitDepartment(existing.getSubmitDepartment())
+            .authorName("author")
+            .remark("remark")
+            .contentBody("content")
+            .build());
+
+        ArgumentCaptor<ManuscriptReviewRecordEntity> entityCaptor = ArgumentCaptor.forClass(ManuscriptReviewRecordEntity.class);
+        verify(fixture.recordMapper).updateById(entityCaptor.capture());
+        assertEquals("manuscript_review_custom_locked_flow", entityCaptor.getValue().getFlowCode());
+    }
+
+    @Test
     void shouldWriteUpdateHistoryWithReadableDiffSummary() {
         ServiceFixture fixture = new ServiceFixture(1001L, "000000", 2001L, "张三");
         ManuscriptReviewRecordEntity existing = buildRecord(9008L);

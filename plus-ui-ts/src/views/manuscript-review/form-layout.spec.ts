@@ -38,11 +38,12 @@ describe('manuscript review form layout shell', () => {
     expect(file).not.toContain('DELETE /resource/oss/{ossId}');
   });
 
-  it('uses a fixed-select process type control and does not require submitDepartment', () => {
+  it('freezes processType on edit and does not require submitDepartment', () => {
     const file = readFileSync(resolve(__dirname, './form.vue'), 'utf-8');
 
     expect(file).toContain('<el-select v-model="formModel.processType"');
     expect(file).toContain('processTypeOptions');
+    expect(file).toContain(':disabled="presentation.mode === \'edit\'"');
     expect(file).toContain('target="_blank"');
     expect(file).toContain('rel="noopener noreferrer"');
     expect(file).not.toContain('placeholder="请输入流程类型"');

@@ -99,6 +99,10 @@ export interface ManuscriptReviewResourceItemVO {
   displayName: string;
   externalUrl?: string;
   createdTime?: string;
+  operatorName?: string;
+  operatorTime?: string;
+  fileSizeBytes?: string | number;
+  fileSizeLabel?: string;
   resourceUrl?: string;
 }
 
@@ -115,6 +119,8 @@ export interface ManuscriptReviewVideoMarkItemVO {
   startTimeText: string;
   endTimeText?: string;
   markContent: string;
+  operatorName?: string;
+  operatorTime?: string;
 }
 
 export interface ManuscriptReviewTimelineItemVO {

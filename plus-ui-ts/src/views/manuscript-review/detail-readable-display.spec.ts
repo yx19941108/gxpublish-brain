@@ -195,6 +195,10 @@ describe('T07_Frontend_DetailActions_AndReadableDisplaySpec', () => {
             resourceType: 'ATTACHMENT',
             resourceTypeLabel: '附件',
             displayName: '送审单.pdf',
+            operatorName: '张三',
+            operatorTime: '2026-03-23 11:20:01',
+            fileSizeBytes: 1048576,
+            fileSizeLabel: '1.00 MB',
             resourceUrl: 'https://files.example/a.pdf'
           }
         ],
@@ -204,6 +208,8 @@ describe('T07_Frontend_DetailActions_AndReadableDisplaySpec', () => {
             resourceType: 'EXTERNAL_LINK',
             resourceTypeLabel: '外链',
             displayName: '素材参考',
+            operatorName: '李四',
+            operatorTime: '2026-03-23 11:20:02',
             externalUrl: 'https://example.com/ref'
           }
         ],
@@ -214,6 +220,10 @@ describe('T07_Frontend_DetailActions_AndReadableDisplaySpec', () => {
             resourceType: 'VIDEO',
             resourceTypeLabel: '视频',
             displayName: '样片.mp4',
+            operatorName: '王五',
+            operatorTime: '2026-03-23 11:20:03',
+            fileSizeBytes: 3145728,
+            fileSizeLabel: '3.00 MB',
             resourceUrl: 'https://files.example/video.mp4'
           }
         ],
@@ -223,6 +233,8 @@ describe('T07_Frontend_DetailActions_AndReadableDisplaySpec', () => {
             resourceId: 3,
             startTimeText: '00:00:05',
             endTimeText: '00:00:10',
+            operatorName: '赵六',
+            operatorTime: '2026-03-23 11:20:04',
             markContent: '第一处问题'
           }
         ],
@@ -259,7 +271,7 @@ describe('T07_Frontend_DetailActions_AndReadableDisplaySpec', () => {
         typeLabel: '附件',
         name: '送审单.pdf',
         statusLabel: '当前有效',
-        note: 'https://files.example/a.pdf',
+        metaLines: ['操作人：张三', '操作时间：2026-03-23 11:20:01', '文件大小：1.00 MB'],
         resourceUrl: 'https://files.example/a.pdf',
         ossId: '8001'
       },
@@ -270,6 +282,7 @@ describe('T07_Frontend_DetailActions_AndReadableDisplaySpec', () => {
         name: '素材参考',
         statusLabel: '当前有效',
         note: 'https://example.com/ref',
+        metaLines: ['操作人：李四', '操作时间：2026-03-23 11:20:02'],
         href: 'https://example.com/ref'
       },
       {
@@ -278,7 +291,7 @@ describe('T07_Frontend_DetailActions_AndReadableDisplaySpec', () => {
         typeLabel: '视频',
         name: '样片.mp4',
         statusLabel: '当前有效',
-        note: 'https://files.example/video.mp4',
+        metaLines: ['操作人：王五', '操作时间：2026-03-23 11:20:03', '文件大小：3.00 MB'],
         resourceUrl: 'https://files.example/video.mp4',
         ossId: '8003'
       },
@@ -289,6 +302,7 @@ describe('T07_Frontend_DetailActions_AndReadableDisplaySpec', () => {
         name: '00:00:05',
         statusLabel: '当前有效',
         note: '第一处问题',
+        metaLines: ['操作人：赵六', '操作时间：2026-03-23 11:20:04'],
         resourceId: '3',
         startTimeText: '00:00:05',
         endTimeText: '00:00:10',
@@ -340,6 +354,7 @@ describe('T07_Frontend_DetailActions_AndReadableDisplaySpec', () => {
         name: '参考链接',
         statusLabel: '当前有效',
         note: 'https://example.com/link',
+        metaLines: ['操作人：--', '操作时间：--'],
         href: 'https://example.com/link'
       }
     ]);

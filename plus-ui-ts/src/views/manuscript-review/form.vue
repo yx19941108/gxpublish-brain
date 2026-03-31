@@ -41,7 +41,7 @@
             <el-row :gutter="16">
               <el-col :span="12">
                 <el-form-item label="流程类型" prop="processType">
-                  <el-select v-model="formModel.processType" placeholder="请选择流程类型" clearable>
+                  <el-select v-model="formModel.processType" placeholder="请选择流程类型" clearable :disabled="presentation.mode === 'edit'">
                     <el-option v-for="item in processTypeOptions" :key="item.value" :label="item.label" :value="item.value" />
                   </el-select>
                 </el-form-item>
@@ -174,6 +174,9 @@
                       </a>
                       <template v-else>{{ item.note }}</template>
                     </span>
+                  </div>
+                  <div v-for="line in item.metaLines" :key="`${item.id}-${line}`" class="manuscript-review-form-page__draft-meta">
+                    {{ line }}
                   </div>
                 </div>
                 <el-tag size="small" type="success" effect="light">已入库</el-tag>

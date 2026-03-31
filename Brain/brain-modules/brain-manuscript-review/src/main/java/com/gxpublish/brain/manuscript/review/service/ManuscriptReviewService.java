@@ -246,13 +246,14 @@ public class ManuscriptReviewService implements IManuscriptReviewService {
         ManuscriptReviewRecordEntity existing = requireRecord(reviewId);
         assertSubmitDepartmentReadonly(existing.getSubmitDepartment(), command.getSubmitDepartment());
         ensureCanModify(existing);
+        assertProcessTypeImmutable(existing.getProcessType(), command.getProcessType());
 
         ManuscriptReviewRecordEntity entity = new ManuscriptReviewRecordEntity();
         entity.setId(reviewId);
-        applyWriteFields(entity, command.getProcessType(), command.getExternalManuscriptCode(), command.getTitle(),
+        applyWriteFields(entity, requireProcessType(existing.getProcessType()), command.getExternalManuscriptCode(), command.getTitle(),
             command.getMediaChannel(), command.getSubmitDepartment(), command.getAuthorName(), command.getRemark(),
             command.getContentBody(), reviewId);
-        entity.setFlowCode(resolveFlowCode(command.getProcessType()));
+        entity.setFlowCode(existing.getFlowCode());
         fillUpdateAuditFields(entity);
         recordMapper.updateById(entity);
         SubmittedResourceSummary resourceSummary = saveSubmittedResources(
@@ -1507,6 +1508,14 @@ public class ManuscriptReviewService implements IManuscriptReviewService {
             return ManuscriptReviewProcessType.valueOf(normalized);
         } catch (IllegalArgumentException ex) {
             throw new ServiceException("流程类型不支持");
+        }
+    }
+
+    private void assertProcessTypeImmutable(String existingProcessType, ManuscriptReviewProcessType commandProcessType) {
+        ManuscriptReviewProcessType persistedProcessType = requireProcessType(existingProcessType);
+        ManuscriptReviewProcessType incomingProcessType = requireProcessType(commandProcessType);
+        if (!Objects.equals(persistedProcessType, incomingProcessType)) {
+            throw new ServiceException("流程类型创建后不允许修改");
         }
     }
 

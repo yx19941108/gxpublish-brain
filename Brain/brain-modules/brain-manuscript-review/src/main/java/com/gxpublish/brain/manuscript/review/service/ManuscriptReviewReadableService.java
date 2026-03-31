@@ -219,6 +219,7 @@ public class ManuscriptReviewReadableService {
                     .thenComparing(ManuscriptReviewVideoMarkerEntity::getStartSeconds, Comparator.nullsLast(Integer::compareTo))
                     .thenComparing(ManuscriptReviewVideoMarkerEntity::getCreateTime, Comparator.nullsLast(Date::compareTo)))
                 .toList();
+        Map<Long, String> operatorNameMap = resolveOperatorNames(record, currentAttachments, currentExternalLinks, currentVideos, currentVideoMarks);
 
         ManuscriptReviewDetailResponse response = new ManuscriptReviewDetailResponse();
         response.setId(record.getId());
@@ -243,10 +244,10 @@ public class ManuscriptReviewReadableService {
         response.setFirstSubmitTime(formatDate(record.getFirstSubmitTime()));
         response.setLatestSubmitTime(formatDate(record.getLatestSubmitTime()));
         response.setUpdateTime(formatDate(firstNonNull(record.getUpdateTime(), record.getCreateTime())));
-        response.setAttachmentList(currentAttachments.stream().map(this::toAttachmentItem).toList());
-        response.setExternalLinkList(currentExternalLinks.stream().map(this::toExternalLinkItem).toList());
-        response.setVideoList(currentVideos.stream().map(this::toVideoItem).toList());
-        response.setVideoMarkList(currentVideoMarks.stream().map(this::toVideoMarkItem).toList());
+        response.setAttachmentList(currentAttachments.stream().map(attachment -> toAttachmentItem(attachment, operatorNameMap)).toList());
+        response.setExternalLinkList(currentExternalLinks.stream().map(link -> toExternalLinkItem(link, operatorNameMap)).toList());
+        response.setVideoList(currentVideos.stream().map(video -> toVideoItem(video, operatorNameMap)).toList());
+        response.setVideoMarkList(currentVideoMarks.stream().map(marker -> toVideoMarkItem(marker, operatorNameMap)).toList());
         response.setTimelineItems(buildTimelineItems(histories, attachments, externalLinks, videoMarkers));
         response.setPermissionMatrix(buildPermissionMatrix(record, accessScope));
         return response;
@@ -612,6 +613,13 @@ public class ManuscriptReviewReadableService {
     }
 
     private ManuscriptReviewDetailResponse.ResourceItemVO toAttachmentItem(ManuscriptReviewAttachmentEntity attachment) {
+        return toAttachmentItem(attachment, Map.of());
+    }
+
+    private ManuscriptReviewDetailResponse.ResourceItemVO toAttachmentItem(
+        ManuscriptReviewAttachmentEntity attachment,
+        Map<Long, String> operatorNameMap
+    ) {
         return new ManuscriptReviewDetailResponse.ResourceItemVO(
             attachment.getId(),
             attachment.getOssId(),
@@ -620,10 +628,21 @@ public class ManuscriptReviewReadableService {
             attachment.getFileName(),
             null,
             formatDate(attachment.getCreateTime()),
+            resolveOperatorName(operatorNameMap, attachment.getCreateBy()),
+            formatDate(attachment.getCreateTime()),
+            attachment.getFileSize(),
+            formatFileSize(attachment.getFileSize()),
             buildPreviewResourceUrl(attachment.getId()));
     }
 
     private ManuscriptReviewDetailResponse.ResourceItemVO toVideoItem(ManuscriptReviewAttachmentEntity video) {
+        return toVideoItem(video, Map.of());
+    }
+
+    private ManuscriptReviewDetailResponse.ResourceItemVO toVideoItem(
+        ManuscriptReviewAttachmentEntity video,
+        Map<Long, String> operatorNameMap
+    ) {
         return new ManuscriptReviewDetailResponse.ResourceItemVO(
             video.getId(),
             video.getOssId(),
@@ -632,10 +651,21 @@ public class ManuscriptReviewReadableService {
             video.getFileName(),
             null,
             formatDate(video.getCreateTime()),
+            resolveOperatorName(operatorNameMap, video.getCreateBy()),
+            formatDate(video.getCreateTime()),
+            video.getFileSize(),
+            formatFileSize(video.getFileSize()),
             buildPreviewResourceUrl(video.getId()));
     }
 
     private ManuscriptReviewDetailResponse.ResourceItemVO toExternalLinkItem(ManuscriptReviewExternalLinkEntity externalLink) {
+        return toExternalLinkItem(externalLink, Map.of());
+    }
+
+    private ManuscriptReviewDetailResponse.ResourceItemVO toExternalLinkItem(
+        ManuscriptReviewExternalLinkEntity externalLink,
+        Map<Long, String> operatorNameMap
+    ) {
         return new ManuscriptReviewDetailResponse.ResourceItemVO(
             externalLink.getId(),
             null,
@@ -644,16 +674,29 @@ public class ManuscriptReviewReadableService {
             externalLink.getLinkTitle(),
             externalLink.getLinkUrl(),
             formatDate(externalLink.getCreateTime()),
+            resolveOperatorName(operatorNameMap, externalLink.getCreateBy()),
+            formatDate(externalLink.getCreateTime()),
+            null,
+            null,
             null);
     }
 
     private ManuscriptReviewDetailResponse.VideoMarkItemVO toVideoMarkItem(ManuscriptReviewVideoMarkerEntity marker) {
+        return toVideoMarkItem(marker, Map.of());
+    }
+
+    private ManuscriptReviewDetailResponse.VideoMarkItemVO toVideoMarkItem(
+        ManuscriptReviewVideoMarkerEntity marker,
+        Map<Long, String> operatorNameMap
+    ) {
         return new ManuscriptReviewDetailResponse.VideoMarkItemVO(
             marker.getId(),
             marker.getVideoAttachmentId(),
             marker.getStartTime(),
             marker.getEndTime(),
-            marker.getMarkerNote());
+            marker.getMarkerNote(),
+            resolveOperatorName(operatorNameMap, marker.getCreateBy()),
+            formatDate(marker.getCreateTime()));
     }
 
     private DetailAccessScope resolveDetailAccessScope(ManuscriptReviewRecordEntity record) {
@@ -907,6 +950,66 @@ public class ManuscriptReviewReadableService {
 
     private int safePageSize(Integer pageSize) {
         return pageSize == null || pageSize <= 0 ? Integer.MAX_VALUE : pageSize;
+    }
+
+    private Map<Long, String> resolveOperatorNames(
+        ManuscriptReviewRecordEntity record,
+        List<ManuscriptReviewAttachmentEntity> currentAttachments,
+        List<ManuscriptReviewExternalLinkEntity> currentExternalLinks,
+        List<ManuscriptReviewAttachmentEntity> currentVideos,
+        List<ManuscriptReviewVideoMarkerEntity> currentVideoMarks
+    ) {
+        if (userMapper == null) {
+            return Map.of();
+        }
+        Set<Long> operatorIds = new LinkedHashSet<>();
+        currentAttachments.stream().map(ManuscriptReviewAttachmentEntity::getCreateBy).filter(Objects::nonNull).forEach(operatorIds::add);
+        currentExternalLinks.stream().map(ManuscriptReviewExternalLinkEntity::getCreateBy).filter(Objects::nonNull).forEach(operatorIds::add);
+        currentVideos.stream().map(ManuscriptReviewAttachmentEntity::getCreateBy).filter(Objects::nonNull).forEach(operatorIds::add);
+        currentVideoMarks.stream().map(ManuscriptReviewVideoMarkerEntity::getCreateBy).filter(Objects::nonNull).forEach(operatorIds::add);
+        if (operatorIds.isEmpty()) {
+            return Map.of();
+        }
+        return firstNonNull(
+            userMapper.selectList(
+                new QueryWrapper<ManuscriptReviewSystemUserEntity>()
+                    .in("user_id", operatorIds)
+                    .eq("tenant_id", normalizeTenantId(record.getTenantId()))
+            ),
+            List.<ManuscriptReviewSystemUserEntity>of()
+        ).stream().filter(Objects::nonNull).collect(Collectors.toMap(
+            ManuscriptReviewSystemUserEntity::getUserId,
+            this::resolveSystemUserDisplayName,
+            (left, right) -> left
+        ));
+    }
+
+    private String resolveOperatorName(Map<Long, String> operatorNameMap, Long createBy) {
+        if (createBy == null) {
+            return null;
+        }
+        String resolved = trimToNull(operatorNameMap.get(createBy));
+        return resolved == null ? String.valueOf(createBy) : resolved;
+    }
+
+    private String resolveSystemUserDisplayName(ManuscriptReviewSystemUserEntity user) {
+        String nickName = trimToNull(user.getNickName());
+        if (nickName != null) {
+            return nickName;
+        }
+        String userName = trimToNull(user.getUserName());
+        if (userName != null) {
+            return userName;
+        }
+        return user.getUserId() == null ? null : String.valueOf(user.getUserId());
+    }
+
+    private String formatFileSize(Long fileSizeBytes) {
+        if (fileSizeBytes == null || fileSizeBytes <= 0) {
+            return null;
+        }
+        double megaBytes = fileSizeBytes / (1024D * 1024D);
+        return String.format("%.2f MB", megaBytes);
     }
 
     private boolean isEnabled(ManuscriptReviewAttachmentEntity attachment) {

@@ -60,6 +60,7 @@ export interface ManuscriptReviewPersistedResourceView {
   typeLabel: string;
   displayName: string;
   note: string;
+  metaLines: string[];
 }
 
 export interface ManuscriptReviewEditDraftState {
@@ -142,12 +143,24 @@ const mapPersistedResources = (
   resources: ManuscriptReviewResourceItemVO[] | null | undefined,
   typeLabel: string
 ): ManuscriptReviewPersistedResourceView[] =>
-  (resources ?? []).map((item) => ({
-    id: String(item.id),
-    typeLabel: item.resourceTypeLabel ?? typeLabel,
-    displayName: item.displayName,
-    note: item.externalUrl ?? item.resourceUrl ?? ''
-  }));
+  (resources ?? []).map((item) => {
+    const resourceKind = String(item.resourceType ?? '').toUpperCase();
+    const labelKind = String(item.resourceTypeLabel ?? typeLabel).trim();
+    const isExternalLink = resourceKind.includes('EXTERNAL') || labelKind.includes('外链');
+    const isFileLike = resourceKind.includes('ATTACHMENT') || resourceKind.includes('VIDEO') || labelKind.includes('附件') || labelKind.includes('视频');
+
+    return {
+      id: String(item.id),
+      typeLabel: item.resourceTypeLabel ?? typeLabel,
+      displayName: item.displayName,
+      note: isExternalLink ? item.externalUrl ?? '' : '',
+      metaLines: [
+        `操作人：${String(item.operatorName ?? '').trim() || '--'}`,
+        `操作时间：${String(item.operatorTime ?? '').trim() || '--'}`,
+        ...(isFileLike ? [`文件大小：${String(item.fileSizeLabel ?? '').trim() || '--'}`] : [])
+      ]
+    };
+  });
 
 export const createDraftStateFromDetail = (detail: ManuscriptReviewDetailVO): ManuscriptReviewEditDraftState => ({
   form: {

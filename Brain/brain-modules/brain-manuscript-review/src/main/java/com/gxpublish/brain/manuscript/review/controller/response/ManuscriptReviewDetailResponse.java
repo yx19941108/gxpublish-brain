@@ -98,7 +98,24 @@ public class ManuscriptReviewDetailResponse {
         private String displayName;
         private String externalUrl;
         private String createdTime;
+        private String operatorName;
+        private String operatorTime;
+        private Long fileSizeBytes;
+        private String fileSizeLabel;
         private String resourceUrl;
+
+        public ResourceItemVO(
+            Long id,
+            Long ossId,
+            String resourceType,
+            String resourceTypeLabel,
+            String displayName,
+            String externalUrl,
+            String createdTime,
+            String resourceUrl
+        ) {
+            this(id, ossId, resourceType, resourceTypeLabel, displayName, externalUrl, createdTime, null, null, null, null, resourceUrl);
+        }
     }
 
     @Getter
@@ -113,5 +130,17 @@ public class ManuscriptReviewDetailResponse {
         private String startTimeText;
         private String endTimeText;
         private String markContent;
+        private String operatorName;
+        private String operatorTime;
+
+        public VideoMarkItemVO(
+            Long id,
+            Long resourceId,
+            String startTimeText,
+            String endTimeText,
+            String markContent
+        ) {
+            this(id, resourceId, startTimeText, endTimeText, markContent, null, null);
+        }
     }
 }
