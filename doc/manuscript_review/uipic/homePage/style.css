@@ -128,8 +128,8 @@ body::after {
 }
 
 .hero-card {
-  min-height: 330px;
-  padding: 28px 30px 26px;
+  min-height: 390px;
+  padding: 38px 38px 34px;
   background:
     linear-gradient(135deg, rgba(22, 88, 212, 0.94) 0%, rgba(47, 116, 255, 0.9) 56%, rgba(107, 170, 255, 0.84) 100%),
     radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.18), transparent 18%),
@@ -140,10 +140,10 @@ body::after {
 .hero-card::before {
   content: "";
   position: absolute;
-  right: 88px;
-  bottom: 28px;
-  width: 250px;
-  height: 250px;
+  right: 92px;
+  bottom: 30px;
+  width: 286px;
+  height: 286px;
   border-radius: 32px;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.06) 100%);
@@ -157,10 +157,10 @@ body::after {
 .hero-card::after {
   content: "";
   position: absolute;
-  right: 162px;
-  top: 44px;
-  width: 154px;
-  height: 154px;
+  right: 178px;
+  top: 52px;
+  width: 178px;
+  height: 178px;
   border-radius: 28px 28px 40px 28px;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.06) 100%);
@@ -176,20 +176,20 @@ body::after {
 }
 
 .hero-title {
-  margin: 16px 0 10px;
+  margin: 24px 0 16px;
   font-family: var(--serif);
-  font-size: 38px;
-  line-height: 1.18;
+  font-size: 54px;
+  line-height: 1.1;
   font-weight: 700;
   letter-spacing: 0.02em;
 }
 
 .hero-subtitle {
   margin: 0;
-  max-width: 720px;
+  max-width: 860px;
   color: rgba(255, 255, 255, 0.84);
-  font-size: 15px;
-  line-height: 1.8;
+  font-size: 20px;
+  line-height: 1.75;
 }
 
 .hero-meta {
@@ -203,12 +203,12 @@ body::after {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  min-height: 40px;
-  padding: 0 14px;
+  min-height: 46px;
+  padding: 0 18px;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.18);
   background: rgba(255, 255, 255, 0.12);
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
 }
 
@@ -303,11 +303,12 @@ body::after {
   display: grid;
   grid-template-columns: 1fr;
   gap: 18px;
-  margin-top: 18px;
+  margin-top: 24px;
+  margin-bottom: 0;
 }
 
 .surface-card {
-  padding: 22px 22px 24px;
+  padding: 28px 28px 42px;
 }
 
 .section-head {
@@ -315,12 +316,12 @@ body::after {
   justify-content: space-between;
   align-items: flex-start;
   gap: 12px;
-  margin-bottom: 18px;
+  margin-bottom: 26px;
 }
 
 .section-title {
   margin: 0;
-  font-size: 22px;
+  font-size: 32px;
   font-weight: 800;
 }
 
@@ -347,30 +348,32 @@ body::after {
 .entry-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
+  gap: 20px;
 }
 
 .entry-card {
-  padding: 20px;
-  min-height: 222px;
+  display: flex;
+  flex-direction: column;
+  padding: 28px 24px 26px;
+  min-height: 310px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.97) 0%, rgba(250, 252, 255, 0.94) 100%);
 }
 
 .entry-top {
   display: flex;
-  justify-content: flex-start;
+  justify-content: space-between;
   gap: 12px;
-  align-items: center;
+  align-items: flex-start;
 }
 
 .entry-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 16px;
+  width: 62px;
+  height: 62px;
+  border-radius: 20px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 22px;
+  font-size: 28px;
   font-weight: 900;
   color: #fff;
   box-shadow: var(--shadow-md);
@@ -392,38 +395,44 @@ body::after {
   background: linear-gradient(135deg, #2f74ff 0%, #2f74ff 100%);
 }
 
+.entry-icon.review {
+  background: linear-gradient(135deg, #2f74ff 0%, #2f74ff 100%);
+}
+
 .entry-status {
   display: none;
 }
 
 .entry-card h3 {
-  margin: 18px 0 10px;
-  font-size: 20px;
+  margin: 26px 0 14px;
+  font-size: 32px;
   font-weight: 800;
 }
 
 .entry-card p {
   margin: 0;
   color: var(--text-2);
-  font-size: 14px;
-  line-height: 1.75;
+  font-size: 18px;
+  line-height: 1.85;
+  min-height: 100px;
 }
 
 .entry-meta {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
-  margin-top: 18px;
+  margin-top: auto;
+  padding-top: 28px;
 }
 
 .mini-pill {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 38px;
-  padding: 0 16px;
+  min-height: 48px;
+  padding: 0 20px;
   border-radius: 999px;
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 800;
   border: 1px solid rgba(47, 116, 255, 0.14);
   background: linear-gradient(180deg, #2f74ff 0%, #1f66f2 100%);
@@ -448,10 +457,10 @@ body::after {
 
 .entry-ornament {
   position: absolute;
-  right: 16px;
-  top: 18px;
-  width: 52px;
-  height: 52px;
+  right: 20px;
+  top: 20px;
+  width: 66px;
+  height: 66px;
   opacity: 0.14;
 }
 
@@ -648,7 +657,7 @@ body::after {
 }
 
 .mobile-hero {
-  padding: 22px 18px;
+  padding: 28px 22px;
   border-radius: 26px;
   background: linear-gradient(135deg, #0f3f82 0%, #2369c8 55%, #2f8ead 100%);
   color: #fff;
@@ -656,16 +665,16 @@ body::after {
 }
 
 .mobile-hero h1 {
-  margin: 16px 0 10px;
+  margin: 18px 0 14px;
   font-family: var(--serif);
-  font-size: 27px;
-  line-height: 1.28;
+  font-size: 34px;
+  line-height: 1.22;
 }
 
 .mobile-hero p {
   margin: 0;
   color: rgba(255, 255, 255, 0.84);
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.8;
 }
 
@@ -696,8 +705,8 @@ body::after {
 }
 
 .mobile-section {
-  margin-top: 14px;
-  padding: 18px 16px;
+  margin-top: 16px;
+  padding: 22px 18px 24px;
   border-radius: 24px;
   background: rgba(255, 255, 255, 0.94);
   border: 1px solid rgba(219, 228, 239, 0.9);
@@ -706,7 +715,7 @@ body::after {
 
 .mobile-section h2 {
   margin: 0;
-  font-size: 18px;
+  font-size: 24px;
   font-weight: 800;
 }
 
@@ -726,7 +735,9 @@ body::after {
 }
 
 .mobile-entry {
-  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  padding: 20px 18px 22px;
   border-radius: 20px;
   background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
   border: 1px solid var(--line);
@@ -740,13 +751,21 @@ body::after {
 }
 
 .mobile-entry h3 {
-  margin: 14px 0 8px;
-  font-size: 18px;
+  margin: 18px 0 10px;
+  font-size: 24px;
   font-weight: 800;
 }
 
 .mobile-entry p {
   margin: 0;
+  font-size: 15px;
+  line-height: 1.8;
+  min-height: 54px;
+}
+
+.mobile-entry .mobile-entry-meta {
+  margin-top: auto;
+  padding-top: 18px;
 }
 
 .mobile-entry-meta {
