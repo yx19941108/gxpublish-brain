@@ -3,11 +3,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   applyVideoSelection,
   buildDetailActionBar,
+  buildResourceIdentityKey,
   buildReadableSummary,
   buildVideoPlaybackItems,
+  formatVideoMarkTimeRange,
   normalizeDetailViewModel,
   parseVideoTimeTextToSeconds,
   reconcileVideoSelectionState,
+  shouldShowHistoryEnableAction,
   validatePendingVideoMarkDraft
 } from './detail.contract';
 
@@ -300,7 +303,7 @@ describe('T07_Frontend_DetailActions_AndReadableDisplaySpec', () => {
         id: '4',
         resourceType: 'VIDEO_MARK',
         typeLabel: '视频时间标注',
-        name: '00:00:05',
+        name: '00:00:05 - 00:00:10',
         statusLabel: '当前有效',
         note: '第一处问题',
         metaLines: ['操作人：赵六', '操作时间：2026-03-23 11:20:04'],
@@ -358,6 +361,50 @@ describe('T07_Frontend_DetailActions_AndReadableDisplaySpec', () => {
         metaLines: ['操作人：--', '操作时间：--'],
         href: 'https://example.com/link'
       }
+    ]);
+  });
+
+  it('formats video mark time ranges consistently across resource and playback views', () => {
+    expect(formatVideoMarkTimeRange('00:00:05', '00:00:10')).toBe('00:00:05 - 00:00:10');
+    expect(formatVideoMarkTimeRange('00:00:05', undefined)).toBe('00:00:05');
+    expect(formatVideoMarkTimeRange(undefined, '00:00:10')).toBe('--');
+
+    const playbackItems = buildVideoPlaybackItems({
+      id: 9015,
+      manuscriptCode: 'JD20260331001',
+      title: '时间口径统一',
+      submitDepartment: '测试部',
+      businessStatusLabel: '审批中',
+      currentNodeLabel: '待一级审批',
+      videoList: [
+        {
+          id: 501,
+          resourceType: 'VIDEO',
+          resourceTypeLabel: '视频',
+          displayName: '样片一.mp4',
+          resourceUrl: 'https://files.example/video-1.mp4'
+        }
+      ],
+      videoMarkList: [
+        {
+          id: 601,
+          resourceId: 501,
+          startTimeText: '00:00:05',
+          endTimeText: '00:00:08',
+          markContent: '有结束时间'
+        },
+        {
+          id: 602,
+          resourceId: 501,
+          startTimeText: '00:00:12',
+          markContent: '无结束时间'
+        }
+      ]
+    });
+
+    expect(playbackItems[0]?.marks.map((item) => formatVideoMarkTimeRange(item.startTimeText, item.endTimeText))).toEqual([
+      '00:00:05 - 00:00:08',
+      '00:00:12'
     ]);
   });
 
@@ -542,6 +589,47 @@ describe('T07_Frontend_DetailActions_AndReadableDisplaySpec', () => {
       activeVideoId: '302',
       pendingVideoMarkResourceId: '302'
     });
+  });
+
+  it('hides enable actions for history items whose resources are already effective again', () => {
+    const enabledResourceKeys = new Set(
+      [buildResourceIdentityKey('VIDEO_MARK', '401'), buildResourceIdentityKey('ATTACHMENT', '501')].filter((value): value is string =>
+        Boolean(value)
+      )
+    );
+
+    expect(
+      shouldShowHistoryEnableAction(
+        {
+          actionType: 'VIDEO_MARK_DISABLE',
+          relatedResourceType: 'VIDEO_MARK',
+          relatedResourceId: '401'
+        },
+        enabledResourceKeys
+      )
+    ).toBe(false);
+
+    expect(
+      shouldShowHistoryEnableAction(
+        {
+          actionType: 'RESOURCE_DISABLE',
+          relatedResourceType: 'ATTACHMENT',
+          relatedResourceId: '777'
+        },
+        enabledResourceKeys
+      )
+    ).toBe(true);
+
+    expect(
+      shouldShowHistoryEnableAction(
+        {
+          actionType: 'RESOURCE_CREATE',
+          relatedResourceType: 'ATTACHMENT',
+          relatedResourceId: '777'
+        },
+        enabledResourceKeys
+      )
+    ).toBe(false);
   });
 
   it('returns local validation errors for incomplete pending video marks', () => {

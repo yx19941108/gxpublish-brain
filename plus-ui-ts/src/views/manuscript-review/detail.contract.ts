@@ -141,6 +141,45 @@ export interface ManuscriptReviewDetailReadableViewModel {
   resourceItems: ManuscriptReviewResourceItem[];
 }
 
+const normalizeResourceIdentityPart = (value?: string): string | undefined => {
+  const normalized = value?.trim();
+  return normalized ? normalized.toUpperCase() : undefined;
+};
+
+export const buildResourceIdentityKey = (resourceType?: string, resourceId?: string): string | undefined => {
+  const normalizedType = normalizeResourceIdentityPart(resourceType);
+  const normalizedId = resourceId?.trim();
+  if (!normalizedType || !normalizedId) {
+    return undefined;
+  }
+  return `${normalizedType}:${normalizedId}`;
+};
+
+export const formatVideoMarkTimeRange = (startTimeText?: string, endTimeText?: string): string => {
+  const normalizedStartTime = startTimeText?.trim();
+  if (!normalizedStartTime) {
+    return EMPTY_TEXT;
+  }
+  const normalizedEndTime = endTimeText?.trim();
+  return normalizedEndTime ? `${normalizedStartTime} - ${normalizedEndTime}` : normalizedStartTime;
+};
+
+export const shouldShowHistoryEnableAction = (
+  item: Pick<ManuscriptReviewHistoryItem, 'actionType' | 'relatedResourceId' | 'relatedResourceType'>,
+  currentEnabledResourceKeys: ReadonlySet<string>
+): boolean => {
+  if (item.actionType !== 'RESOURCE_DISABLE' && item.actionType !== 'VIDEO_MARK_DISABLE') {
+    return false;
+  }
+
+  const resourceIdentityKey = buildResourceIdentityKey(item.relatedResourceType, item.relatedResourceId);
+  if (!resourceIdentityKey) {
+    return false;
+  }
+
+  return !currentEnabledResourceKeys.has(resourceIdentityKey);
+};
+
 const isRecord = (value: unknown): value is UnknownRecord => typeof value === 'object' && value !== null && !Array.isArray(value);
 
 const toTrimmedString = (value: unknown): string | undefined => {
@@ -430,7 +469,7 @@ const normalizeResourceItems = (detail: ManuscriptReviewDetailReadableSource): M
       id: String(marker.id),
       resourceType: 'VIDEO_MARK',
       typeLabel: '视频时间标注',
-      name: marker.startTimeText,
+      name: formatVideoMarkTimeRange(marker.startTimeText, marker.endTimeText),
       statusLabel: '当前有效',
       metaLines: buildResourceMetaLines(marker.operatorName, marker.operatorTime),
       note: marker.markContent,

@@ -144,7 +144,7 @@
                       @click="jumpToVideoMark(item.resourceId, item.startSeconds)"
                     >
                       <span class="manuscript-review-detail-shell__video-mark-time">
-                        {{ item.startTimeText }}<template v-if="item.endTimeText"> - {{ item.endTimeText }}</template>
+                        {{ formatVideoMarkTimeRange(item.startTimeText, item.endTimeText) }}
                       </span>
                       <span class="manuscript-review-detail-shell__video-mark-content">{{ item.markContent }}</span>
                     </button>
@@ -332,11 +332,14 @@ import SubmitVerify from '@/components/Process/submitVerify.vue';
 
 import {
   applyVideoSelection,
+  buildResourceIdentityKey,
   buildVideoPlaybackItems,
   buildDetailActionBar,
+  formatVideoMarkTimeRange,
   normalizeDetailViewModel,
   parseVideoTimeTextToSeconds,
   reconcileVideoSelectionState,
+  shouldShowHistoryEnableAction,
   validatePendingVideoMarkDraft,
   type ManuscriptReviewDetailReadableViewModel,
   type ManuscriptReviewHistoryItem,
@@ -405,6 +408,12 @@ const actionBar = computed(() => {
 });
 const historyItems = computed<ManuscriptReviewHistoryItem[]>(() => viewModel.value?.historyItems ?? []);
 const resourceItems = computed<ManuscriptReviewResourceItem[]>(() => viewModel.value?.resourceItems ?? []);
+const currentEnabledResourceKeys = computed(
+  () =>
+    new Set(
+      resourceItems.value.map((item) => buildResourceIdentityKey(item.resourceType, item.id)).filter((value): value is string => Boolean(value))
+    )
+);
 const videoPlaybackItems = computed(() => buildVideoPlaybackItems(detailSource.value ?? {}));
 const activeVideo = computed<ManuscriptReviewVideoPlaybackItem | undefined>(() => {
   const currentId = activeVideoId.value.trim();
@@ -589,10 +598,7 @@ const resolveHistoryActions = (item: ManuscriptReviewHistoryItem) => {
   if (!canManageResources.value) {
     return actions;
   }
-  if (!item.relatedResourceId || !item.relatedResourceType) {
-    return actions;
-  }
-  if (item.actionType === 'RESOURCE_DISABLE' || item.actionType === 'VIDEO_MARK_DISABLE') {
+  if (shouldShowHistoryEnableAction(item, currentEnabledResourceKeys.value)) {
     actions.push({ key: 'enable', label: '启用' });
   }
   return actions;
@@ -1325,11 +1331,15 @@ onMounted(() => {
 
 .manuscript-review-detail-shell__resource-group {
   display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 12px;
+  min-height: 320px;
+  max-height: 320px;
   padding: 16px;
   border: 1px solid var(--el-border-color);
   border-radius: 16px;
   background: var(--el-color-white);
+  overflow: hidden;
 }
 
 .manuscript-review-detail-shell__resource-group-title {
@@ -1339,10 +1349,14 @@ onMounted(() => {
 
 .manuscript-review-detail-shell__resource-list {
   display: grid;
+  align-content: start;
   gap: 10px;
   margin: 0;
   padding: 0;
   list-style: none;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 4px;
 }
 
 .manuscript-review-detail-shell__resource-item {
@@ -1355,21 +1369,23 @@ onMounted(() => {
 }
 
 .manuscript-review-detail-shell__resource-main {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
   gap: 8px 12px;
 }
 
 .manuscript-review-detail-shell__resource-name {
+  min-width: 0;
   font-weight: 600;
   color: var(--el-text-color-primary);
+  overflow-wrap: anywhere;
 }
 
 .manuscript-review-detail-shell__resource-status {
   display: inline-flex;
   align-items: center;
+  justify-self: start;
   padding: 4px 10px;
   border-radius: 999px;
   background: var(--el-color-success-light-9);
@@ -1382,6 +1398,7 @@ onMounted(() => {
   color: var(--el-text-color-secondary);
   font-size: 12px;
   line-height: 1.6;
+  overflow-wrap: anywhere;
   word-break: break-word;
 }
 
@@ -1524,6 +1541,11 @@ onMounted(() => {
 
   .manuscript-review-detail-shell__timeline-item {
     grid-template-columns: 1fr;
+  }
+
+  .manuscript-review-detail-shell__resource-group {
+    min-height: 280px;
+    max-height: 280px;
   }
 }
 </style>
