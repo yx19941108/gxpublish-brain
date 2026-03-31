@@ -65,9 +65,12 @@ export interface ManuscriptReviewLedgerRow {
 export interface ManuscriptReviewHistoryItem {
   id: string;
   timeLabel: string;
+  actionType?: string;
   actionLabel: string;
   operatorName: string;
   remark?: string;
+  relatedResourceId?: string;
+  relatedResourceType?: string;
   actionPrefix?: string;
   actionLinkLabel?: string;
   actionSuffix?: string;
@@ -335,9 +338,13 @@ const normalizeHistoryItems = (detail: ManuscriptReviewDetailReadableSource): Ma
     return {
       id: `timeline-${index + 1}`,
       timeLabel: timelineItem.eventTime,
+      actionType: timelineItem.eventCode,
       actionLabel: timelineItem.eventText,
       operatorName: timelineItem.operatorName ?? '',
       remark: timelineItem.diffSummary,
+      relatedResourceId:
+        timelineItem.relatedResourceId == null ? undefined : String(timelineItem.relatedResourceId),
+      relatedResourceType: timelineItem.relatedResourceType ?? undefined,
       actionPrefix: actionLink?.actionPrefix,
       actionLinkLabel: actionLink?.actionLinkLabel,
       actionSuffix: actionLink?.actionSuffix,

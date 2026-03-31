@@ -58,6 +58,10 @@ export interface ManuscriptReviewResourceDisableCommand {
   disabledReason?: string;
 }
 
+export interface ManuscriptReviewResourceEnableCommand {
+  resourceId: string | number;
+}
+
 export interface ManuscriptReviewVideoMarkCreateCommand {
   reviewId: string | number;
   resourceId: string | number;
@@ -69,6 +73,10 @@ export interface ManuscriptReviewVideoMarkCreateCommand {
 export interface ManuscriptReviewVideoMarkDisableCommand {
   markId: string | number;
   disabledReason?: string;
+}
+
+export interface ManuscriptReviewVideoMarkEnableCommand {
+  markId: string | number;
 }
 
 export interface ManuscriptReviewPermissionMatrixVO {

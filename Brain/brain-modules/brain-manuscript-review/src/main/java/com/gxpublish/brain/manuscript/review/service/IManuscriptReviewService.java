@@ -5,6 +5,8 @@ import com.gxpublish.brain.manuscript.review.domain.command.AddManuscriptReviewV
 import com.gxpublish.brain.manuscript.review.domain.command.CreateManuscriptReviewCommand;
 import com.gxpublish.brain.manuscript.review.domain.command.DisableManuscriptReviewResourceCommand;
 import com.gxpublish.brain.manuscript.review.domain.command.DisableManuscriptReviewVideoMarkCommand;
+import com.gxpublish.brain.manuscript.review.domain.command.EnableManuscriptReviewResourceCommand;
+import com.gxpublish.brain.manuscript.review.domain.command.EnableManuscriptReviewVideoMarkCommand;
 import com.gxpublish.brain.manuscript.review.domain.command.ResubmitManuscriptReviewCommand;
 import com.gxpublish.brain.manuscript.review.domain.command.SubmitAndStartManuscriptReviewCommand;
 import com.gxpublish.brain.manuscript.review.domain.command.UpdateManuscriptReviewCommand;
@@ -97,6 +99,8 @@ public interface IManuscriptReviewService {
      */
     void disableResource(DisableManuscriptReviewResourceCommand command);
 
+    void enableResource(EnableManuscriptReviewResourceCommand command);
+
     /**
      * 追加视频标注。
      *
@@ -112,4 +116,6 @@ public interface IManuscriptReviewService {
      * @return 无返回值
      */
     void disableVideoMark(DisableManuscriptReviewVideoMarkCommand command);
+
+    void enableVideoMark(EnableManuscriptReviewVideoMarkCommand command);
 }

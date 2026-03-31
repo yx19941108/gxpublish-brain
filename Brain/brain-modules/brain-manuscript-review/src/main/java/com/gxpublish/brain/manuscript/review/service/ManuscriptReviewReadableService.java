@@ -247,7 +247,7 @@ public class ManuscriptReviewReadableService {
         response.setExternalLinkList(currentExternalLinks.stream().map(this::toExternalLinkItem).toList());
         response.setVideoList(currentVideos.stream().map(this::toVideoItem).toList());
         response.setVideoMarkList(currentVideoMarks.stream().map(this::toVideoMarkItem).toList());
-        response.setTimelineItems(buildTimelineItems(histories, attachments, externalLinks));
+        response.setTimelineItems(buildTimelineItems(histories, attachments, externalLinks, videoMarkers));
         response.setPermissionMatrix(buildPermissionMatrix(record, accessScope));
         return response;
     }
@@ -440,17 +440,19 @@ public class ManuscriptReviewReadableService {
 
     private List<ManuscriptReviewDetailResponse.TimelineItemVO> buildTimelineItems(List<ManuscriptReviewHistoryEntity> histories,
                                                                                    List<ManuscriptReviewAttachmentEntity> attachments,
-                                                                                   List<ManuscriptReviewExternalLinkEntity> externalLinks) {
+                                                                                   List<ManuscriptReviewExternalLinkEntity> externalLinks,
+                                                                                   List<ManuscriptReviewVideoMarkerEntity> videoMarkers) {
         return histories.stream()
             .sorted(this::compareTimelineHistory)
-            .map(history -> toTimelineItem(history, attachments, externalLinks))
+            .map(history -> toTimelineItem(history, attachments, externalLinks, videoMarkers))
             .toList();
     }
 
     private ManuscriptReviewDetailResponse.TimelineItemVO toTimelineItem(ManuscriptReviewHistoryEntity history,
                                                                          List<ManuscriptReviewAttachmentEntity> attachments,
-                                                                         List<ManuscriptReviewExternalLinkEntity> externalLinks) {
-        TimelineResourceReference reference = resolveTimelineResourceReference(history, attachments, externalLinks);
+                                                                         List<ManuscriptReviewExternalLinkEntity> externalLinks,
+                                                                         List<ManuscriptReviewVideoMarkerEntity> videoMarkers) {
+        TimelineResourceReference reference = resolveTimelineResourceReference(history, attachments, externalLinks, videoMarkers);
         return new ManuscriptReviewDetailResponse.TimelineItemVO(
             formatDate(history.getCreateTime()),
             "WORKFLOW",
@@ -471,8 +473,10 @@ public class ManuscriptReviewReadableService {
 
     private TimelineResourceReference resolveTimelineResourceReference(ManuscriptReviewHistoryEntity history,
                                                                       List<ManuscriptReviewAttachmentEntity> attachments,
-                                                                      List<ManuscriptReviewExternalLinkEntity> externalLinks) {
-        if (!Objects.equals(trimToNull(history.getActionType()), "RESOURCE_DISABLE")) {
+                                                                      List<ManuscriptReviewExternalLinkEntity> externalLinks,
+                                                                      List<ManuscriptReviewVideoMarkerEntity> videoMarkers) {
+        String actionType = trimToNull(history.getActionType());
+        if (!Objects.equals(actionType, "RESOURCE_DISABLE") && !Objects.equals(actionType, "VIDEO_MARK_DISABLE")) {
             return null;
         }
         String actionText = trimToNull(history.getActionText());
@@ -525,6 +529,19 @@ public class ManuscriptReviewReadableService {
                     null,
                     externalLink.getLinkUrl(),
                     firstNonNull(externalLink.getDisabledTime(), externalLink.getCreateTime())))
+                .forEach(candidates::add);
+        }
+        if (Objects.equals(actionType, "VIDEO_MARK_DISABLE")) {
+            videoMarkers.stream()
+                .filter(videoMarker -> Objects.equals(trimToNull(videoMarker.getMarkerNote()), resourceName))
+                .map(videoMarker -> new TimelineResourceReference(
+                    videoMarker.getId(),
+                    null,
+                    "VIDEO_MARK",
+                    videoMarker.getMarkerNote(),
+                    null,
+                    null,
+                    firstNonNull(videoMarker.getDisabledTime(), videoMarker.getCreateTime())))
                 .forEach(candidates::add);
         }
         if (candidates.isEmpty()) {

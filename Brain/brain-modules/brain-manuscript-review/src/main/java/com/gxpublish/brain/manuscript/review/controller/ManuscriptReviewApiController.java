@@ -23,6 +23,8 @@ import com.gxpublish.brain.manuscript.review.domain.command.AddManuscriptReviewV
 import com.gxpublish.brain.manuscript.review.domain.command.CreateManuscriptReviewCommand;
 import com.gxpublish.brain.manuscript.review.domain.command.DisableManuscriptReviewResourceCommand;
 import com.gxpublish.brain.manuscript.review.domain.command.DisableManuscriptReviewVideoMarkCommand;
+import com.gxpublish.brain.manuscript.review.domain.command.EnableManuscriptReviewResourceCommand;
+import com.gxpublish.brain.manuscript.review.domain.command.EnableManuscriptReviewVideoMarkCommand;
 import com.gxpublish.brain.manuscript.review.domain.command.ResubmitManuscriptReviewCommand;
 import com.gxpublish.brain.manuscript.review.domain.command.SubmitAndStartManuscriptReviewCommand;
 import com.gxpublish.brain.manuscript.review.domain.command.UpdateManuscriptReviewCommand;
@@ -258,6 +260,14 @@ public class ManuscriptReviewApiController {
         return R.ok();
     }
 
+    @PutMapping("/resource/enable")
+    public R<Void> enableResource(@RequestBody ResourceEnableRequest request) {
+        manuscriptReviewService.enableResource(EnableManuscriptReviewResourceCommand.builder()
+            .resourceId(request.getResourceId())
+            .build());
+        return R.ok();
+    }
+
     /**
      * 新增视频标注。
      *
@@ -288,6 +298,14 @@ public class ManuscriptReviewApiController {
         manuscriptReviewService.disableVideoMark(DisableManuscriptReviewVideoMarkCommand.builder()
             .markId(request.getMarkId())
             .disabledReason(request.getDisabledReason())
+            .build());
+        return R.ok();
+    }
+
+    @PutMapping("/video-mark/enable")
+    public R<Void> enableVideoMark(@RequestBody VideoMarkEnableRequest request) {
+        manuscriptReviewService.enableVideoMark(EnableManuscriptReviewVideoMarkCommand.builder()
+            .markId(request.getMarkId())
             .build());
         return R.ok();
     }
@@ -378,6 +396,13 @@ public class ManuscriptReviewApiController {
 
     @Getter
     @Setter
+    public static class ResourceEnableRequest {
+
+        private Long resourceId;
+    }
+
+    @Getter
+    @Setter
     public static class VideoMarkCreateRequest {
 
         private Long reviewId;
@@ -393,5 +418,12 @@ public class ManuscriptReviewApiController {
 
         private Long markId;
         private String disabledReason;
+    }
+
+    @Getter
+    @Setter
+    public static class VideoMarkEnableRequest {
+
+        private Long markId;
     }
 }

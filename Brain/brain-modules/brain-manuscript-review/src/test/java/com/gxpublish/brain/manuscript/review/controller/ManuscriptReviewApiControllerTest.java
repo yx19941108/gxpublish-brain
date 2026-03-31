@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 
 import cn.dev33.satoken.annotation.SaIgnore;
@@ -74,6 +75,27 @@ class ManuscriptReviewApiControllerTest {
         assertTrue(previewTicketMapping != null && previewTicketMapping.value().length > 0
                 && "/resource/preview-ticket/{resourceId}".equals(previewTicketMapping.value()[0]),
             "issuePreviewTicket should map to /resource/preview-ticket/{resourceId}");
+    }
+
+    @Test
+    void shouldExposeThirdRoundEnableEndpoints() {
+        Method enableResourceMethod = Arrays.stream(ManuscriptReviewApiController.class.getDeclaredMethods())
+            .filter(method -> "enableResource".equals(method.getName()))
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("enableResource endpoint should exist for round-3 issue 6"));
+        PutMapping enableResourceMapping = enableResourceMethod.getAnnotation(PutMapping.class);
+        assertTrue(enableResourceMapping != null && enableResourceMapping.value().length > 0
+                && "/resource/enable".equals(enableResourceMapping.value()[0]),
+            "enableResource should map to /resource/enable");
+
+        Method enableVideoMarkMethod = Arrays.stream(ManuscriptReviewApiController.class.getDeclaredMethods())
+            .filter(method -> "enableVideoMark".equals(method.getName()))
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("enableVideoMark endpoint should exist for round-3 issue 6"));
+        PutMapping enableVideoMarkMapping = enableVideoMarkMethod.getAnnotation(PutMapping.class);
+        assertTrue(enableVideoMarkMapping != null && enableVideoMarkMapping.value().length > 0
+                && "/video-mark/enable".equals(enableVideoMarkMapping.value()[0]),
+            "enableVideoMark should map to /video-mark/enable");
     }
 
     @Test

@@ -10,10 +10,12 @@ import type {
   ManuscriptReviewPreviewTicketVO,
   ManuscriptReviewResourceCreateCommand,
   ManuscriptReviewResourceDisableCommand,
+  ManuscriptReviewResourceEnableCommand,
   ManuscriptReviewResourceItemVO,
   ManuscriptReviewReviewIdCommand,
   ManuscriptReviewSaveCommand,
   ManuscriptReviewVideoMarkDisableCommand,
+  ManuscriptReviewVideoMarkEnableCommand,
   ManuscriptReviewVideoMarkCreateCommand,
   ManuscriptReviewVideoMarkItemVO
 } from '@/api/manuscript-review/types';
@@ -115,6 +117,16 @@ export const disableManuscriptReviewResource = (
   });
 };
 
+export const enableManuscriptReviewResource = (
+  data: ManuscriptReviewResourceEnableCommand
+): AxiosPromise<void> => {
+  return request({
+    url: '/workflow/manuscript-review/resource/enable',
+    method: 'put',
+    data
+  });
+};
+
 export const addManuscriptReviewVideoMark = (
   data: ManuscriptReviewVideoMarkCreateCommand
 ): AxiosPromise<ManuscriptReviewVideoMarkItemVO> => {
@@ -130,6 +142,16 @@ export const disableManuscriptReviewVideoMark = (
 ): AxiosPromise<void> => {
   return request({
     url: '/workflow/manuscript-review/video-mark/disable',
+    method: 'put',
+    data
+  });
+};
+
+export const enableManuscriptReviewVideoMark = (
+  data: ManuscriptReviewVideoMarkEnableCommand
+): AxiosPromise<void> => {
+  return request({
+    url: '/workflow/manuscript-review/video-mark/enable',
     method: 'put',
     data
   });

@@ -156,9 +156,9 @@ class ManuscriptReviewReadableServiceTest {
     void shouldExposeNewHistoryActionTypesInTimelineItems() {
         ReadableFixture fixture = new ReadableFixture(3003L);
         when(fixture.recordMapper.selectById(9002L)).thenReturn(buildReviewRecord());
-        when(fixture.attachmentMapper.selectList(any())).thenReturn(List.of());
+        when(fixture.attachmentMapper.selectList(any())).thenReturn(List.of(buildHistoryAttachment(), buildCurrentVideo()));
         when(fixture.externalLinkMapper.selectList(any())).thenReturn(List.of());
-        when(fixture.videoMarkerMapper.selectList(any())).thenReturn(List.of());
+        when(fixture.videoMarkerMapper.selectList(any())).thenReturn(List.of(buildHistoryMarker()));
         when(fixture.historyMapper.selectList(any())).thenReturn(List.of(
             buildUpdateHistory(),
             buildResourceDisableHistory(),
@@ -171,7 +171,11 @@ class ManuscriptReviewReadableServiceTest {
         assertEquals("UPDATE", detail.getTimelineItems().get(0).getEventCode());
         assertEquals("张三更新了审校流程单：标题由“旧标题”改为“新标题”。", detail.getTimelineItems().get(0).getEventText());
         assertEquals("RESOURCE_DISABLE", detail.getTimelineItems().get(1).getEventCode());
+        assertEquals(3L, detail.getTimelineItems().get(1).getRelatedResourceId());
+        assertEquals("ATTACHMENT", detail.getTimelineItems().get(1).getRelatedResourceType());
         assertEquals("VIDEO_MARK_DISABLE", detail.getTimelineItems().get(2).getEventCode());
+        assertEquals(21L, detail.getTimelineItems().get(2).getRelatedResourceId());
+        assertEquals("VIDEO_MARK", detail.getTimelineItems().get(2).getRelatedResourceType());
     }
 
     private static ManuscriptReviewRecordEntity buildReviewRecord() {

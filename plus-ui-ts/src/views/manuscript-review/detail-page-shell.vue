@@ -281,6 +281,21 @@
                     {{ item.operatorName }}
                   </div>
                   <div v-if="item.remark" class="manuscript-review-detail-shell__timeline-remark">{{ item.remark }}</div>
+                  <div
+                    v-if="!loading && resolveHistoryActions(item).length > 0"
+                    class="manuscript-review-detail-shell__timeline-actions"
+                  >
+                    <button
+                      v-for="action in resolveHistoryActions(item)"
+                      :key="`${item.id}-${action.key}`"
+                      type="button"
+                      class="manuscript-review-detail-shell__resource-action"
+                      :disabled="resourcePendingKey === `${item.id}:${action.key}`"
+                      @click="onHistorySecondaryAction(item, action.key)"
+                    >
+                      {{ action.label }}
+                    </button>
+                  </div>
                 </div>
               </li>
             </ol>
@@ -300,6 +315,8 @@ import {
   addManuscriptReviewVideoMark,
   disableManuscriptReviewResource,
   disableManuscriptReviewVideoMark,
+  enableManuscriptReviewResource,
+  enableManuscriptReviewVideoMark,
   getManuscriptReviewDetail,
   getManuscriptReviewPreviewTicket,
   resubmitManuscriptReview
@@ -329,6 +346,7 @@ import {
 
 type ActionKey = 'edit' | 'approve' | 'resubmit' | 'back' | '';
 type ResourceActionKey = 'disable' | 'preview' | 'download' | 'open';
+type HistoryActionKey = 'enable';
 
 const props = defineProps<{
   pageMode: 'detail' | 'approval';
@@ -560,6 +578,20 @@ const resolveResourceActions = (item: ManuscriptReviewResourceItem) => {
   return actions;
 };
 
+const resolveHistoryActions = (item: ManuscriptReviewHistoryItem) => {
+  const actions: Array<{ key: HistoryActionKey; label: string }> = [];
+  if (!canManageResources.value) {
+    return actions;
+  }
+  if (!item.relatedResourceId || !item.relatedResourceType) {
+    return actions;
+  }
+  if (item.actionType === 'RESOURCE_DISABLE' || item.actionType === 'VIDEO_MARK_DISABLE') {
+    actions.push({ key: 'enable', label: '启用' });
+  }
+  return actions;
+};
+
 const fetchDetail = async () => {
   if (!reviewId.value) {
     errorMessage.value = '缺少必要的定位信息，请从台账进入详情页。';
@@ -758,6 +790,31 @@ const onHistoryAction = (item: ManuscriptReviewHistoryItem) => {
   }
   if (item.actionLinkHref) {
     openExternalTarget(item.actionLinkHref);
+  }
+};
+
+const onHistorySecondaryAction = async (item: ManuscriptReviewHistoryItem, key: HistoryActionKey) => {
+  if (key !== 'enable' || !item.relatedResourceId || !item.relatedResourceType) {
+    return;
+  }
+
+  resourcePendingKey.value = `${item.id}:${key}`;
+
+  try {
+    await proxy?.$modal.confirm(item.relatedResourceType === 'VIDEO_MARK' ? '确定启用该视频标注吗？' : '确定启用该资源吗？');
+    if (item.relatedResourceType === 'VIDEO_MARK') {
+      await enableManuscriptReviewVideoMark({ markId: item.relatedResourceId });
+    } else {
+      await enableManuscriptReviewResource({ resourceId: item.relatedResourceId });
+    }
+    proxy?.$modal.msgSuccess('启用成功');
+    await fetchDetail();
+  } catch (error) {
+    if (error !== 'cancel') {
+      errorMessage.value = item.relatedResourceType === 'VIDEO_MARK' ? '启用视频标注失败，请稍后重试。' : '启用资源失败，请稍后重试。';
+    }
+  } finally {
+    resourcePendingKey.value = '';
   }
 };
 

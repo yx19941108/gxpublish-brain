@@ -22,6 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.gxpublish.brain.common.core.domain.dto.FlowInstanceBizExtDTO;
 import com.gxpublish.brain.common.core.domain.dto.StartProcessDTO;
 import com.gxpublish.brain.common.core.domain.event.ProcessEvent;
@@ -36,6 +37,8 @@ import com.gxpublish.brain.manuscript.review.domain.command.AddManuscriptReviewV
 import com.gxpublish.brain.manuscript.review.domain.command.CreateManuscriptReviewCommand;
 import com.gxpublish.brain.manuscript.review.domain.command.DisableManuscriptReviewResourceCommand;
 import com.gxpublish.brain.manuscript.review.domain.command.DisableManuscriptReviewVideoMarkCommand;
+import com.gxpublish.brain.manuscript.review.domain.command.EnableManuscriptReviewResourceCommand;
+import com.gxpublish.brain.manuscript.review.domain.command.EnableManuscriptReviewVideoMarkCommand;
 import com.gxpublish.brain.manuscript.review.domain.command.ResubmitManuscriptReviewCommand;
 import com.gxpublish.brain.manuscript.review.domain.command.SubmitAndStartManuscriptReviewCommand;
 import com.gxpublish.brain.manuscript.review.domain.command.UpdateManuscriptReviewCommand;
@@ -804,6 +807,26 @@ public class ManuscriptReviewService implements IManuscriptReviewService {
         throw new ServiceException(RESOURCE_NOT_FOUND_MESSAGE);
     }
 
+    public void enableResource(EnableManuscriptReviewResourceCommand command) {
+        Long resourceId = command.getResourceId();
+        if (resourceId == null) {
+            throw new ServiceException(RESOURCE_NOT_FOUND_MESSAGE);
+        }
+        ManuscriptReviewAttachmentEntity attachment = attachmentMapper.selectById(resourceId);
+        if (attachment != null) {
+            ensureCanModify(requireRecord(attachment.getReviewId()));
+            enableAttachment(attachment);
+            return;
+        }
+        ManuscriptReviewExternalLinkEntity externalLink = externalLinkMapper.selectById(resourceId);
+        if (externalLink != null) {
+            ensureCanModify(requireRecord(externalLink.getReviewId()));
+            enableExternalLink(externalLink);
+            return;
+        }
+        throw new ServiceException(RESOURCE_NOT_FOUND_MESSAGE);
+    }
+
     public Long addVideoMark(AddManuscriptReviewVideoMarkCommand command) {
         Long reviewId = requireReviewId(command.getReviewId());
         ensureCanModify(requireRecord(reviewId));
@@ -862,6 +885,29 @@ public class ManuscriptReviewService implements IManuscriptReviewService {
         videoMarkerMapper.updateById(entity);
         insertActorHistory(marker.getReviewId(), ManuscriptReviewHistoryActionTypeEnum.VIDEO_MARK_DISABLE.getCode(),
             buildVideoMarkDisableHistoryText(marker));
+    }
+
+    public void enableVideoMark(EnableManuscriptReviewVideoMarkCommand command) {
+        Long markId = command.getMarkId();
+        if (markId == null) {
+            throw new ServiceException(VIDEO_MARK_NOT_FOUND_MESSAGE);
+        }
+        ManuscriptReviewVideoMarkerEntity marker = videoMarkerMapper.selectById(markId);
+        if (marker == null) {
+            throw new ServiceException(VIDEO_MARK_NOT_FOUND_MESSAGE);
+        }
+        ensureCanModify(requireRecord(marker.getReviewId()));
+        UpdateWrapper<ManuscriptReviewVideoMarkerEntity> updateWrapper = new UpdateWrapper<>();
+        updateWrapper.eq("id", marker.getId())
+            .set("enabled", ENABLED)
+            .set("disabled_by", null)
+            .set("disabled_time", null)
+            .set("remark", null)
+            .set("update_by", requireCurrentUserId())
+            .set("update_time", now());
+        videoMarkerMapper.update(null, updateWrapper);
+        insertActorHistory(marker.getReviewId(), ManuscriptReviewHistoryActionTypeEnum.VIDEO_MARK_ENABLE.getCode(),
+            buildVideoMarkEnableHistoryText(marker));
     }
 
     private void applyWriteFields(ManuscriptReviewRecordEntity entity,
@@ -990,6 +1036,37 @@ public class ManuscriptReviewService implements IManuscriptReviewService {
         externalLinkMapper.updateById(entity);
         insertActorHistory(externalLink.getReviewId(), ManuscriptReviewHistoryActionTypeEnum.RESOURCE_DISABLE.getCode(),
             currentUsername() + "停用了外链《" + externalLink.getLinkTitle() + "》。");
+    }
+
+    private void enableAttachment(ManuscriptReviewAttachmentEntity attachment) {
+        UpdateWrapper<ManuscriptReviewAttachmentEntity> updateWrapper = new UpdateWrapper<>();
+        updateWrapper.eq("id", attachment.getId())
+            .set("enabled", ENABLED)
+            .set("disabled_by", null)
+            .set("disabled_time", null)
+            .set("remark", null)
+            .set("update_by", requireCurrentUserId())
+            .set("update_time", now());
+        attachmentMapper.update(null, updateWrapper);
+        insertActorHistory(attachment.getReviewId(), ManuscriptReviewHistoryActionTypeEnum.RESOURCE_ENABLE.getCode(),
+            buildAttachmentEnableHistoryText(attachment));
+    }
+
+    private void enableExternalLink(ManuscriptReviewExternalLinkEntity externalLink) {
+        UpdateWrapper<ManuscriptReviewExternalLinkEntity> updateWrapper = new UpdateWrapper<>();
+        updateWrapper.eq("id", externalLink.getId())
+            .set("enabled", ENABLED)
+            .set("disabled_by", null)
+            .set("disabled_time", null)
+            .set("remark", null)
+            .set("update_by", requireCurrentUserId())
+            .set("update_time", now());
+        externalLinkMapper.update(null, updateWrapper);
+        insertActorHistory(
+            externalLink.getReviewId(),
+            ManuscriptReviewHistoryActionTypeEnum.RESOURCE_ENABLE.getCode(),
+            currentUsername() + "启用了外链《" + externalLink.getLinkTitle() + "》。"
+        );
     }
 
     private void ensureCanModify(ManuscriptReviewRecordEntity existing) {
@@ -1715,6 +1792,11 @@ public class ManuscriptReviewService implements IManuscriptReviewService {
             + entity.getFileName() + "》。";
     }
 
+    private String buildAttachmentEnableHistoryText(ManuscriptReviewAttachmentEntity entity) {
+        return currentUsername() + (Boolean.TRUE.equals(entity.getIsVideo()) ? "启用了视频《" : "启用了附件《")
+            + entity.getFileName() + "》。";
+    }
+
     private String buildVideoMarkAddHistoryText(ManuscriptReviewVideoMarkerEntity entity) {
         return currentUsername() + "新增了视频标注《" + nullToPlaceholder(trimToNull(entity.getMarkerNote()))
             + "》（" + formatVideoMarkRange(entity.getStartTime(), entity.getEndTime()) + "）。";
@@ -1722,6 +1804,11 @@ public class ManuscriptReviewService implements IManuscriptReviewService {
 
     private String buildVideoMarkDisableHistoryText(ManuscriptReviewVideoMarkerEntity entity) {
         return currentUsername() + "停用了视频标注《" + nullToPlaceholder(trimToNull(entity.getMarkerNote()))
+            + "》（" + formatVideoMarkRange(entity.getStartTime(), entity.getEndTime()) + "）。";
+    }
+
+    private String buildVideoMarkEnableHistoryText(ManuscriptReviewVideoMarkerEntity entity) {
+        return currentUsername() + "启用了视频标注《" + nullToPlaceholder(trimToNull(entity.getMarkerNote()))
             + "》（" + formatVideoMarkRange(entity.getStartTime(), entity.getEndTime()) + "）。";
     }
 

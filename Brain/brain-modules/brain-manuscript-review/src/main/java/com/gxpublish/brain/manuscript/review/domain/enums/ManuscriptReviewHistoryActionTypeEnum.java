@@ -37,6 +37,7 @@ public enum ManuscriptReviewHistoryActionTypeEnum {
      * 资源停用。
      */
     RESOURCE_DISABLE("RESOURCE_DISABLE"),
+    RESOURCE_ENABLE("RESOURCE_ENABLE"),
 
     /**
      * 视频标注新增。
@@ -47,6 +48,7 @@ public enum ManuscriptReviewHistoryActionTypeEnum {
      * 视频标注停用。
      */
     VIDEO_MARK_DISABLE("VIDEO_MARK_DISABLE"),
+    VIDEO_MARK_ENABLE("VIDEO_MARK_ENABLE"),
 
     /**
      * 持证跳过一级审批。
