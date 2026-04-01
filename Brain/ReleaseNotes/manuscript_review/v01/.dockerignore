@@ -1,0 +1,7 @@
+docs/
+scripts/
+sql/
+volumes/
+*.md
+.env
+.git

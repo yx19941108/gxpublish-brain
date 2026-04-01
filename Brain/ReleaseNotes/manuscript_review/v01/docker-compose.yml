@@ -1,0 +1,140 @@
+name: ${COMPOSE_PROJECT_NAME}
+
+services:
+  mysql:
+    image: mysql:${MYSQL_IMAGE_TAG}
+    restart: unless-stopped
+    environment:
+      TZ: ${TIMEZONE}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+    command:
+      - --default-authentication-plugin=mysql_native_password
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_general_ci
+      - --explicit_defaults_for_timestamp=true
+      - --lower_case_table_names=1
+    ports:
+      - "${MYSQL_PORT}:3306"
+    volumes:
+      - ./volumes/mysql/data:/var/lib/mysql
+      - ./volumes/mysql/conf:/etc/mysql/conf.d
+
+  redis:
+    image: redis:${REDIS_IMAGE_TAG}
+    restart: unless-stopped
+    command: ["redis-server", "/redis/config/redis.conf"]
+    ports:
+      - "${REDIS_PORT}:6379"
+    volumes:
+      - ./config/redis/redis.conf:/redis/config/redis.conf:ro
+      - ./volumes/redis/data:/redis/data
+
+  minio:
+    image: minio/minio:${MINIO_IMAGE_TAG}
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      TZ: ${TIMEZONE}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - "${MINIO_API_PORT}:9000"
+      - "${MINIO_CONSOLE_PORT}:9001"
+    volumes:
+      - ./volumes/minio/data:/data
+
+  brain-monitor-admin:
+    profiles: ["extended"]
+    build:
+      context: .
+      dockerfile: ./docker/brain-monitor-admin/Dockerfile
+    restart: unless-stopped
+    environment:
+      TZ: ${TIMEZONE}
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_SECURITY_USER_NAME: ${MONITOR_USERNAME}
+      SPRING_SECURITY_USER_PASSWORD: ${MONITOR_PASSWORD}
+      SPRING_BOOT_ADMIN_CLIENT_URL: http://brain-monitor-admin:${MONITOR_PORT}/admin
+      SPRING_BOOT_ADMIN_CLIENT_USERNAME: ${MONITOR_USERNAME}
+      SPRING_BOOT_ADMIN_CLIENT_PASSWORD: ${MONITOR_PASSWORD}
+      JAVA_OPTS: ${JAVA_OPTS}
+    ports:
+      - "${MONITOR_PORT}:9889"
+    volumes:
+      - ./volumes/monitor/logs:/brain/monitor/logs
+
+  brain-snailjob-server:
+    profiles: ["extended"]
+    build:
+      context: .
+      dockerfile: ./docker/brain-snailjob-server/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - mysql
+      - brain-monitor-admin
+    environment:
+      TZ: ${TIMEZONE}
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE}?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      SPRING_BOOT_ADMIN_CLIENT_URL: http://brain-monitor-admin:${MONITOR_PORT}/admin
+      SPRING_BOOT_ADMIN_CLIENT_USERNAME: ${MONITOR_USERNAME}
+      SPRING_BOOT_ADMIN_CLIENT_PASSWORD: ${MONITOR_PASSWORD}
+      SNAIL_JOB_SERVER_HOST: brain-snailjob-server
+      SNAIL_JOB_SERVER_PORT: ${SNAILJOB_SERVER_PORT}
+      JAVA_OPTS: ${JAVA_OPTS}
+    ports:
+      - "${SNAILJOB_ADMIN_PORT}:9990"
+      - "${SNAILJOB_SERVER_PORT}:${SNAILJOB_SERVER_PORT}"
+    volumes:
+      - ./volumes/snailjob/logs:/brain/snailjob/logs
+
+  brain-server:
+    build:
+      context: .
+      dockerfile: ./docker/brain-admin/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - mysql
+      - redis
+      - minio
+    environment:
+      TZ: ${TIMEZONE}
+      SPRING_PROFILES_ACTIVE: prod
+      SERVER_PORT: ${BACKEND_PORT}
+      SPRING_DATASOURCE_DYNAMIC_DATASOURCE_MASTER_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE}?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=false&serverTimezone=Asia/Shanghai&autoReconnect=true&rewriteBatchedStatements=true&allowPublicKeyRetrieval=true&nullCatalogMeansCurrent=true
+      SPRING_DATASOURCE_DYNAMIC_DATASOURCE_MASTER_USERNAME: root
+      SPRING_DATASOURCE_DYNAMIC_DATASOURCE_MASTER_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD}
+      JUSTAUTH_ADDRESS: ${PUBLIC_BASE_URL}
+      SPRING_BOOT_ADMIN_CLIENT_ENABLED: ${ENABLE_MONITOR_ADMIN}
+      SPRING_BOOT_ADMIN_CLIENT_URL: http://brain-monitor-admin:${MONITOR_PORT}/admin
+      SPRING_BOOT_ADMIN_CLIENT_USERNAME: ${MONITOR_USERNAME}
+      SPRING_BOOT_ADMIN_CLIENT_PASSWORD: ${MONITOR_PASSWORD}
+      SNAIL_JOB_ENABLED: ${ENABLE_SNAIL_JOB}
+      SNAIL_JOB_SERVER_HOST: brain-snailjob-server
+      SNAIL_JOB_SERVER_PORT: ${SNAILJOB_SERVER_PORT}
+      SNAIL_JOB_TOKEN: ${SNAIL_JOB_TOKEN}
+      JAVA_OPTS: ${JAVA_OPTS}
+    ports:
+      - "${BACKEND_PORT}:${BACKEND_PORT}"
+    volumes:
+      - ./volumes/brain-server/logs:/brain/server/logs
+      - ./volumes/brain-server/temp:/brain/server/temp
+
+  nginx-web:
+    build:
+      context: .
+      dockerfile: ./docker/frontend/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - brain-server
+    ports:
+      - "${NGINX_HTTP_PORT}:80"
+      - "${NGINX_HTTPS_PORT}:443"
+    volumes:
+      - ./volumes/nginx/log:/var/log/nginx
