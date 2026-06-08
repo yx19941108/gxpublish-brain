@@ -357,12 +357,6 @@
                 <version>${revision}</version>
             </dependency>
 
-            <dependency>
-                <groupId>com.gxpublish</groupId>
-                <artifactId>brain-editorial</artifactId>
-                <version>${revision}</version>
-            </dependency>
-
         </dependencies>
     </dependencyManagement>
 
@@ -427,6 +421,8 @@
                     <groups>${profiles.active}</groups>
                     <!-- 排除标签 -->
                     <excludedGroups>exclude</excludedGroups>
+                    <!-- 允许 reactor 上游模块在 -Dtest 定向执行时无匹配测试而继续后续目标模块 -->
+                    <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
                 </configuration>
             </plugin>
             <!-- 统一版本号管理 -->
@@ -502,5 +498,3 @@
     </pluginRepositories>
 
 </project>
-
-

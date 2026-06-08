@@ -53,6 +53,7 @@ temp/
 .worktrees/
 /.agents/
 /.claude/
+/.codegraph/
 /Brain/data/
 /Brain/brain-admin/data/
 /tmphome*/

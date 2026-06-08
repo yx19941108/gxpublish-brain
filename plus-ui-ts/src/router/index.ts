@@ -88,32 +88,6 @@ export const constantRoutes: RouteRecordRaw[] = [
         meta: { title: '个人中心', icon: 'user' }
       }
     ]
-  },
-  {
-    path: '/editorial',
-    component: Layout,
-    hidden: true,
-    redirect: 'noredirect',
-    children: [
-      {
-        path: 'review/form',
-        component: () => import('@/views/editorial/review/form.vue'),
-        name: 'EditorialReviewForm',
-        meta: { title: '审校表单', activeMenu: '/editorial/review' }
-      },
-      {
-        path: 'review/detail',
-        component: () => import('@/views/editorial/review/detail.vue'),
-        name: 'EditorialReviewDetail',
-        meta: { title: '审校详情', activeMenu: '/editorial/review' }
-      },
-      {
-        path: 'review/reviewEdit',
-        component: () => import('@/views/editorial/review/reviewEdit.vue'),
-        name: 'EditorialReviewLegacyFallback',
-        meta: { title: '审校旧入口兜底', activeMenu: '/editorial/review' }
-      }
-    ]
   }
 ];
 

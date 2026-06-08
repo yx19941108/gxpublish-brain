@@ -51,14 +51,14 @@ Prioritize small and verifiable steps over large rewrites.
   - `brain-job`
   - `brain-generator`
   - `brain-workflow`
-  - `brain-editorial`
+  - `brain-manuscript-review`
   - `brain-demo`
 
 ## Change Rules
 1. If API fields change, update backend DTO/VO, frontend `src/api`, and corresponding frontend `types` together.
-2. If editorial workflow changes, verify both:
-   - Flow definition: `brain-editorial/.../flow/editorial_review_flow.json`
-   - Frontend pages/routes: `plus-ui-ts/src/views/editorial/review/*`
+2. If manuscript review workflow changes, verify both:
+   - Flow definition and seed scripts under `Brain/script/sql/update/manuscript_review/`
+   - Frontend pages/routes under `plus-ui-ts/src/views/manuscript-review/*`
 3. If DB schema changes, provide upgrade scripts in `Brain/script/sql/update`.
 4. If database compatibility is required, keep `oracle/postgres/sqlserver` scripts aligned.
 5. Never commit build artifacts or temp files (`target/`, `dist/`, `logs/`, `data/`, `*.jar`, `*.zip`, etc.).

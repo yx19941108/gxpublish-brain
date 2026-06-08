@@ -151,7 +151,6 @@ import {
   getNextNodeList
 } from '@/api/workflow/task';
 import UserSelect from '@/components/UserSelect';
-import { shouldHideTransferButtonForReviewTask } from '@/views/editorial/review/integration';
 
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
 import { FlowCopyVo, FlowTaskVO, TaskOperationBo } from '@/api/workflow/task/types';
@@ -203,7 +202,7 @@ const buttonObj = ref<any>({
   back: false
 });
 const transferButtonVisible = computed(() => {
-  return task.value.flowStatus === 'waiting' && buttonObj.value.transfer && !shouldHideTransferButtonForReviewTask(task.value);
+  return task.value.flowStatus === 'waiting' && buttonObj.value.transfer;
 });
 //下一节点列表
 const nestNodeList = ref([]);

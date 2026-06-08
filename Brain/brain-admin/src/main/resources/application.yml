@@ -133,10 +133,6 @@ tenant:
     - sys_client
     - sys_oss_config
     - flow_spel
-    - brain_editorial_review
-    - brain_editorial_attachment
-    - brain_editorial_history
-    - brain_editorial_link
 
 # MyBatisPlus配置
 # https://baomidou.com/config/

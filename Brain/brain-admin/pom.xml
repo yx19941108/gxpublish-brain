@@ -93,12 +93,6 @@
             <artifactId>brain-workflow</artifactId>
         </dependency>
 
-        <!-- 编辑部审校模块 -->
-        <dependency>
-            <groupId>com.gxpublish</groupId>
-            <artifactId>brain-editorial</artifactId>
-        </dependency>
-
         <dependency>
             <groupId>de.codecentric</groupId>
             <artifactId>spring-boot-admin-starter-client</artifactId>

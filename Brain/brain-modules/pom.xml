@@ -15,7 +15,6 @@
         <module>brain-job</module>
         <module>brain-system</module>
         <module>brain-workflow</module>
-        <module>brain-editorial</module>
     </modules>
 
     <artifactId>brain-modules</artifactId>
